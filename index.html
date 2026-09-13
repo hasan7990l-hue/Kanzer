@@ -5446,52 +5446,8 @@ function handleCallback() {
 }
 
 // ===== عرض لوحة التحكم =====
-function showDashboard() {
-  document.getElementById('deriv-login').style.display = 'none';
-  document.getElementById('deriv-dashboard').style.display = 'block';
-  fetchBalance();
-}
-
-function fetchBalance() {
-  const token = localStorage.getItem('deriv_token');
-  if (!token) return;
-
-  const ws = new WebSocket(WS_URL);
-  ws.onopen = () => ws.send(JSON.stringify({ authorize: token }));
-  ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.msg_type === 'authorize') {
-      if (data.error) {
-        document.getElementById('deriv-balance').textContent = 'توكن غير صالح';
-        ws.close();
-        return;
-      }
-      ws.send(JSON.stringify({ balance: 1, subscribe: 1 }));
-    }
-    if (data.msg_type === 'balance') {
-      document.getElementById('deriv-balance').textContent = `${data.balance.balance} ${data.balance.currency}`;
-    }
-  };
-  ws.onerror = () => document.getElementById('deriv-balance').textContent = 'خطأ';
-}
-
-function logout() {
-  localStorage.removeItem('deriv_token');
-  document.getElementById('deriv-login').style.display = 'block';
-  document.getElementById('deriv-dashboard').style.display = 'none';
-}
-
-// ===== التهيئة =====
 (function init() {
-  const token = handleCallback();
-  if (token) showDashboard();
-  else if (localStorage.getItem('deriv_token')) showDashboard();
-
-  const loginBtn = document.getElementById('deriv-login');
-  if (loginBtn) loginBtn.addEventListener('click', startLogin);
-
-  const logoutBtn = document.getElementById('deriv-logout');
-  if (logoutBtn) logoutBtn.addEventListener('click', logout);
+  handleCallback();
 })();
 </script>
 </body>
