@@ -1,0 +1,5468 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanzer — منصة التحليل والتداول الذكية</title>
+<style>
+:root {
+  --bg-0: #0a0b0f;
+  --bg-1: #111319;
+  --bg-2: #181b24;
+  --bg-3: #1f2330;
+  --border: #2a2f3d;
+  --text: #e8eaf0;
+  --text-dim: #8a90a3;
+  --gold: #d4af37;
+  --gold-dim: #a8862a;
+  --cyan: #00d4ff;
+  --green: #26a69a;
+  --red: #ef5350;
+  --purple: #9b6dff;
+  --shadow: 0 8px 32px rgba(0,0,0,0.4);
+  --radius: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: 'Segoe UI', 'Tahoma', system-ui, sans-serif;
+  background: var(--bg-0);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+button { font-family: inherit; cursor: pointer; }
+input, select, textarea { font-family: inherit; }
+a { color: var(--gold); text-decoration: none; }
+
+/* ============ AUTH SCREENS ============ */
+.auth-screen {
+  min-height: 100vh;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: radial-gradient(ellipse at top, rgba(212,175,55,0.08), transparent 60%),
+              radial-gradient(ellipse at bottom, rgba(0,212,255,0.05), transparent 60%),
+              var(--bg-0);
+}
+.auth-screen.active { display: flex; }
+.auth-card {
+  background: linear-gradient(135deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 40px 32px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+.auth-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold), var(--cyan), var(--gold));
+}
+.auth-logo { text-align: center; margin-bottom: 30px; }
+.auth-logo h1 {
+  font-size: 42px;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+.auth-logo p {
+  color: var(--text-dim);
+  font-size: 12px;
+  letter-spacing: 4px;
+  margin-top: 4px;
+}
+.auth-tabs {
+  display: flex;
+  background: var(--bg-1);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 24px;
+  border: 1px solid var(--border);
+}
+.auth-tab {
+  flex: 1;
+  padding: 10px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.2s;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+.auth-tab.active {
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%);
+  color: #0a0b0f;
+}
+.auth-form { display: none; }
+.auth-form.active { display: block; }
+.field-group { margin-bottom: 16px; }
+.field-group label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.field-group input {
+  width: 100%;
+  padding: 13px 14px;
+  background: var(--bg-1);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s;
+}
+.field-group input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(212,175,55,0.1);
+}
+.auth-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%);
+  color: #0a0b0f;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin-top: 10px;
+  transition: all 0.2s;
+}
+.auth-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(212,175,55,0.3); }
+.auth-msg {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-top: 12px;
+  display: none;
+}
+.auth-msg.show { display: block; }
+.auth-msg.error { background: rgba(239,83,80,0.15); color: var(--red); border: 1px solid rgba(239,83,80,0.3); }
+.auth-msg.success { background: rgba(38,166,154,0.15); color: var(--green); border: 1px solid rgba(38,166,154,0.3); }
+.auth-footer { text-align: center; margin-top: 20px; font-size: 12px; color: var(--text-dim); }
+
+/* ============ APP LAYOUT ============ */
+.app-layout { display: none; min-height: 100vh; }
+.app-layout.active { display: block; }
+.sidebar {
+  width: 250px;
+  background: linear-gradient(180deg, var(--bg-1) 0%, #0d0f14 100%);
+  border-left: 1px solid var(--border);
+  padding: 20px 0;
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  transition: transform 0.3s;
+  overflow-y: auto;
+}
+.sidebar.hidden { transform: translateX(100%); }
+.logo {
+  padding: 0 20px 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.logo h1 {
+  font-size: 26px;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+.logo .sub {
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 3px;
+  margin-top: 2px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 20px;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 14px;
+  transition: all 0.2s;
+  border-right: 3px solid transparent;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: right;
+  font-family: inherit;
+}
+.nav-item:hover { background: var(--bg-2); color: var(--text); }
+.nav-item.active {
+  background: linear-gradient(90deg, transparent 0%, rgba(212,175,55,0.1) 100%);
+  color: var(--gold);
+  border-right-color: var(--gold);
+}
+.nav-item .icon { font-size: 18px; width: 24px; text-align: center; }
+.sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 1px solid var(--border); }
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg-2);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.user-chip:hover { background: var(--bg-3); }
+.user-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--cyan) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0a0b0f;
+  font-weight: 900;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+.user-info { flex: 1; overflow: hidden; }
+.user-info .name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-info .email { font-size: 10px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.main { margin-right: 250px; padding: 20px; min-height: 100vh; transition: margin 0.3s; }
+.main.full { margin-right: 0; }
+
+/* ============ TOPBAR ============ */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+.topbar-left { display: flex; align-items: center; gap: 14px; }
+.menu-btn {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 38px; height: 38px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  display: none;
+}
+.topbar h2 { font-size: 16px; color: var(--gold); font-weight: 700; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.conn-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 6px 12px;
+  background: var(--bg-1);
+  border-radius: 20px;
+  border: 1px solid var(--border);
+}
+.conn-badge.online { color: var(--green); border-color: rgba(38,166,154,0.4); }
+.conn-badge.offline { color: var(--red); border-color: rgba(239,83,80,0.4); }
+.conn-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.deriv-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 6px 12px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-dim);
+}
+.deriv-badge.linked { color: var(--green); border-color: rgba(38,166,154,0.4); }
+
+/* ============ PAGES ============ */
+.page { display: none; animation: fade 0.3s; }
+.page.active { display: block; }
+@keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.panel {
+  background: linear-gradient(135deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.panel-title {
+  font-size: 13px;
+  color: var(--gold);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ============ FORMS ============ */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 11px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; }
+.field select, .field input {
+  padding: 11px 12px;
+  background: var(--bg-1);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s;
+}
+.field select:focus, .field input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(212,175,55,0.1);
+}
+
+/* ============ BUTTONS ============ */
+.btn {
+  padding: 12px 22px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  letter-spacing: 0.5px;
+}
+.btn-gold { background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%); color: #0a0b0f; }
+.btn-gold:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(212,175,55,0.3); }
+.btn-cyan { background: linear-gradient(135deg, var(--cyan) 0%, #0080ff 100%); color: white; }
+.btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+.btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+.btn-buy { background: linear-gradient(135deg, var(--green) 0%, #00b894 100%); color: white; }
+.btn-sell { background: linear-gradient(135deg, var(--red) 0%, #c62828 100%); color: white; }
+.btn-full { width: 100%; }
+
+/* ============ STATS ============ */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.stat-card {
+  background: linear-gradient(135deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 60px; height: 60px;
+  background: radial-gradient(circle, rgba(212,175,55,0.15) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.stat-card .label { font-size: 11px; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 6px; text-transform: uppercase; }
+.stat-card .value { font-size: 22px; font-weight: 800; color: var(--text); }
+.stat-card.gold .value { color: var(--gold); }
+.stat-card.green .value { color: var(--green); }
+.stat-card.red .value { color: var(--red); }
+.stat-card.cyan .value { color: var(--cyan); }
+
+/* ============ CHART ============ */
+.chart-wrap {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 16px;
+}
+#chart { width: 100%; height: 420px; }
+.chart-loader {
+  position: absolute;
+  inset: 0;
+  background: rgba(10,11,15,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cyan);
+  font-size: 14px;
+  z-index: 5;
+  gap: 10px;
+}
+.chart-loader.hidden { display: none; }
+.spinner {
+  width: 22px; height: 22px;
+  border: 3px solid var(--border);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============ SIGNAL ============ */
+.signal-wrap {
+  background: linear-gradient(135deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  text-align: center;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.signal-wrap.buy { border-color: var(--green); }
+.signal-wrap.sell { border-color: var(--red); }
+.signal-label { font-size: 12px; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; }
+.signal-main {
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  margin: 10px 0;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.signal-wrap.buy .signal-main {
+  background: linear-gradient(135deg, #26a69a 0%, #00b894 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.signal-wrap.sell .signal-main {
+  background: linear-gradient(135deg, #ef5350 0%, #c62828 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.signal-meta {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.signal-meta strong { color: var(--gold); font-size: 16px; }
+
+/* ============ INDICATORS ============ */
+.ind-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.ind-card {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+.ind-card .ind-name { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+.ind-card .ind-val { font-size: 18px; font-weight: 800; margin-top: 4px; }
+.ind-card.bull { border-color: rgba(38,166,154,0.4); }
+.ind-card.bull .ind-val { color: var(--green); }
+.ind-card.bear { border-color: rgba(239,83,80,0.4); }
+.ind-card.bear .ind-val { color: var(--red); }
+.ind-card.neutral .ind-val { color: var(--text-dim); }
+
+/* ============ INDICATOR PICKER ============ */
+.ind-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+.ind-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+.ind-toggle:hover { border-color: var(--gold-dim); }
+.ind-toggle.active { background: rgba(212,175,55,0.1); border-color: var(--gold); }
+.ind-toggle input { display: none; }
+.ind-toggle .checkbox {
+  width: 18px; height: 18px;
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.ind-toggle.active .checkbox { background: var(--gold); border-color: var(--gold); }
+.ind-toggle.active .checkbox::after { content: '✓'; color: #0a0b0f; font-size: 12px; font-weight: 900; }
+.ind-toggle .ind-label { font-size: 13px; font-weight: 600; color: var(--text); }
+
+/* ============ TRADE BUTTONS ============ */
+.trade-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+
+/* ============ TABLE ============ */
+.trades-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.trades-table th {
+  text-align: right;
+  padding: 10px 8px;
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+.trades-table td { padding: 12px 8px; border-bottom: 1px solid var(--border); }
+.trades-table tr:last-child td { border-bottom: none; }
+.trades-table .buy { color: var(--green); font-weight: 700; }
+.trades-table .sell { color: var(--red); font-weight: 700; }
+.trades-table .win { color: var(--green); font-weight: 700; }
+.trades-table .loss { color: var(--red); font-weight: 700; }
+
+/* ============ UPLOAD ============ */
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-1);
+}
+.upload-zone:hover { border-color: var(--gold); background: rgba(212,175,55,0.05); }
+.upload-zone .up-icon { font-size: 42px; margin-bottom: 10px; }
+.upload-zone .up-text { color: var(--text-dim); font-size: 14px; }
+#screenshot-preview { max-width: 100%; border-radius: 10px; margin-top: 14px; display: none; }
+
+/* ============ PROFILE ============ */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(212,175,55,0.1) 0%, transparent 100%);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+.avatar {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--cyan) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: #0a0b0f;
+  font-weight: 900;
+  border: 3px solid var(--gold);
+}
+.profile-info h3 { font-size: 22px; color: var(--text); }
+.profile-info p { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+
+/* ============ CHAT ============ */
+.chat-messages {
+  height: 420px;
+  overflow-y: auto;
+  padding: 14px;
+  background: rgba(17, 19, 25, 0.7);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chat-msg {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  word-break: break-word;
+  line-height: 1.5;
+}
+.chat-msg.mine {
+  align-self: flex-end;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%);
+  color: #0a0b0f;
+  border-bottom-right-radius: 4px;
+}
+.chat-msg.other {
+  align-self: flex-start;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-bottom-left-radius: 4px;
+}
+.chat-msg .meta { font-size: 10px; opacity: 0.75; margin-bottom: 4px; font-weight: 700; letter-spacing: 0.5px; }
+.chat-input-area { display: flex; gap: 10px; margin-top: 12px; }
+.chat-input-area input {
+  flex: 1;
+  padding: 13px 14px;
+  background: var(--bg-1);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+}
+.chat-input-area input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(212,175,55,0.1); }
+.chat-input-area button {
+  padding: 13px 22px;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%);
+  color: #0a0b0f;
+  border: none;
+  border-radius: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+}
+.chat-input-area button:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(212,175,55,0.3); }
+
+/* ============ CONTACT BUTTONS (SOLID) ============ */
+.contact-grid { display: flex; flex-direction: column; gap: 12px; max-width: 340px; margin: 0 auto; }
+.contact-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 15px 22px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 800;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  width: 100%;
+  color: #0a0b0f;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+}
+.contact-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,0,0,0.4); filter: brightness(1.1); }
+.cbtn-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
+.cbtn-text { font-size: 15px; font-weight: 800; }
+.whatsapp-btn { background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: #ffffff; }
+.telegram-btn { background: linear-gradient(135deg, #29B6F6 0%, #0077B5 100%); color: #ffffff; }
+.channel-btn { background: linear-gradient(135deg, #d4af37 0%, #a8862a 100%); color: #0a0b0f; }
+.call-btn { background: linear-gradient(135deg, #9b6dff 0%, #6a3fd4 100%); color: #ffffff; }
+
+/* ============ LEGAL ACCORDION ============ */
+.legal-accordion { display: flex; flex-direction: column; gap: 10px; max-width: 340px; margin: 0 auto; }
+.legal-item { border-radius: 12px; overflow: hidden; background: rgba(21, 24, 42, 0.7); border: 1px solid rgba(212, 175, 55, 0.3); transition: all 0.3s; }
+.legal-item.open { border-color: rgba(212, 175, 55, 0.7); box-shadow: 0 4px 16px rgba(212, 175, 55, 0.15); }
+.legal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 15px 18px;
+  background: transparent;
+  border: none;
+  color: #e8eaf0;
+  font-size: 15px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: right;
+}
+.legal-header:hover { background: rgba(212, 175, 55, 0.08); }
+.legal-item.open .legal-header { background: linear-gradient(135deg, #d4af37 0%, #a8862a 100%); color: #0a0b0f; }
+.legal-header-icon { font-size: 20px; line-height: 1; flex-shrink: 0; width: 28px; text-align: center; }
+.legal-header-text { flex: 1; text-align: right; }
+.legal-arrow { font-size: 12px; transition: transform 0.3s; flex-shrink: 0; color: #d4af37; }
+.legal-item.open .legal-arrow { transform: rotate(180deg); color: #0a0b0f; }
+.legal-body { max-height: 0; overflow: hidden; transition: max-height 0.4s ease, padding 0.3s ease; padding: 0 18px; background: rgba(15, 18, 24, 0.5); }
+.legal-item.open .legal-body { max-height: 500px; padding: 16px 18px; }
+.legal-body p { color: #d1d4dc; font-size: 13.5px; line-height: 1.9; text-align: justify; margin: 0; }
+.legal-body strong { color: #d4af37; }
+
+/* ============ TRANSPARENT BACKGROUNDS ============ */
+body { background: var(--bg-0); }
+.auth-screen, .app-layout, .main, .page, .topbar { background: transparent !important; }
+.sidebar { background: rgba(17, 19, 25, 0.92) !important; }
+.panel, .stat-card, .signal-wrap, .ind-card { background: rgba(24, 27, 36, 0.68) !important; backdrop-filter: blur(10px); }
+
+/* ============ SCROLLBAR ============ */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-1); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 900px) {
+  .sidebar { transform: translateX(100%); }
+  .sidebar.open { transform: translateX(0); }
+  .main { margin-right: 0; }
+  .menu-btn { display: flex; align-items: center; justify-content: center; }
+  .signal-main { font-size: 32px; letter-spacing: 3px; }
+  #chart { height: 320px; }
+}
+@media (max-width: 500px) {
+  .auth-card { padding: 30px 20px; }
+  .auth-logo h1 { font-size: 34px; }
+  .trade-btns { grid-template-columns: 1fr; }
+}
+/* ============ LUXURY INTRO ============ */
+#lux-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: radial-gradient(ellipse at center, #0a0d15 0%, #05060a 100%);
+  overflow: hidden;
+  transition: opacity 0.9s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#lux-intro.fade-out { opacity: 0; pointer-events: none; }
+.lux-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(212,175,55,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(212,175,55,0.05) 1px, transparent 1px);
+  background-size: 60px 60px;
+  opacity: 0;
+  animation: luxGridIn 1.5s 0.3s ease forwards;
+}
+@keyframes luxGridIn { to { opacity: 1; } }
+
+.lux-screen {
+  position: absolute;
+  width: 220px;
+  height: 130px;
+  background: linear-gradient(135deg, rgba(20,24,36,0.9), rgba(10,13,20,0.95));
+  border: 1px solid rgba(212,175,55,0.35);
+  border-radius: 10px;
+  padding: 8px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6), 0 0 20px rgba(212,175,55,0.15), inset 0 0 20px rgba(0,212,255,0.03);
+  opacity: 0;
+  transform: scale(0.7) translateY(20px);
+  overflow: hidden;
+}
+.lux-screen::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #d4af37, #00d4ff);
+}
+.lux-s1 { top: 12%; left: 6%; animation: luxScreenIn 0.7s 0.5s ease forwards; }
+.lux-s2 { top: 42%; right: 6%; animation: luxScreenIn 0.7s 0.9s ease forwards; }
+.lux-s3 { bottom: 12%; left: 22%; animation: luxScreenIn 0.7s 1.3s ease forwards; }
+@keyframes luxScreenIn { to { opacity: 1; transform: scale(1) translateY(0); } }
+.lux-head { display: flex; justify-content: space-between; align-items: center; font-size: 10px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid rgba(212,175,55,0.2); }
+.lux-pair { color: #d4af37; font-weight: 800; letter-spacing: 1px; }
+.lux-delta { font-weight: 800; }
+.lux-delta.up { color: #26a69a; }
+.lux-delta.down { color: #ef5350; }
+.lux-cv { width: 100%; height: 90px; display: block; }
+
+.lux-scan {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 0%, transparent 45%, rgba(0,212,255,0.06) 50%, transparent 55%, transparent 100%);
+  opacity: 0;
+  animation: luxScan 3s 1.5s ease-in-out infinite;
+}
+@keyframes luxScan {
+  0%, 100% { transform: translateY(-50%); opacity: 0; }
+  50% { transform: translateY(50%); opacity: 1; }
+}
+
+.lux-robot {
+  position: absolute;
+  width: 80px;
+  height: 140px;
+  z-index: 5;
+  filter: drop-shadow(0 8px 16px rgba(0,0,0,0.6)) drop-shadow(0 0 12px rgba(0,212,255,0.3));
+  animation: luxWalkPath 8s ease-in-out forwards;
+  left: 0;
+  top: 50%;
+}
+.lux-robot svg { width: 100%; height: 100%; display: block; }
+.lux-leg-l { transform-origin: 29px 100px; animation: luxLegSwing 0.55s ease-in-out infinite; }
+.lux-leg-r { transform-origin: 51px 100px; animation: luxLegSwing 0.55s ease-in-out infinite reverse; }
+.lux-arm-l { transform-origin: 11px 58px; animation: luxLegSwing 0.55s ease-in-out infinite reverse; }
+.lux-arm-r { transform-origin: 69px 58px; animation: luxLegSwing 0.55s ease-in-out infinite; }
+@keyframes luxLegSwing {
+  0%, 100% { transform: rotate(-14deg); }
+  50% { transform: rotate(14deg); }
+}
+@keyframes luxWalkPath {
+  0%   { left: -100px; top: 60%; }
+  12%  { left: 10%; top: 55%; }
+  22%  { left: 10%; top: 55%; }
+  38%  { left: 55%; top: 45%; }
+  48%  { left: 55%; top: 45%; }
+  64%  { left: 28%; top: 70%; }
+  74%  { left: 28%; top: 70%; }
+  86%  { left: 42%; top: 52%; }
+  100% { left: 42%; top: 52%; }
+}
+
+.lux-logo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.6);
+  text-align: center;
+  opacity: 0;
+  z-index: 10;
+  animation: luxLogoIn 1.2s 6.3s cubic-bezier(0.34,1.56,0.64,1) forwards;
+}
+.lux-logo h1 {
+  font-size: 68px;
+  font-weight: 900;
+  letter-spacing: 10px;
+  background: linear-gradient(135deg, #d4af37 0%, #00d4ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0;
+  filter: drop-shadow(0 0 30px rgba(212,175,55,0.5));
+}
+.lux-logo p { color: #8a90a3; font-size: 13px; letter-spacing: 8px; margin: 10px 0 20px; }
+.lux-bar { width: 220px; height: 3px; background: rgba(42,47,61,0.6); border-radius: 2px; margin: 0 auto; overflow: hidden; }
+.lux-bar-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #d4af37, #00d4ff); border-radius: 2px; box-shadow: 0 0 14px rgba(0,212,255,0.8); animation: luxBarFill 1s 6.8s ease-out forwards; }
+@keyframes luxLogoIn {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes luxBarFill { to { width: 100%; } }
+
+@media (max-width: 500px) {
+  .lux-screen { width: 160px; height: 100px; }
+  .lux-cv { height: 65px; }
+  .lux-logo h1 { font-size: 44px; letter-spacing: 6px; }
+  .lux-logo p { font-size: 10px; letter-spacing: 5px; }
+  .lux-robot { width: 60px; height: 105px; }
+}
+/* ============ LIVE STATS ============ */
+.live-stats {
+  position: fixed;
+  top: 18px;
+  left: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(15, 18, 24, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 14px;
+  padding: 10px 16px;
+  z-index: 500;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  font-family: inherit;
+  transition: all 0.3s;
+}
+.live-stats:hover {
+  border-color: rgba(212, 175, 55, 0.6);
+  box-shadow: 0 6px 24px rgba(212, 175, 55, 0.15);
+}
+.live-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #26a69a;
+  box-shadow: 0 0 8px rgba(38, 166, 154, 0.9);
+  animation: livePulse 1.5s infinite;
+}
+@keyframes livePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+.live-icon {
+  font-size: 13px;
+}
+.live-num {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--gold);
+  min-width: 24px;
+  text-align: center;
+}
+.live-label {
+  color: var(--text-dim);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.live-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(42, 47, 61, 0.8);
+}
+@media (max-width: 500px) {
+  .live-stats {
+    top: 12px;
+    left: 12px;
+    padding: 8px 12px;
+    gap: 10px;
+  }
+  .live-item { font-size: 11px; }
+  .live-num { font-size: 13px; }
+  .live-label { display: none; }
+}
+/* ============ PRICING ============ */
+.price-card {
+  background: linear-gradient(135deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px 20px;
+  position: relative;
+  text-align: center;
+  transition: all 0.3s;
+}
+.price-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+.price-card.pro {
+  border-color: var(--gold);
+  background: linear-gradient(135deg, rgba(212,175,55,0.12), var(--bg-1));
+  box-shadow: 0 0 30px rgba(212,175,55,0.15);
+}
+.price-badge {
+  position: absolute;
+  top: -12px;
+  right: 50%;
+  transform: translateX(50%);
+  background: linear-gradient(135deg, var(--gold), var(--gold-dim));
+  color: #0a0b0f;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+.price-name {
+  font-size: 22px;
+  font-weight: 900;
+  margin-bottom: 10px;
+}
+.price-card.pro .price-name { color: var(--gold); }
+.price-amount {
+  font-size: 42px;
+  font-weight: 900;
+  color: var(--gold);
+  margin-bottom: 18px;
+  line-height: 1;
+}
+.price-amount span {
+  font-size: 14px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.price-features {
+  list-style: none;
+  text-align: right;
+  padding: 0;
+  margin-bottom: 20px;
+  font-size: 13px;
+  line-height: 2.1;
+}
+.price-features li {
+  padding: 4px 0;
+  border-bottom: 1px dashed rgba(42,47,61,0.4);
+  color: var(--text);
+}
+.price-features li:last-child { border-bottom: none; }
+</style>
+<meta name="description" content="Kanzer - منصة تحليل فني احترافية مع تداول تلقائي لـ Deriv. مؤشرات متقدمة، إشارات ذكية، وربط حساب بنقرة واحدة.">
+<meta name="keywords" content="Kanzer, Deriv, تحليل فني, تداول تلقائي, bot, خيارات ثنائية">
+<meta property="og:title" content="Kanzer — منصة التحليل والتداول الذكية">
+<meta property="og:description" content="منصة تحليل وتداول احترافية متصلة بـ Deriv">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAJOsII3MxxYR8Ie2ll0gooulnf16QU3aQ",
+  authDomain: "kanzer-chat.firebaseapp.com",
+  databaseURL: "https://kanzer-chat-default-rtdb.firebaseio.com",
+  projectId: "kanzer-chat",
+  storageBucket: "kanzer-chat.firebasestorage.app",
+  messagingSenderId: "973382708195",
+  appId: "1:973382708195:web:55007c8a6cbee0f11eced6"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+window.firebaseAuth = auth;
+window.firebaseCreateUser = createUserWithEmailAndPassword;
+window.firebaseSignIn = signInWithEmailAndPassword;
+window.firebaseSignOut = signOut;
+window.firebaseOnAuthChange = onAuthStateChanged;
+window.firebaseReady = true;
+console.log('Firebase Auth Ready');
+</script>
+
+<style>
+/* ============ AUTH SCREENS ============ */
+.auth-screen {
+  min-height: 100vh;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: radial-gradient(ellipse at top, rgba(212,175,55,0.08), transparent 60%),
+              radial-gradient(ellipse at bottom, rgba(0,212,255,0.05), transparent 60%),
+              var(--bg-0);
+}
+.auth-screen.active { display: flex; }
+
+.auth-card {
+  background: linear-gradient(135deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 40px 32px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+.auth-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold), var(--cyan), var(--gold));
+}
+.auth-logo {
+  text-align: center;
+  margin-bottom: 30px;
+}
+.auth-logo h1 {
+  font-size: 42px;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+.auth-logo p {
+  color: var(--text-dim);
+  font-size: 12px;
+  letter-spacing: 4px;
+  margin-top: 4px;
+}
+
+.auth-tabs {
+  display: flex;
+  background: var(--bg-1);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 24px;
+  border: 1px solid var(--border);
+}
+.auth-tab {
+  flex: 1;
+  padding: 10px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.2s;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+.auth-tab.active {
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%);
+  color: #0a0b0f;
+}
+
+.auth-form { display: none; }
+.auth-form.active { display: block; }
+
+.field-group { margin-bottom: 16px; }
+.field-group label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.field-group input {
+  width: 100%;
+  padding: 13px 14px;
+  background: var(--bg-1);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s;
+}
+.field-group input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(212,175,55,0.1);
+}
+.field-group input.error { border-color: var(--red); }
+
+.auth-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%);
+  color: #0a0b0f;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin-top: 10px;
+  transition: all 0.2s;
+}
+.auth-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(212,175,55,0.3); }
+.auth-btn:active { transform: translateY(0); }
+
+.auth-msg {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-top: 12px;
+  display: none;
+}
+.auth-msg.show { display: block; }
+.auth-msg.error { background: rgba(239,83,80,0.15); color: var(--red); border: 1px solid rgba(239,83,80,0.3); }
+.auth-msg.success { background: rgba(38,166,154,0.15); color: var(--green); border: 1px solid rgba(38,166,154,0.3); }
+
+.auth-footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ============ APP LAYOUT ============ */
+.app-layout { display: none; min-height: 100vh; }
+.app-layout.active { display: block; }
+
+.sidebar {
+  width: 250px;
+  background: linear-gradient(180deg, var(--bg-1) 0%, #0d0f14 100%);
+  border-left: 1px solid var(--border);
+  padding: 20px 0;
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  transition: transform 0.3s;
+  overflow-y: auto;
+}
+.sidebar.hidden { transform: translateX(100%); }
+
+.logo {
+  padding: 0 20px 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.logo h1 {
+  font-size: 26px;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+.logo .sub {
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 3px;
+  margin-top: 2px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 20px;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 14px;
+  transition: all 0.2s;
+  border-right: 3px solid transparent;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: right;
+  font-family: inherit;
+}
+.nav-item:hover {
+  background: var(--bg-2);
+  color: var(--text);
+}
+.nav-item.active {
+  background: linear-gradient(90deg, transparent 0%, rgba(212,175,55,0.1) 100%);
+  color: var(--gold);
+  border-right-color: var(--gold);
+}
+.nav-item .icon { font-size: 18px; width: 24px; text-align: center; }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg-2);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.user-chip:hover { background: var(--bg-3); }
+.user-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--cyan) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0a0b0f;
+  font-weight: 900;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+.user-info { flex: 1; overflow: hidden; }
+.user-info .name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-info .email { font-size: 10px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.main {
+  margin-right: 250px;
+  padding: 20px;
+  min-height: 100vh;
+  transition: margin 0.3s;
+}
+.main.full { margin-right: 0; }
+
+/* ============ TOPBAR ============ */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+.topbar-left { display: flex; align-items: center; gap: 14px; }
+.menu-btn {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 38px; height: 38px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  display: none;
+}
+.topbar h2 { font-size: 16px; color: var(--gold); font-weight: 700; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+
+.conn-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 6px 12px;
+  background: var(--bg-1);
+  border-radius: 20px;
+  border: 1px solid var(--border);
+}
+.conn-badge.online { color: var(--green); border-color: rgba(38,166,154,0.4); }
+.conn-badge.offline { color: var(--red); border-color: rgba(239,83,80,0.4); }
+.conn-badge .dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.deriv-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 6px 12px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-dim);
+}
+.deriv-badge.linked { color: var(--green); border-color: rgba(38,166,154,0.4); }
+
+/* ============ PAGES ============ */
+.page { display: none; animation: fade 0.3s; }
+.page.active { display: block; }
+@keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.panel {
+  background: linear-gradient(135deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.panel-title {
+  font-size: 13px;
+  color: var(--gold);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ============ FORMS ============ */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.field select, .field input {
+  padding: 11px 12px;
+  background: var(--bg-1);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s;
+}
+.field select:focus, .field input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(212,175,55,0.1);
+}
+
+/* ============ BUTTONS ============ */
+.btn {
+  padding: 12px 22px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  letter-spacing: 0.5px;
+}
+.btn-gold { background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%); color: #0a0b0f; }
+.btn-gold:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(212,175,55,0.3); }
+.btn-cyan { background: linear-gradient(135deg, var(--cyan) 0%, #0080ff 100%); color: white; }
+.btn-cyan:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,212,255,0.3); }
+.btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+.btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+.btn-buy { background: linear-gradient(135deg, var(--green) 0%, #00b894 100%); color: white; }
+.btn-sell { background: linear-gradient(135deg, var(--red) 0%, #c62828 100%); color: white; }
+.btn-full { width: 100%; }
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ============ STATS ============ */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.stat-card {
+  background: linear-gradient(135deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 60px; height: 60px;
+  background: radial-gradient(circle, rgba(212,175,55,0.15) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.stat-card .label {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.stat-card .value { font-size: 22px; font-weight: 800; color: var(--text); }
+.stat-card.gold .value { color: var(--gold); }
+.stat-card.green .value { color: var(--green); }
+.stat-card.red .value { color: var(--red); }
+.stat-card.cyan .value { color: var(--cyan); }
+
+/* ============ CHART ============ */
+.chart-wrap {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 16px;
+}
+#chart { width: 100%; height: 420px; }
+.chart-loader {
+  position: absolute;
+  inset: 0;
+  background: rgba(10,11,15,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cyan);
+  font-size: 14px;
+  z-index: 5;
+  gap: 10px;
+}
+.chart-loader.hidden { display: none; }
+.spinner {
+  width: 22px; height: 22px;
+  border: 3px solid var(--border);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============ SIGNAL ============ */
+.signal-wrap {
+  background: linear-gradient(135deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  text-align: center;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.signal-wrap.buy { border-color: var(--green); }
+.signal-wrap.sell { border-color: var(--red); }
+.signal-label { font-size: 12px; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; }
+.signal-main {
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  margin: 10px 0;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.signal-wrap.buy .signal-main {
+  background: linear-gradient(135deg, #26a69a 0%, #00b894 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.signal-wrap.sell .signal-main {
+  background: linear-gradient(135deg, #ef5350 0%, #c62828 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.signal-meta {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.signal-meta strong { color: var(--gold); font-size: 16px; }
+
+/* ============ INDICATORS ============ */
+.ind-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.ind-card {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+.ind-card .ind-name { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+.ind-card .ind-val { font-size: 18px; font-weight: 800; margin-top: 4px; }
+.ind-card.bull { border-color: rgba(38,166,154,0.4); }
+.ind-card.bull .ind-val { color: var(--green); }
+.ind-card.bear { border-color: rgba(239,83,80,0.4); }
+.ind-card.bear .ind-val { color: var(--red); }
+.ind-card.neutral .ind-val { color: var(--text-dim); }
+
+/* ============ INDICATOR PICKER ============ */
+.ind-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+.ind-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+.ind-toggle:hover { border-color: var(--gold-dim); }
+.ind-toggle.active { background: rgba(212,175,55,0.1); border-color: var(--gold); }
+.ind-toggle input { display: none; }
+.ind-toggle .checkbox {
+  width: 18px; height: 18px;
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.ind-toggle.active .checkbox { background: var(--gold); border-color: var(--gold); }
+.ind-toggle.active .checkbox::after {
+  content: '✓';
+  color: #0a0b0f;
+  font-size: 12px;
+  font-weight: 900;
+}
+.ind-toggle .ind-label { font-size: 13px; font-weight: 600; color: var(--text); }
+
+/* ============ TRADE BUTTONS ============ */
+.trade-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+
+/* ============ TABLE ============ */
+.trades-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.trades-table th {
+  text-align: right;
+  padding: 10px 8px;
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+.trades-table td { padding: 12px 8px; border-bottom: 1px solid var(--border); }
+.trades-table tr:last-child td { border-bottom: none; }
+.trades-table .buy { color: var(--green); font-weight: 700; }
+.trades-table .sell { color: var(--red); font-weight: 700; }
+.trades-table .win { color: var(--green); font-weight: 700; }
+.trades-table .loss { color: var(--red); font-weight: 700; }
+.trades-table .pending { color: var(--gold); }
+
+/* ============ UPLOAD ============ */
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-1);
+}
+.upload-zone:hover { border-color: var(--gold); background: rgba(212,175,55,0.05); }
+.upload-zone .up-icon { font-size: 42px; margin-bottom: 10px; }
+.upload-zone .up-text { color: var(--text-dim); font-size: 14px; }
+#screenshot-preview { max-width: 100%; border-radius: 10px; margin-top: 14px; display: none; }
+
+/* ============ PROFILE ============ */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(212,175,55,0.1) 0%, transparent 100%);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+.avatar {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--cyan) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: #0a0b0f;
+  font-weight: 900;
+  border: 3px solid var(--gold);
+}
+.profile-info h3 { font-size: 22px; color: var(--text); }
+.profile-info p { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+
+/* ============ DERIV LINK ============ */
+.deriv-link-box {
+  background: linear-gradient(135deg, rgba(38,166,154,0.1) 0%, transparent 100%);
+  border: 2px solid rgba(38,166,154,0.3);
+  border-radius: 14px;
+  padding: 24px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.deriv-link-box .icon { font-size: 48px; margin-bottom: 10px; }
+.deriv-link-box h3 { color: var(--green); font-size: 20px; margin-bottom: 8px; }
+.deriv-link-box p { color: var(--text-dim); font-size: 13px; margin-bottom: 16px; line-height: 1.7; }
+
+/* ============ TOAST ============ */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  background: var(--bg-2);
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  padding: 14px 20px;
+  color: var(--text);
+  font-size: 14px;
+  z-index: 1000;
+  box-shadow: var(--shadow);
+  transform: translateY(200%);
+  transition: transform 0.3s;
+  max-width: 320px;
+}
+.toast.show { transform: translateY(0); }
+.toast.green { border-color: var(--green); }
+.toast.red { border-color: var(--red); }
+
+/* ============ MODAL ============ */
+.modal-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  padding: 16px;
+}
+.modal-bg.show { display: flex; }
+.modal {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  max-width: 460px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal h3 { color: var(--gold); margin-bottom: 14px; font-size: 18px; }
+.modal p { color: var(--text-dim); font-size: 13px; line-height: 1.7; margin-bottom: 14px; }
+.modal-steps { list-style: none; padding: 0; }
+.modal-steps li {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--bg-1);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.modal-steps .num {
+  background: var(--gold);
+  color: #0a0b0f;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 900px) {
+  .sidebar { transform: translateX(100%); }
+  .sidebar.open { transform: translateX(0); }
+  .main { margin-right: 0; }
+  .menu-btn { display: flex; align-items: center; justify-content: center; }
+  .signal-main { font-size: 32px; letter-spacing: 3px; }
+  #chart { height: 320px; }
+  .signal-meta { gap: 12px; }
+}
+
+@media (max-width: 500px) {
+  .auth-card { padding: 30px 20px; }
+  .auth-logo h1 { font-size: 34px; }
+  .trade-btns { grid-template-columns: 1fr; }
+}
+
+/* ============ SCROLLBAR ============ */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-1); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
+</style>
+</head>
+<body>
+<div id="lux-intro">
+  <div class="lux-grid"></div>
+
+  <!-- الشاشة 1 -->
+  <div class="lux-screen lux-s1">
+    <div class="lux-head">
+      <span class="lux-pair">BTC/USD</span>
+      <span class="lux-delta up">+2.45%</span>
+    </div>
+    <canvas class="lux-cv" id="luxcv1"></canvas>
+  </div>
+
+  <!-- الشاشة 2 -->
+  <div class="lux-screen lux-s2">
+    <div class="lux-head">
+      <span class="lux-pair">ETH/USD</span>
+      <span class="lux-delta up">+1.87%</span>
+    </div>
+    <canvas class="lux-cv" id="luxcv2"></canvas>
+  </div>
+
+  <!-- الشاشة 3 -->
+  <div class="lux-screen lux-s3">
+    <div class="lux-head">
+      <span class="lux-pair">XAU/USD</span>
+      <span class="lux-delta down">-0.32%</span>
+    </div>
+    <canvas class="lux-cv" id="luxcv3"></canvas>
+  </div>
+
+  <!-- مسح ضوئي -->
+  <div class="lux-scan"></div>
+
+  <!-- الروبوت -->
+  <div class="lux-robot">
+    <svg viewBox="0 0 80 140">
+      <defs>
+        <linearGradient id="luxBody" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#2a2f3d"/>
+          <stop offset="100%" stop-color="#0f1218"/>
+        </linearGradient>
+        <linearGradient id="luxGold" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#d4af37"/>
+          <stop offset="100%" stop-color="#a8862a"/>
+        </linearGradient>
+        <filter id="luxGlow">
+          <feGaussianBlur stdDeviation="2.5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <line x1="40" y1="12" x2="40" y2="20" stroke="#d4af37" stroke-width="2"/>
+      <circle cx="40" cy="10" r="3.5" fill="#00d4ff" filter="url(#luxGlow)">
+        <animate attributeName="opacity" values="1;0.3;1" dur="0.9s" repeatCount="indefinite"/>
+      </circle>
+      <rect x="22" y="20" width="36" height="28" rx="9" fill="url(#luxBody)" stroke="url(#luxGold)" stroke-width="1.5"/>
+      <rect x="28" y="30" width="24" height="8" rx="4" fill="#00d4ff" opacity="0.95" filter="url(#luxGlow)">
+        <animate attributeName="opacity" values="0.95;0.4;0.95" dur="1.8s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="35" y="48" width="10" height="6" fill="#2a2f3d"/>
+      <rect x="18" y="54" width="44" height="45" rx="10" fill="url(#luxBody)" stroke="url(#luxGold)" stroke-width="1.5"/>
+      <circle cx="40" cy="74" r="6" fill="#00d4ff" filter="url(#luxGlow)"/>
+      <circle cx="40" cy="74" r="11" fill="none" stroke="#00d4ff" stroke-opacity="0.5" stroke-width="1">
+        <animate attributeName="r" values="11;15;11" dur="1.8s" repeatCount="indefinite"/>
+        <animate attributeName="stroke-opacity" values="0.5;0.1;0.5" dur="1.8s" repeatCount="indefinite"/>
+      </circle>
+      <g class="lux-arm-l"><rect x="6" y="57" width="10" height="32" rx="5" fill="url(#luxBody)" stroke="url(#luxGold)" stroke-width="1"/></g>
+      <g class="lux-arm-r"><rect x="64" y="57" width="10" height="32" rx="5" fill="url(#luxBody)" stroke="url(#luxGold)" stroke-width="1"/></g>
+      <g class="lux-leg-l"><rect x="24" y="99" width="10" height="35" rx="5" fill="url(#luxBody)" stroke="url(#luxGold)" stroke-width="1"/></g>
+      <g class="lux-leg-r"><rect x="46" y="99" width="10" height="35" rx="5" fill="url(#luxBody)" stroke="url(#luxGold)" stroke-width="1"/></g>
+    </svg>
+  </div>
+
+  <!-- الشعار -->
+  <div class="lux-logo">
+    <h1>KANZER</h1>
+    <p>TRADING SUITE</p>
+    <div class="lux-bar"><div class="lux-bar-fill"></div></div>
+  </div>
+</div>
+<div class="live-stats" id="live-stats">
+  <div class="live-item">
+    <span class="live-dot"></span>
+    <span class="live-num" id="live-online">...</span>
+    <span class="live-label">متصل الآن</span>
+  </div>
+  <div class="live-divider"></div>
+  <div class="live-item">
+    <span class="live-icon">👥</span>
+    <span class="live-num" id="live-total">...</span>
+    <span class="live-label">إجمالي المسجلين</span>
+  </div>
+</div>
+<!-- ============ LOGIN SCREEN ============ -->
+<div class="auth-screen active" id="login-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <h1>KANZER</h1>
+      <p>TRADING SUITE</p>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuth('login')">تسجيل دخول</button>
+      <button class="auth-tab" onclick="switchAuth('register')">حساب جديد</button>
+    </div>
+
+    <form class="auth-form active" id="form-login" onsubmit="handleLogin(event)">
+      <div class="field-group">
+        <label>البريد الإلكتروني</label>
+        <input type="email" id="login-email" required placeholder="you@example.com">
+      </div>
+      <div class="field-group">
+        <label>كلمة المرور</label>
+        <input type="password" id="login-password" required placeholder="••••••••">
+      </div>
+      <div class="auth-msg" id="login-msg"></div>
+      <button type="submit" class="auth-btn">🔓 تسجيل الدخول</button>
+      <div class="auth-footer">ليس لديك حساب؟ اضغط "حساب جديد"</div>
+    </form>
+
+    <form class="auth-form" id="form-register" onsubmit="handleRegister(event)">
+      <div class="field-group">
+        <label>الاسم الكامل</label>
+        <input type="text" id="reg-name" required placeholder="Hassan Adnan">
+      </div>
+      <div class="field-group">
+        <label>البريد الإلكتروني</label>
+        <input type="email" id="reg-email" required placeholder="you@example.com">
+      </div>
+      <div class="field-group">
+        <label>كلمة المرور (6 أحرف على الأقل)</label>
+        <input type="password" id="reg-password" required minlength="6" placeholder="••••••••">
+      </div>
+      <div class="field-group">
+        <label>تأكيد كلمة المرور</label>
+        <input type="password" id="reg-password2" required minlength="6" placeholder="••••••••">
+      </div>
+      <div class="auth-msg" id="reg-msg"></div>
+      <button type="submit" class="auth-btn">✨ إنشاء الحساب</button>
+      <div class="auth-footer">لديك حساب بالفعل؟ اضغط "تسجيل دخول"</div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div class="app-layout" id="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo">
+      <h1>KANZER</h1>
+      <div class="sub">TRADING SUITE</div>
+    </div>
+    <nav id="nav-list">
+      <button class="nav-item active" data-page="dashboard"><span class="icon">📊</span> لوحة التحليل</button>
+      <button class="nav-item" data-page="trading"><span class="icon">💹</span> التداول اليدوي</button>
+      <button class="nav-item" data-page="auto"><span class="icon">🤖</span> التداول التلقائي</button>
+      <button class="nav-item" data-page="screenshot"><span class="icon">📸</span> تحليل اللقطة</button>
+      <button class="nav-item" data-page="signals"><span class="icon">⚡</span> مولّد الإشارات</button>
+      <button class="nav-item" data-page="indicators"><span class="icon">📈</span> المؤشرات</button>
+      <button class="nav-item" data-page="history"><span class="icon">📜</span> السجل</button>
+      <button class="nav-item" data-page="deriv"><span class="icon">🔗</span> ربط Deriv</button>
+      <button class="nav-item" data-page="profile"><span class="icon">👤</span> الملف الشخصي</button>
+<button class="nav-item" data-page="pro"><span class="icon">💎</span> المؤشر الاحترافي</button>
+<button class="nav-item" data-page="pricing"><span class="icon">🚀</span> الترقية إلى Pro</button>
+      <button class="nav-item" data-page="settings"><span class="icon">⚙️</span> الإعدادات</button>
+<button class="nav-item" data-page="ai"><span class="icon">🤖</span> المحلل الذكي</button>
+<button class="nav-item" data-page="chat"><span class="icon">💬</span> الدردشة</button>
+<button class="nav-item" data-page="about"><span class="icon">ℹ️</span> معلومات عنا</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-chip" onclick="logout()">
+        <div class="user-avatar" id="sb-avatar">U</div>
+        <div class="user-info">
+          <div class="name" id="sb-name">User</div>
+          <div class="email" id="sb-email">user@example.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main" id="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="menu-btn" id="menuBtn">☰</button>
+        <h2 id="pageTitle">لوحة التحليل</h2>
+      </div>
+      <div class="topbar-right">
+        <div class="deriv-badge" id="deriv-badge">
+          <span>🔗</span><span id="deriv-badge-text">غير مربوط</span>
+        </div>
+        <div class="conn-badge offline" id="conn">
+          <span class="dot"></span>
+          <span id="conn-text">غير متصل</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ DASHBOARD ============ -->
+    <section class="page active" id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card gold">
+          <div class="label">رصيد الحساب</div>
+          <div class="value" id="stat-balance">$10,000.00</div>
+        </div>
+        <div class="stat-card green">
+          <div class="label">إجمالي الأرباح</div>
+          <div class="value" id="stat-profit">$0.00</div>
+        </div>
+        <div class="stat-card red">
+          <div class="label">إجمالي الخسائر</div>
+          <div class="value" id="stat-loss">$0.00</div>
+        </div>
+        <div class="stat-card cyan">
+          <div class="label">الصفقات الرابحة</div>
+          <div class="value" id="stat-wins">0 / 0</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">🎛️ إعدادات التحليل</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>الأصل</label>
+            <select id="symbol-select">
+              <optgroup label="مؤشرات التقلب">
+                <option value="R_10">Volatility 10</option>
+                <option value="R_25">Volatility 25</option>
+                <option value="R_50">Volatility 50</option>
+                <option value="R_75">Volatility 75</option>
+                <option value="R_100" selected>Volatility 100</option>
+              </optgroup>
+              <optgroup label="مؤشرات 1 ثانية">
+                <option value="1HZ10V">1s Volatility 10</option>
+                <option value="1HZ25V">1s Volatility 25</option>
+                <option value="1HZ50V">1s Volatility 50</option>
+                <option value="1HZ75V">1s Volatility 75</option>
+                <option value="1HZ100V">1s Volatility 100</option>
+              </optgroup>
+              <optgroup label="فوركس">
+                <option value="frxEURUSD">EUR/USD</option>
+                <option value="frxGBPUSD">GBP/USD</option>
+                <option value="frxUSDJPY">USD/JPY</option>
+              </optgroup>
+              <optgroup label="كريبتو">
+                <option value="cryBTCUSD">BTC/USD</option>
+                <option value="cryETHUSD">ETH/USD</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="field">
+            <label>الفريم</label>
+            <select id="timeframe-select">
+              <option value="60">1 دقيقة</option>
+              <option value="300" selected>5 دقائق</option>
+              <option value="900">15 دقيقة</option>
+              <option value="1800">30 دقيقة</option>
+              <option value="3600">1 ساعة</option>
+              <option value="14400">4 ساعات</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>تردد التحديث</label>
+            <select id="refresh-rate">
+              <option value="0">يدوي</option>
+              <option value="5">5 ثواني</option>
+              <option value="15" selected>15 ثانية</option>
+              <option value="30">30 ثانية</option>
+              <option value="60">دقيقة</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>مدة الصفقة</label>
+            <select id="duration-select">
+              <option value="1">1 دقيقة</option>
+              <option value="5" selected>5 دقائق</option>
+              <option value="15">15 دقيقة</option>
+              <option value="30">30 دقيقة</option>
+              <option value="60">1 ساعة</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-gold" onclick="runAnalysis()">🔍 تحليل الآن</button>
+          <button class="btn btn-outline" onclick="toggleConnection()">🔄 إعادة الاتصال</button>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <div id="chart"></div>
+        <div class="chart-loader" id="chart-loader">
+          <span class="spinner"></span> جاري جلب البيانات...
+        </div>
+      </div>
+
+      <div class="signal-wrap" id="signal-wrap">
+        <div class="signal-label">الإشارة الحالية</div>
+        <div class="signal-main" id="signal-main">—</div>
+        <div class="signal-meta">
+          <span>الثقة: <strong id="signal-conf">—</strong></span>
+          <span>الاتجاه: <strong id="signal-trend">—</strong></span>
+          <span>السعر: <strong id="signal-price">—</strong></span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">📊 المؤشرات النشطة</div>
+        <div class="ind-grid" id="ind-grid"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">💡 أسباب الإشارة</div>
+        <div id="reasons-list" style="font-size:14px; line-height:2;"></div>
+      </div>
+    </section>
+
+    <!-- ============ TRADING ============ -->
+    <section class="page" id="page-trading">
+      <div class="panel">
+        <div class="panel-title">💹 تنفيذ صفقة يدوية</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>المبلغ ($)</label>
+            <input type="number" id="trade-amount" value="10" min="1" step="1">
+          </div>
+          <div class="field">
+            <label>المدة</label>
+            <select id="trade-duration">
+              <option value="1">1 دقيقة</option>
+              <option value="5" selected>5 دقائق</option>
+              <option value="15">15 دقيقة</option>
+              <option value="30">30 دقيقة</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>نوع العقد</label>
+            <select id="trade-type">
+              <option value="rise-fall" selected>Rise/Fall</option>
+              <option value="higher-lower">Higher/Lower</option>
+              <option value="touch">Touch/No Touch</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>الأصل</label>
+            <select id="trade-symbol">
+              <option value="R_10">Volatility 10</option>
+              <option value="R_50">Volatility 50</option>
+              <option value="R_100" selected>Volatility 100</option>
+              <option value="1HZ100V">1s Volatility 100</option>
+            </select>
+          </div>
+        </div>
+        <div class="trade-btns">
+          <button class="btn btn-buy" onclick="placeTrade('BUY')">🟢 شراء (Rise)</button>
+          <button class="btn btn-sell" onclick="placeTrade('SELL')">🔴 بيع (Fall)</button>
+        </div>
+        <div style="margin-top:14px;text-align:center;font-size:12px;color:var(--text-dim);">
+          ⚠️ وضع محاكاة. اربط حساب Deriv في القائمة الجانبية للتنفيذ الحقيقي.
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">📌 الصفقات النشطة</div>
+        <div id="active-trades" style="color:var(--text-dim);">لا صفقات نشطة.</div>
+      </div>
+    </section>
+
+    <!-- ============ AUTO TRADING ============ -->
+    <section class="page" id="page-auto">
+      <div class="panel">
+        <div class="panel-title">🤖 إعدادات التداول التلقائي</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>الأصل</label>
+            <select id="auto-symbol">
+              <option value="R_10">Volatility 10</option>
+              <option value="R_50">Volatility 50</option>
+              <option value="R_100" selected>Volatility 100</option>
+              <option value="1HZ100V">1s Volatility 100</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>مبلغ كل صفقة ($)</label>
+            <input type="number" id="auto-amount" value="1" min="0.35" step="0.01">
+          </div>
+          <div class="field">
+            <label>المدة (دقيقة)</label>
+            <select id="auto-duration">
+              <option value="1" selected>1 دقيقة</option>
+              <option value="2">2 دقيقة</option>
+              <option value="5">5 دقائق</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>هدف الربح ($)</label>
+            <input type="number" id="auto-profit-target" value="50" min="1">
+          </div>
+          <div class="field">
+            <label>حد الخسارة ($)</label>
+            <input type="number" id="auto-loss-limit" value="20" min="1">
+          </div>
+          <div class="field">
+            <label>أدنى ثقة (%)</label>
+            <input type="number" id="auto-min-conf" value="70" min="40" max="95">
+          </div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:10px;">
+          <button class="btn btn-gold" id="auto-start-btn" onclick="startAuto()">▶️ بدء</button>
+          <button class="btn btn-sell" id="auto-stop-btn" onclick="stopAuto()" style="display:none;">⏹️ إيقاف</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">📊 حالة التشغيل</div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="label">الحالة</div>
+            <div class="value" id="auto-status" style="font-size:16px;">متوقف</div>
+          </div>
+          <div class="stat-card green">
+            <div class="label">صفقات</div>
+            <div class="value" id="auto-count">0</div>
+          </div>
+          <div class="stat-card gold">
+            <div class="label">ربح الجلسة</div>
+            <div class="value" id="auto-profit">$0.00</div>
+          </div>
+          <div class="stat-card red">
+            <div class="label">خسارة الجلسة</div>
+            <div class="value" id="auto-loss">$0.00</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">📋 السجل الحي</div>
+        <div id="auto-log" style="font-size:13px;line-height:2;max-height:300px;overflow-y:auto;">
+          <div style="color:var(--text-dim);">في الانتظار...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SCREENSHOT ============ -->
+    <section class="page" id="page-screenshot">
+      <div class="panel">
+        <div class="panel-title">📸 تحليل لقطة الشاشة</div>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:14px;">
+          ارفع صورة الشارت من أي منصة (Deriv, Pocket Option, Quotex...). سيحلل النظام نمط الشموع ويعطيك إشارة.
+        </p>
+        <div class="upload-zone" onclick="document.getElementById('screenshot-input').click()">
+          <div class="up-icon">📤</div>
+          <div class="up-text">اضغط لاختيار صورة الشارت</div>
+          <input type="file" id="screenshot-input" accept="image/*" style="display:none;" onchange="handleScreenshot(event)">
+        </div>
+        <img id="screenshot-preview" alt="معاينة">
+        <div id="screenshot-analysis" style="margin-top:16px;"></div>
+      </div>
+    </section>
+
+    <!-- ============ SIGNALS ============ -->
+    <section class="page" id="page-signals">
+      <div class="panel">
+        <div class="panel-title">⚡ مولّد الإشارات المخصص</div>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:14px;">
+          خصّص الإشارات: اختر العملة، الفريم، والمؤشرات. النظام يولّد إشارات تلقائياً حسب إعداداتك.
+        </p>
+        <div class="form-grid">
+          <div class="field">
+            <label>الأصل</label>
+            <select id="gen-symbol">
+              <option value="R_10">Volatility 10</option>
+              <option value="R_50">Volatility 50</option>
+              <option value="R_100" selected>Volatility 100</option>
+              <option value="1HZ100V">1s Volatility 100</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>الفريم</label>
+            <select id="gen-timeframe">
+              <option value="60">1 دقيقة</option>
+              <option value="300" selected>5 دقائق</option>
+              <option value="900">15 دقيقة</option>
+              <option value="3600">1 ساعة</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>فترة التوليد</label>
+            <select id="gen-interval">
+              <option value="30">كل 30 ثانية</option>
+              <option value="60" selected>كل دقيقة</option>
+              <option value="300">كل 5 دقائق</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>أدنى ثقة (%)</label>
+            <input type="number" id="gen-min-conf" value="70" min="40" max="95">
+          </div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:10px;">
+          <button class="btn btn-gold" onclick="startSignalGen()">⚡ بدء التوليد</button>
+          <button class="btn btn-sell" onclick="stopSignalGen()">⏹️ إيقاف</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">🔔 الإشارات المُولَّدة</div>
+        <div id="signals-feed" style="max-height:400px;overflow-y:auto;">
+          <div style="color:var(--text-dim);font-size:13px;">لا إشارات بعد...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ INDICATORS ============ -->
+    <section class="page" id="page-indicators">
+      <div class="panel">
+        <div class="panel-title">📈 اختيار المؤشرات</div>
+        <p style="color:var(--text-dim);font-size:13px;margin-bottom:14px;">
+          اختر 3 مؤشرات لتشغيلها في التحليل. الدعم والمقاومة يُنصح بإبقائه دائماً.
+        </p>
+        <div class="ind-picker" id="ind-picker">
+          <label class="ind-toggle active" data-ind="rsi"><span class="checkbox"></span><span class="ind-label">RSI (14)</span></label>
+          <label class="ind-toggle active" data-ind="macd"><span class="checkbox"></span><span class="ind-label">MACD</span></label>
+          <label class="ind-toggle active" data-ind="ema"><span class="checkbox"></span><span class="ind-label">EMA 9/21</span></label>
+          <label class="ind-toggle" data-ind="bb"><span class="checkbox"></span><span class="ind-label">Bollinger Bands</span></label>
+          <label class="ind-toggle" data-ind="stoch"><span class="checkbox"></span><span class="ind-label">Stochastic</span></label>
+          <label class="ind-toggle" data-ind="atr"><span class="checkbox"></span><span class="ind-label">ATR</span></label>
+          <label class="ind-toggle active" data-ind="sr"><span class="checkbox"></span><span class="ind-label">Support/Resistance</span></label>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">⚙️ إعدادات المؤشرات</div>
+        <div class="form-grid">
+          <div class="field"><label>RSI Period</label><input type="number" id="rsi-period" value="14" min="5" max="50"></div>
+          <div class="field"><label>RSI Overbought</label><input type="number" id="rsi-ob" value="70" min="60" max="90"></div>
+          <div class="field"><label>RSI Oversold</label><input type="number" id="rsi-os" value="30" min="10" max="40"></div>
+          <div class="field"><label>EMA Fast</label><input type="number" id="ema-fast" value="9" min="3" max="50"></div>
+          <div class="field"><label>EMA Slow</label><input type="number" id="ema-slow" value="21" min="10" max="200"></div>
+          <div class="field"><label>BB Period</label><input type="number" id="bb-period" value="20" min="10" max="50"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ HISTORY ============ -->
+    <section class="page" id="page-history">
+      <div class="panel">
+        <div class="panel-title">📜 سجل الصفقات</div>
+        <div style="overflow-x:auto;">
+          <table class="trades-table">
+            <thead>
+              <tr>
+                <th>الوقت</th><th>الأصل</th><th>النوع</th>
+                <th>المبلغ</th><th>النتيجة</th><th>الربح/الخسارة</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody">
+              <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:24px;">لا صفقات بعد</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <button class="btn btn-sell btn-full" onclick="clearHistory()">🗑️ مسح السجل</button>
+      </div>
+    </section>
+
+    <!-- ============ DERIV LINK ============ -->
+    <section class="page" id="page-deriv">
+      <div class="panel">
+        <div class="panel-title">🔗 ربط حساب Deriv</div>
+
+        <div id="deriv-not-linked">
+          <div class="deriv-link-box">
+            <div class="icon">🔗</div>
+            <h3>اربط حساب Deriv</h3>
+            <p>
+              اربط حسابك في Deriv بنقرة واحدة. لا نحتاج كلمة سر — نستخدم نظام OAuth الآمن.<br>
+              سيتم تنفيذ صفقاتك مباشرة على حسابك الحقيقي أو التجريبي في Deriv.
+            </p>
+            <button class="btn btn-gold btn-full" onclick="startLogin()">
+             🚀 ربط حساب Deriv (نقرة واحدة)
+            </button>
+          </div>
+        </div>
+        <div id="deriv-linked" style="display:none;">
+          <div class="deriv-link-box" style="border-color:var(--green);">
+            <div class="icon">✅</div>
+            <h3>الحساب مربوط</h3>
+            <p>
+              الحساب: <strong id="deriv-account-id">—</strong><br>
+              النوع: <strong id="deriv-account-type">—</strong><br>
+              الرصيد: <strong id="deriv-account-balance">—</strong>
+            </p>
+            <button class="btn btn-sell" onclick="unlinkDeriv()">❌ فصل الحساب</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">ℹ️ كيف يعمل الربط؟</div>
+        <ol class="modal-steps">
+          <li><span class="num">1</span> تضغط زر "ربط حساب Deriv"</li>
+          <li><span class="num">2</span> ينتقل بك لصفحة Deriv الرسمية</li>
+          <li><span class="num">3</span> تسجّل دخول (أو تنشئ حساب جديد)</li>
+          <li><span class="num">4</span> توافق على صلاحيات القراءة والتداول</li>
+          <li><span class="num">5</span> تُعاد لـ Kanzer — حسابك مربوط تلقائياً</li>
+        </ol>
+      </div>
+    </section>
+<section class="page" id="page-pricing">
+  <div class="panel" style="text-align:center;">
+    <div class="panel-title" style="justify-content:center;">🚀 ترقية المؤشر الاحترافي</div>
+    <p style="color:var(--text-dim);font-size:13px;margin-bottom:22px;line-height:1.8;">
+      كل الميزات الأساسية مجانية. المدفوع = المؤشر الاحترافي فقط.
+    </p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;max-width:720px;margin:0 auto;">
+      <div class="price-card">
+        <div class="price-name">🆓 Free</div>
+        <div class="price-amount">$0<span>/شهر</span></div>
+        <ul class="price-features">
+          <li>✅ تحليل حي كامل</li>
+          <li>✅ 5 مؤشرات</li>
+          <li>✅ إشارات فورية</li>
+          <li>✅ ⚡ زر نفذ الآن</li>
+          <li>✅ تنفيذ حقيقي على Deriv</li>
+          <li>✅ التداول التلقائي</li>
+          <li>✅ محلل AI بلا حدود</li>
+          <li>❌ <b>KANZER PRO SIGNAL</b></li>
+        </ul>
+        <button class="btn btn-outline btn-full" id="plan-free-btn" onclick="showToast('✅ أنت على الخطة المجانية','green')">
+          خطتك الحالية
+        </button>
+      </div>
+
+      <div class="price-card pro">
+        <div class="price-badge">الأكثر شعبية</div>
+        <div class="price-name">💎 Pro</div>
+        <div class="price-amount">$19<span>/شهر</span></div>
+        <ul class="price-features">
+          <li>✅ كل ميزات Free</li>
+          <li>💎 <b>KANZER PRO SIGNAL</b></li>
+          <li>✅ 5 مؤشرات + Divergence</li>
+          <li>✅ كشف الانعكاسات المبكرة</li>
+          <li>✅ إشارات موثوقة بثقة عالية</li>
+          <li>✅ سجل الإشارات</li>
+          <li>✅ دعم أولوية</li>
+        </ul>
+        <button class="btn btn-gold btn-full" onclick="showUpgradeModal()">
+          ⚡ ارفع إلى Pro
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+    <!-- ============ PROFILE ============ -->
+    <section class="page" id="page-profile">
+      <div class="panel">
+        <div class="profile-header">
+          <div class="avatar" id="profile-avatar">H</div>
+          <div class="profile-info">
+            <h3 id="profile-name-display">User</h3>
+            <p id="profile-email-display">user@example.com</p>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field"><label>الاسم</label><input type="text" id="profile-name" placeholder="Name"></div>
+          <div class="field"><label>البريد</label><input type="email" id="profile-email" placeholder="email"></div>
+          <div class="field"><label>الهاتف</label><input type="text" id="profile-phone" placeholder="+964..."></div>
+          <div class="field"><label>الدولة</label><input type="text" id="profile-country" placeholder="Iraq"></div>
+          <div class="field"><label>رصيد البداية ($)</label><input type="number" id="profile-balance" min="100" step="100"></div>
+        </div>
+        <div style="margin-top:14px;">
+          <button class="btn btn-gold btn-full" onclick="saveProfile()">💾 حفظ</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">📊 إحصائيات</div>
+        <div class="stats-grid">
+          <div class="stat-card gold"><div class="label">الرصيد</div><div class="value" id="prof-balance">$0</div></div>
+          <div class="stat-card green"><div class="label">الأرباح</div><div class="value" id="prof-profit">$0</div></div>
+          <div class="stat-card red"><div class="label">الخسائر</div><div class="value" id="prof-loss">$0</div></div>
+          <div class="stat-card cyan"><div class="label">صافي</div><div class="value" id="prof-net">$0</div></div>
+          <div class="stat-card"><div class="label">نسبة النجاح</div><div class="value" id="prof-winrate">0%</div></div>
+          <div class="stat-card"><div class="label">الصفقات</div><div class="value" id="prof-total">0</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SETTINGS ============ -->
+    <section class="page" id="page-settings">
+      <div class="panel">
+        <div class="panel-title">⚙️ الإعدادات</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>اللغة</label>
+            <select id="setting-lang">
+              <option value="ar" selected>العربية</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>المظهر</label>
+            <select id="setting-theme">
+              <option value="gold" selected>ذهبي</option>
+              <option value="cyan">سماوي</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>الأصوات</label>
+            <select id="setting-sound">
+              <option value="on" selected>مفعّلة</option>
+              <option value="off">معطّلة</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          <button class="btn btn-gold btn-full" onclick="saveSettings()">💾 حفظ</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">🗑️ منطقة الخطر</div>
+        <button class="btn btn-sell btn-full" onclick="logout(true)">🚪 تسجيل الخروج</button>
+      </div>
+    </section>
+<section class="page" id="page-pro">
+  <div class="panel">
+    <div class="panel-title">💎 KANZER PRO SIGNAL</div>
+    <div style="background:linear-gradient(135deg,rgba(212,175,55,0.15),rgba(0,212,255,0.05));border:1px solid rgba(212,175,55,0.4);border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--text-dim);line-height:1.7;">
+      <b style="color:var(--gold);">محرك متعدد الإشارات</b><br>
+      EMA + MACD + RSI + Bollinger + Divergence<br>
+      <span style="color:var(--cyan);">يعمل على نفس أصول Deriv مباشرة</span>
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label>الأصل</label>
+        <select id="pro-symbol">
+          <option value="R_10">Volatility 10</option>
+          <option value="R_25">Volatility 25</option>
+          <option value="R_50">Volatility 50</option>
+          <option value="R_75">Volatility 75</option>
+          <option value="R_100" selected>Volatility 100</option>
+          <option value="1HZ100V">1s Volatility 100</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>الفريم</label>
+        <select id="pro-timeframe">
+          <option value="60">1 دقيقة</option>
+          <option value="300" selected>5 دقائق</option>
+          <option value="900">15 دقيقة</option>
+          <option value="3600">1 ساعة</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>قوة الإشارة الدنيا</label>
+        <select id="pro-min-score">
+          <option value="5">5 (إشارات أكثر)</option>
+          <option value="6" selected>6 (متوازن)</option>
+          <option value="7">7 (إشارات قوية فقط)</option>
+          <option value="8">8 (قنّاص)</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-gold" onclick="runProAnalysis()">🔍 تحليل الآن</button>
+      <button class="btn btn-outline" onclick="startProAuto()" id="pro-auto-btn">⚡ تفعيل التحديث الحي</button>
+    </div>
+  </div>
+
+  <div class="signal-wrap" id="pro-signal-panel">
+    <div class="signal-label">إشارة KANZER PRO</div>
+    <div class="signal-main" id="pro-signal-main">—</div>
+    <div class="signal-meta">
+      <span>الثقة: <strong id="pro-confidence">—</strong></span>
+      <span>القوة: <strong id="pro-score">—</strong></span>
+      <span>الاتجاه: <strong id="pro-trend">—</strong></span>
+      <span>السعر: <strong id="pro-price">—</strong></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">📊 المؤشرات النشطة</div>
+    <div class="ind-grid" id="pro-indicators"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">💡 أسباب الإشارة</div>
+    <div id="pro-reasons" style="font-size:13px;line-height:2;"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">🎯 تاريخ الإشارات</div>
+    <div id="pro-history" style="font-size:12px;line-height:1.9;max-height:240px;overflow-y:auto;">
+      <div style="color:var(--text-dim);text-align:center;padding:20px;">لا سجل بعد...</div>
+    </div>
+  </div>
+<div class="chart-wrap" id="pro-chart-wrap">
+  <div id="pro-chart"></div>
+</div>
+</section>
+<section class="page" id="page-ai">
+<div class="panel">
+<div class="panel-title">🤖 المحلل الذكي</div>
+<div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.3);border-radius:10px;padding:10px;margin-bottom:12px;font-size:12px;color:var(--text-dim);">
+💡 اسأل عن: تحليل الأصل الحالي، شرح المؤشرات، إدارة المخاطر، أو أي سؤال عن التداول.
+</div>
+<div id="ai-messages" class="chat-messages" style="height:400px;"></div>
+<div class="chat-input-area">
+<input type="text" id="ai-input" placeholder="اكتب سؤالك للمحلل..." maxlength="500" onkeydown="if(event.key==='Enter')askAI()">
+<button onclick="askAI()">🚀 إرسال</button>
+</div>
+<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+<button class="btn btn-outline" style="font-size:12px;padding:8px 12px;" onclick="quickAsk('حلل الأصل الحالي')">📊 حلل الأصل</button>
+<button class="btn btn-outline" style="font-size:12px;padding:8px 12px;" onclick="quickAsk('اشرح الإشارة الحالية')">💡 اشرح الإشارة</button>
+<button class="btn btn-outline" style="font-size:12px;padding:8px 12px;" onclick="quickAsk('ما هي أفضل إدارة مخاطر لحسابي؟')">🛡️ إدارة المخاطر</button>
+<button class="btn btn-outline" style="font-size:12px;padding:8px 12px;" onclick="quickAsk('علمني استراتيجية تداول بسيطة')">📚 استراتيجية</button>
+</div>
+</div>
+</section>
+<section class="page" id="page-chat">
+  <div class="panel">
+    <div class="panel-title">💬 غرفة الدردشة</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <button class="btn btn-outline" onclick="switchRoom('general')" id="room-general">📢 عام</button>
+      <button class="btn btn-outline" onclick="switchRoom('trading')" id="room-trading">📈 تداول</button>
+      <button class="btn btn-outline" onclick="switchRoom('help')" id="room-help">❓ مساعدة</button>
+      <span id="chat-status" style="font-size:12px;color:var(--text-dim);margin-right:auto;align-self:center;"></span>
+    </div>
+    <div id="chat-messages" class="chat-messages">
+      <div style="text-align:center;color:var(--text-dim);font-size:13px;padding:20px;">لا رسائل بعد. ابدأ المحادثة!</div>
+    </div>
+    <div class="chat-input-area">
+      <input type="text" id="chat-input" placeholder="اكتب رسالتك..." maxlength="500" onkeydown="if(event.key==='Enter')sendChatMsg()">
+      <button onclick="sendChatMsg()">📤 إرسال</button>
+    </div>
+  </div>
+</section>
+
+<section class="page" id="page-about">
+  <div class="panel" style="text-align:center;padding:40px 20px;">
+    <h1 style="font-size:42px;background:linear-gradient(135deg,var(--gold),var(--cyan));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:900;letter-spacing:2px;margin-bottom:8px;">KANZER</h1>
+    <p style="color:var(--text-dim);letter-spacing:4px;font-size:12px;">TRADING SUITE</p>
+    <p style="color:var(--text);margin-top:20px;font-size:15px;line-height:1.9;max-width:500px;margin-left:auto;margin-right:auto;">
+      منصة تحليل وتداول ذكية، صُممت للمتداولين العرب. تجمع بين قوة التحليل الفني، الذكاء الاصطناعي، والربط المباشر مع منصات التداول العالمية.
+    </p>
+  </div>
+<div class="panel">
+  <div class="panel-title" style="text-align:center;">📞 تواصل معنا</div>
+
+  <div class="contact-grid">
+    <a href="https://wa.me/9647751459130" target="_blank" class="contact-btn whatsapp-btn">
+      <span class="cbtn-icon">💬</span>
+      <span class="cbtn-text">واتساب</span>
+    </a>
+    <a href="https://t.me/Eror_7" target="_blank" class="contact-btn telegram-btn">
+      <span class="cbtn-icon">✈️</span>
+      <span class="cbtn-text">تلغرام</span>
+    </a>
+    <a href="https://t.me/lb2_c" target="_blank" class="contact-btn channel-btn">
+      <span class="cbtn-icon">📢</span>
+      <span class="cbtn-text">القناة</span>
+    </a>
+    <a href="tel:+9647761090465" class="contact-btn call-btn">
+      <span class="cbtn-icon">📱</span>
+      <span class="cbtn-text">اتصال</span>
+    </a>
+  </div>
+</div>
+<div class="panel">
+  <div class="panel-title" style="text-align:center;">⚖️ معلومات قانونية</div>
+
+  <div class="legal-accordion">
+    <div class="legal-item">
+      <button class="legal-header" onclick="toggleLegal(this)">
+        <span class="legal-header-icon">©</span>
+        <span class="legal-header-text">حقوق النشر</span>
+        <span class="legal-arrow">▼</span>
+      </button>
+      <div class="legal-body">
+        <p>جميع حقوق الملكية الفكرية لمنصة <strong>Kanzer</strong> محفوظة © 2026. يمنع نسخ أو إعادة نشر أو تعديل أي جزء من المنصة (الكود، التصميم، الشعار، المحتوى) دون إذن كتابي مسبق من المالك.</p>
+      </div>
+    </div>
+
+    <div class="legal-item">
+      <button class="legal-header" onclick="toggleLegal(this)">
+        <span class="legal-header-icon">⚠️</span>
+        <span class="legal-header-text">إخلاء المسؤولية</span>
+        <span class="legal-arrow">▼</span>
+      </button>
+      <div class="legal-body">
+        <p>Kanzer منصة تحليل فني وتعليمي <strong>فقط</strong>. لا تُقدّم نصائح مالية أو استثمارية. جميع القرارات التداولية هي مسؤولية المستخدم وحده. نحن لا نتحمل أي مسؤولية عن خسائر مالية مباشرة أو غير مباشرة ناتجة عن استخدام المنصة.</p>
+      </div>
+    </div>
+
+    <div class="legal-item">
+      <button class="legal-header" onclick="toggleLegal(this)">
+        <span class="legal-header-icon">🔒</span>
+        <span class="legal-header-text">سياسة الخصوصية</span>
+        <span class="legal-arrow">▼</span>
+      </button>
+      <div class="legal-body">
+        <p>نحترم خصوصيتك. <strong>لا نبيع</strong> أو نشارك بياناتك مع أي طرف ثالث. جميع البيانات المُخزّنة (البريد الإلكتروني، الاسم، الصفقات، الإعدادات) محفوظة بشكل آمن لدى خدمات موثوقة مثل <strong>Google Firebase</strong>. يمكنك طلب حذف حسابك في أي وقت.</p>
+      </div>
+    </div>
+
+    <div class="legal-item">
+      <button class="legal-header" onclick="toggleLegal(this)">
+        <span class="legal-header-icon">📋</span>
+        <span class="legal-header-text">شروط الاستخدام</span>
+        <span class="legal-arrow">▼</span>
+      </button>
+      <div class="legal-body">
+        <p>باستخدامك للمنصة، أنت توافق على استخدامها للأغراض <strong>الشخصية والتعليمية</strong> فقط. يمنع استخدام المنصة لأي نشاط غير قانوني أو ضار بالآخرين. نحتفظ بحق إيقاف أي حساب ينتهك هذه الشروط دون إشعار مسبق.</p>
+      </div>
+    </div>
+
+    <div class="legal-item">
+      <button class="legal-header" onclick="toggleLegal(this)">
+        <span class="legal-header-icon">⚠️</span>
+        <span class="legal-header-text">تحذير المخاطر</span>
+        <span class="legal-arrow">▼</span>
+      </button>
+      <div class="legal-body">
+        <p>التداول في الأسواق المالية يحمل مخاطر عالية قد تؤدي إلى <strong>فقدان رأس المال بالكامل</strong>. لا تتداول بأموال لا تستطيع تحمّل خسارتها. الأسواق احتمالية، ولا يوجد ضمان للربح. استشر مستشاراً مالياً مؤهلاً قبل أي قرار استثماري.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</section>
+  </main>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div class="toast" id="toast">رسالة</div>
+
+<!-- ============ MODAL ============ -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+/* ============================================================
+   KANZER — Application Logic
+   ============================================================ */
+
+// ============ CONSTANTS ============
+const DERIV_APP_ID = '34obrF7Hahze3EBxEBq1Z';
+const STORAGE_USERS = 'kanzer_users';
+const STORAGE_SESSION = 'kanzer_session';
+
+// ============ STATE ============
+const state = {
+  currentUser: null,
+  balance: 10000,
+  profit: 0,
+  loss: 0,
+  wins: 0,
+  totalTrades: 0,
+  history: [],
+  activeTrades: [],
+  selectedIndicators: ['rsi', 'macd', 'ema', 'sr'],
+  ws: null,
+  wsConnected: false,
+  chart: null,
+  candleSeries: null,
+  ema9Series: null,
+  ema21Series: null,
+  bbUpper: null,
+  bbLower: null,
+  candles: [],
+  currentPrice: 0,
+  refreshTimer: null,
+  autoTimer: null,
+  autoRunning: false,
+  autoStats: { count: 0, profit: 0, loss: 0 },
+  genTimer: null,
+  derivLinked: false,
+  derivAccount: null,
+  derivToken: null,
+  prevTick: 0,
+};
+
+// ============ STORAGE HELPERS ============
+function getUsers() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_USERS) || '{}'); }
+  catch { return {}; }
+}
+function saveUsers(users) {
+  localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
+}
+function saveSession(email) {
+  localStorage.setItem(STORAGE_SESSION, email);
+}
+function getSession() {
+  return localStorage.getItem(STORAGE_SESSION);
+}
+function clearSession() {
+  localStorage.removeItem(STORAGE_SESSION);
+}
+
+// Hash بسيط (للتوضيح فقط — في الإنتاج استخدم bcrypt على السيرفر)
+function simpleHash(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return 'h' + Math.abs(hash).toString(36);
+}
+
+// ============ AUTH ============
+
+function switchAuth(tab) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+  if (event && event.target) event.target.classList.add('active');
+  const form = document.getElementById('form-' + tab);
+  if (form) form.classList.add('active');
+  document.querySelectorAll('.auth-msg').forEach(m => m.classList.remove('show'));
+}
+function showAuthMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'auth-msg show ' + type;
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+alert('1: دخلنا handleRegister'); 
+  const name = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim().toLowerCase();
+  const pw = document.getElementById('reg-password').value;
+  const pw2 = document.getElementById('reg-password2').value;
+
+  if (pw !== pw2) { showAuthMsg('reg-msg', '❌ كلمتا المرور غير متطابقتين', 'error'); return; }
+  if (pw.length < 6) { showAuthMsg('reg-msg', '❌ كلمة المرور قصيرة (6+ أحرف)', 'error'); return; }
+  if (!window.firebaseReady) { showAuthMsg('reg-msg', '⏳ Firebase لا يعمل بعد — انتظر ثانية', 'error'); return; }
+
+  showAuthMsg('reg-msg', '⏳ جاري إنشاء الحساب...', 'success');
+
+  try {
+    const cred = await window.firebaseCreateUser(window.firebaseAuth, email, pw);
+    const firebaseUser = cred.user;
+try {
+  await fetch('https://kanzer-chat-default-rtdb.firebaseio.com/users/' + firebaseUser.uid + '.json', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: name,
+      email: email,
+      joinedAt: Date.now()
+    })
+  });
+} catch(e) { console.warn('User registration failed:', e); }
+    const users = getUsers();
+    users[email] = {
+      name,
+      email,
+      firebaseUid: firebaseUser.uid,
+      createdAt: Date.now(),
+tier: 'free',
+      balance: 10000,
+      profit: 0,
+      loss: 0,
+      wins: 0,
+      totalTrades: 0,
+      history: [],
+      settings: {
+        theme: 'gold',
+        sound: 'on',
+        selectedIndicators: ['rsi', 'macd', 'ema', 'sr']
+      },
+      deriv: null
+    };
+    saveUsers(users);
+
+    showAuthMsg('reg-msg', '✅ تم إنشاء الحساب! جاري الدخول...', 'success');
+    setTimeout(() => {
+      saveSession(email);
+      loadUser(email);
+      showApp();
+    }, 800);
+  } catch (err) {
+    let msg = err.message || 'خطأ غير معروف';
+    if (msg.includes('email-already-in-use')) msg = '❌ هذا البريد مسجّل بالفعل';
+    else if (msg.includes('invalid-email')) msg = '❌ البريد الإلكتروني غير صالح';
+    else if (msg.includes('weak-password')) msg = '❌ كلمة المرور ضعيفة جداً';
+    showAuthMsg('reg-msg', msg, 'error');
+  }
+}
+async function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const pw = document.getElementById('login-password').value;
+
+  if (!window.firebaseReady) { showAuthMsg('login-msg', '⏳ Firebase لا يعمل بعد', 'error'); return; }
+
+  showAuthMsg('login-msg', '⏳ جاري تسجيل الدخول...', 'success');
+
+  try {
+    const cred = await window.firebaseSignIn(window.firebaseAuth, email, pw);
+    const firebaseUser = cred.user;
+
+    const users = getUsers();
+    if (!users[email]) {
+      users[email] = {
+        name: email.split('@')[0],
+        email,
+        firebaseUid: firebaseUser.uid,
+        createdAt: Date.now(),
+        balance: 10000,
+        profit: 0,
+        loss: 0,
+        wins: 0,
+        totalTrades: 0,
+        history: [],
+        settings: { theme: 'gold', sound: 'on', selectedIndicators: ['rsi', 'macd', 'ema', 'sr'] },
+        deriv: null
+      };
+      saveUsers(users);
+    }
+
+    saveSession(email);
+    loadUser(email);
+    showAuthMsg('login-msg', '✅ تم الدخول!', 'success');
+    setTimeout(showApp, 500);
+  } catch (err) {
+    let msg = err.message || 'خطأ غير معروف';
+    if (msg.includes('invalid-credential') || msg.includes('wrong-password')) msg = '❌ البريد أو كلمة المرور خاطئة';
+    else if (msg.includes('user-not-found')) msg = '❌ لا يوجد حساب بهذا البريد';
+    else if (msg.includes('too-many-requests')) msg = '⚠️ محاولات كثيرة — انتظر دقيقة';
+    showAuthMsg('login-msg', msg, 'error');
+  }
+}
+function showUpgradeModal() {
+  const modal = document.getElementById('modal-bg');
+  const content = document.getElementById('modal-content');
+  if (!modal || !content) return;
+  content.innerHTML =
+    '<h3 style="color:var(--gold);text-align:center;margin-bottom:16px;">💎 الترقية إلى Pro</h3>' +
+    '<p style="color:var(--text-dim);font-size:13px;text-align:center;line-height:1.8;margin-bottom:16px;">' +
+    'للحصول على الاشتراك، تواصل معنا:' +
+    '</p>' +
+    '<a href="https://wa.me/9647751459130?text=أريد%20الاشتراك%20في%20Kanzer%20Pro" target="_blank" ' +
+    'style="display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-radius:10px;text-decoration:none;font-weight:800;margin-bottom:10px;">' +
+    '💬 واتساب — اشترك الآن</a>' +
+    '<a href="https://t.me/Eror_7" target="_blank" ' +
+    'style="display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;background:linear-gradient(135deg,#29B6F6,#0077B5);color:#fff;border-radius:10px;text-decoration:none;font-weight:800;margin-bottom:10px;">' +
+    '✈️ تلغرام — اشترك الآن</a>' +
+    '<p style="color:var(--text-dim);font-size:11px;text-align:center;margin-top:14px;">' +
+    'بعد الدفع، سيتم تفعيل حسابك خلال دقائق' +
+    '</p>' +
+    '<button class="btn btn-outline btn-full" onclick="closeModal()" style="margin-top:10px;">إغلاق</button>';
+  modal.classList.add('show');
+}
+function isPro() {
+  if (!state.currentUser) return false;
+  return state.currentUser.tier === 'pro';
+}
+function loadUser(email) {
+  const users = getUsers();
+  const u = users[email];
+  if (!u) return;
+  state.currentUser = u;
+if (!state.currentUser.tier) state.currentUser.tier = 'free';
+  state.balance = u.balance ?? 10000;
+  state.profit = u.profit ?? 0;
+  state.loss = u.loss ?? 0;
+  state.wins = u.wins ?? 0;
+  state.totalTrades = u.totalTrades ?? 0;
+  state.history = u.history || [];
+  state.selectedIndicators = u.settings?.selectedIndicators || ['rsi', 'macd', 'ema', 'sr'];
+  state.derivLinked = !!u.deriv;
+  state.derivAccount = u.deriv || null;
+}
+
+function saveCurrentUser() {
+  if (!state.currentUser) return;
+  const users = getUsers();
+  const u = users[state.currentUser.email];
+  if (!u) return;
+  u.balance = state.balance;
+  u.profit = state.profit;
+  u.loss = state.loss;
+  u.wins = state.wins;
+  u.totalTrades = state.totalTrades;
+  u.history = state.history;
+  u.settings = u.settings || {};
+  u.settings.selectedIndicators = state.selectedIndicators;
+  u.deriv = state.derivAccount;
+  saveUsers(users);
+  state.currentUser = u;
+}
+
+async function logout(confirmFirst) {
+  if (confirmFirst && !confirm('هل تريد تسجيل الخروج؟')) return;
+  try {
+    if (window.firebaseReady) await window.firebaseSignOut(window.firebaseAuth);
+  } catch(e) { console.warn(e); }
+  if (state.ws) try { state.ws.close(); } catch(e){}
+  clearSession();
+  location.reload();
+}
+
+function showApp() {
+  document.getElementById('login-screen').classList.remove('active');
+  document.getElementById('app').classList.add('active');
+  updateUserUI();
+  initChart();
+  setupNav();
+  setupIndicatorPicker();
+  updateUI();
+  renderHistory();
+  renderActiveTrades();
+  updateDerivUI();
+  connectWS();
+  startRefreshLoop();
+}
+
+function updateUserUI() {
+  const u = state.currentUser;
+  if (!u) return;
+  document.getElementById('sb-avatar').textContent = (u.name || 'U').charAt(0).toUpperCase();
+  document.getElementById('sb-name').textContent = u.name || 'User';
+  document.getElementById('sb-email').textContent = u.email || '';
+  document.getElementById('profile-avatar').textContent = (u.name || 'U').charAt(0).toUpperCase();
+  document.getElementById('profile-name-display').textContent = u.name;
+  document.getElementById('profile-email-display').textContent = u.email;
+  document.getElementById('profile-name').value = u.name || '';
+  document.getElementById('profile-email').value = u.email || '';
+  document.getElementById('profile-phone').value = u.phone || '';
+  document.getElementById('profile-country').value = u.country || '';
+  document.getElementById('profile-balance').value = u.balance ?? 10000;
+}
+
+// ============ AUTO LOGIN ============
+document.addEventListener('DOMContentLoaded', () => {
+  const session = getSession();
+  if (session) {
+    const users = getUsers();
+    if (users[session]) {
+      loadUser(session);
+      showApp();
+      return;
+    }
+  }
+  // Show login screen
+  document.getElementById('login-screen').classList.add('active');
+});
+
+// ============ NAV ============
+function setupNav() {
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const page = el.dataset.page;
+      document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+      el.classList.add('active');
+      document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+      document.getElementById('page-' + page).classList.add('active');
+      document.getElementById('pageTitle').textContent = el.textContent.trim();
+      document.getElementById('sidebar').classList.remove('open');
+      if (page === 'dashboard') setTimeout(() => state.chart && state.chart.timeScale().fitContent(), 100);
+    });
+  });
+  document.getElementById('menuBtn').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('open');
+  });
+}
+
+// ============ CHART ============
+function initChart() {
+  if (state.chart) return;
+  const el = document.getElementById('chart');
+  state.chart = LightweightCharts.createChart(el, {
+    layout: { background: { color: '#111319' }, textColor: '#8a90a3' },
+    grid: { vertLines: { color: '#1f2330' }, horzLines: { color: '#1f2330' } },
+    timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#2a2f3d' },
+    rightPriceScale: { borderColor: '#2a2f3d' },
+    crosshair: { mode: 0 },
+    width: el.clientWidth,
+    height: 420,
+  });
+  state.candleSeries = state.chart.addCandlestickSeries({
+    upColor: '#26a69a', downColor: '#ef5350',
+    borderUpColor: '#26a69a', borderDownColor: '#ef5350',
+    wickUpColor: '#26a69a', wickDownColor: '#ef5350',
+  });
+  state.ema9Series = state.chart.addLineSeries({ color: '#d4af37', lineWidth: 1.5, title: 'EMA 9' });
+  state.ema21Series = state.chart.addLineSeries({ color: '#00d4ff', lineWidth: 1.5, title: 'EMA 21' });
+  state.bbUpper = state.chart.addLineSeries({ color: 'rgba(155,109,255,0.5)', lineWidth: 1 });
+  state.bbLower = state.chart.addLineSeries({ color: 'rgba(155,109,255,0.5)', lineWidth: 1 });
+
+  window.addEventListener('resize', () => {
+    state.chart.applyOptions({ width: el.clientWidth });
+  });
+}
+
+// ============ WEBSOCKET ============
+function connectWS() {
+  updateConn('connecting');
+  try {
+    const url = `wss://ws.derivws.com/websockets/v3?app_id=${DERIV_APP_ID}`;
+    state.ws = new WebSocket(url);
+
+    state.ws.onopen = () => {
+      state.wsConnected = true;
+      updateConn('online');
+      if (state.derivLinked && state.derivToken) {
+        state.ws.send(JSON.stringify({ authorize: state.derivToken, req_id: 1 }));
+      }
+      const sym = document.getElementById('symbol-select').value;
+      state.ws.send(JSON.stringify({ ticks: sym, subscribe: 1 }));
+      requestCandles();
+    };
+
+    state.ws.onmessage = (ev) => handleWSMessage(JSON.parse(ev.data));
+    state.ws.onerror = () => updateConn('offline');
+    state.ws.onclose = () => {
+      state.wsConnected = false;
+      updateConn('offline');
+      setTimeout(connectWS, 5000);
+    };
+  } catch (e) {
+    updateConn('offline');
+  }
+}
+
+function updateConn(status) {
+  const el = document.getElementById('conn');
+  const txt = document.getElementById('conn-text');
+  if (status === 'online') { el.className = 'conn-badge online'; txt.textContent = 'متصل'; }
+  else if (status === 'connecting') { el.className = 'conn-badge'; txt.textContent = 'يتصل...'; }
+  else { el.className = 'conn-badge offline'; txt.textContent = 'غير متصل'; }
+}
+
+function handleWSMessage(msg) {
+  if (msg.msg_type === 'tick' && msg.tick) {
+    state.prevTick = state.currentPrice;
+    state.currentPrice = parseFloat(msg.tick.quote);
+    document.getElementById('signal-price').textContent = state.currentPrice.toFixed(4);
+    if (state.candles.length > 0) {
+      const last = state.candles[state.candles.length - 1];
+      const now = Math.floor(Date.now() / 1000);
+      const tf = parseInt(document.getElementById('timeframe-select').value);
+      if (now - last.time < tf) {
+        last.close = state.currentPrice;
+        last.high = Math.max(last.high, state.currentPrice);
+        last.low = Math.min(last.low, state.currentPrice);
+      } else {
+        state.candles.push({
+          time: last.time + tf,
+          open: last.close,
+          high: state.currentPrice,
+          low: state.currentPrice,
+          close: state.currentPrice,
+        });
+        if (state.candles.length > 200) state.candles.shift();
+      }
+      state.candleSeries.update(last);
+    }
+  } else if (msg.msg_type === 'candles') {
+    const raw = msg.candles || [];
+    if (!raw.length) {
+      document.getElementById('chart-loader').classList.add('hidden');
+      return;
+    }
+    state.candles = raw.map(c => ({
+      time: c.epoch,
+      open: parseFloat(c.open),
+      high: parseFloat(c.high),
+      low: parseFloat(c.low),
+      close: parseFloat(c.close),
+    }));
+    state.candleSeries.setData(state.candles);
+    document.getElementById('chart-loader').classList.add('hidden');
+    runAnalysis();
+  } else if (msg.msg_type === 'authorize') {
+    if (msg.error) {
+      console.warn('Deriv auth error', msg.error);
+      return;
+    }
+    const a = msg.authorize;
+    state.derivAccount = {
+      loginid: a.loginid,
+      currency: a.currency,
+      isVirtual: a.is_virtual === 1,
+      balance: a.balance,
+    };
+    updateDerivUI();
+  } else if (msg.msg_type === 'buy') {
+    if (msg.error) { console.warn('buy error', msg.error); return; }
+    console.log('✅ Deriv buy executed:', msg.buy);
+  }
+}
+
+function requestCandles() {
+  if (!state.wsConnected) return;
+  const symbol = document.getElementById('symbol-select').value;
+  const tf = document.getElementById('timeframe-select').value;
+  document.getElementById('chart-loader').classList.remove('hidden');
+  state.ws.send(JSON.stringify({
+    ticks_history: symbol,
+    adjust_start_time: 1,
+    count: 200,
+    end: 'latest',
+    start: 1,
+    style: 'candles',
+    granularity: parseInt(tf),
+  }));
+}
+
+// ============ INDICATORS ============
+function calcEMA(data, p) {
+  const k = 2 / (p + 1);
+  const out = [data[0]];
+  for (let i = 1; i < data.length; i++) out.push(data[i] * k + out[i - 1] * (1 - k));
+  return out;
+}
+
+function calcRSI(closes, p = 14) {
+  const out = new Array(closes.length).fill(NaN);
+  let gains = 0, losses = 0;
+  for (let i = 1; i <= p; i++) {
+    const d = closes[i] - closes[i - 1];
+    if (d > 0) gains += d; else losses -= d;
+  }
+  let ag = gains / p, al = losses / p;
+  out[p] = al === 0 ? 100 : 100 - (100 / (1 + ag / al));
+  for (let i = p + 1; i < closes.length; i++) {
+    const d = closes[i] - closes[i - 1];
+    const g = d > 0 ? d : 0, l = d < 0 ? -d : 0;
+    ag = (ag * (p - 1) + g) / p;
+    al = (al * (p - 1) + l) / p;
+    out[i] = al === 0 ? 100 : 100 - (100 / (1 + ag / al));
+  }
+  return out;
+}
+
+function calcMACD(closes, f = 12, s = 26, sig = 9) {
+  const emaF = calcEMA(closes, f);
+  const emaS = calcEMA(closes, s);
+  const macd = emaF.map((v, i) => v - emaS[i]);
+  const signal = calcEMA(macd.slice(s - 1), sig);
+  return { macd, signal };
+}
+
+function calcBB(closes, p = 20, m = 2) {
+  const up = [], mid = [], lo = [];
+  for (let i = p - 1; i < closes.length; i++) {
+    const slice = closes.slice(i - p + 1, i + 1);
+    const mean = slice.reduce((a, b) => a + b, 0) / p;
+    const v = slice.reduce((a, b) => a + (b - mean) ** 2, 0) / p;
+    const std = Math.sqrt(v);
+    up.push({ time: state.candles[i].time, value: mean + m * std });
+    mid.push({ time: state.candles[i].time, value: mean });
+    lo.push({ time: state.candles[i].time, value: mean - m * std });
+  }
+  return { upper: up, middle: mid, lower: lo };
+}
+
+function calcStoch(closes, highs, lows, p = 14) {
+  const k = [];
+  for (let i = p - 1; i < closes.length; i++) {
+    const hh = Math.max(...highs.slice(i - p + 1, i + 1));
+    const ll = Math.min(...lows.slice(i - p + 1, i + 1));
+    k.push(((closes[i] - ll) / (hh - ll || 1)) * 100);
+  }
+  return k;
+}
+
+function calcATR(closes, highs, lows, p = 14) {
+  const tr = [];
+  for (let i = 1; i < closes.length; i++) {
+    tr.push(Math.max(
+      highs[i] - lows[i],
+      Math.abs(highs[i] - closes[i - 1]),
+      Math.abs(lows[i] - closes[i - 1])
+    ));
+  }
+  return calcEMA(tr, p);
+}
+
+function calcSR(candles, lookback = 5) {
+  const highs = candles.map(c => c.high);
+  const lows = candles.map(c => c.low);
+  const resistances = [], supports = [];
+  for (let i = lookback; i < candles.length - lookback; i++) {
+    const hWindow = highs.slice(i - lookback, i + lookback + 1);
+    const lWindow = lows.slice(i - lookback, i + lookback + 1);
+    if (highs[i] === Math.max(...hWindow)) resistances.push(highs[i]);
+    if (lows[i] === Math.min(...lWindow)) supports.push(lows[i]);
+  }
+  const cluster = (arr) => {
+    if (!arr.length) return [];
+    const sorted = [...arr].sort((a, b) => a - b);
+    const groups = []; let cur = [sorted[0]];
+    for (let i = 1; i < sorted.length; i++) {
+      if ((sorted[i] - cur[cur.length - 1]) / (sorted[i] || 1) < 0.002) cur.push(sorted[i]);
+      else { groups.push(cur); cur = [sorted[i]]; }
+    }
+    if (cur.length) groups.push(cur);
+    return groups.map(g => g.reduce((a, b) => a + b, 0) / g.length).sort((a, b) => b - a);
+  };
+  return { resistances: cluster(resistances).slice(0, 3), supports: cluster(supports).slice(0, 3) };
+}
+
+// ============ ANALYSIS ============
+function runAnalysis() {
+  if (state.candles.length < 30) return;
+
+  const closes = state.candles.map(c => c.close);
+  const highs = state.candles.map(c => c.high);
+  const lows = state.candles.map(c => c.low);
+  const price = closes[closes.length - 1];
+
+  const ema9 = calcEMA(closes, 9);
+  const ema21 = calcEMA(closes, 21);
+  const rsi = calcRSI(closes, 14);
+  const { macd, signal: macdSig } = calcMACD(closes);
+  const bb = calcBB(closes);
+  const stoch = calcStoch(closes, highs, lows);
+  const atr = calcATR(closes, highs, lows);
+  const sr = calcSR(state.candles);
+
+  state.ema9Series.setData(state.candles.map((c, i) => ({ time: c.time, value: ema9[i] })));
+  state.ema21Series.setData(state.candles.map((c, i) => ({ time: c.time, value: ema21[i] })));
+  if (state.selectedIndicators.includes('bb')) {
+    state.bbUpper.setData(bb.upper);
+    state.bbLower.setData(bb.lower);
+  } else {
+    state.bbUpper.setData([]);
+    state.bbLower.setData([]);
+  }
+
+  let score = 0;
+  const reasons = [];
+  const lastRsi = rsi[rsi.length - 1];
+  const lastMacd = macd[macd.length - 1];
+  const lastSig = macdSig[macdSig.length - 1];
+  const lastE9 = ema9[ema9.length - 1];
+  const lastE21 = ema21[ema21.length - 1];
+
+  if (state.selectedIndicators.includes('rsi')) {
+    if (lastRsi < 30) { score += 2; reasons.push({ t: `RSI = ${lastRsi.toFixed(1)} تشبع بيعي`, c: 'bull' }); }
+    else if (lastRsi > 70) { score -= 2; reasons.push({ t: `RSI = ${lastRsi.toFixed(1)} تشبع شرائي`, c: 'bear' }); }
+    else reasons.push({ t: `RSI = ${lastRsi.toFixed(1)} محايد`, c: 'neutral' });
+  }
+  if (state.selectedIndicators.includes('ema')) {
+    if (lastE9 > lastE21) { score += 1; reasons.push({ t: 'EMA 9 فوق EMA 21 — اتجاه صاعد', c: 'bull' }); }
+    else { score -= 1; reasons.push({ t: 'EMA 9 تحت EMA 21 — اتجاه هابط', c: 'bear' }); }
+  }
+  if (state.selectedIndicators.includes('macd')) {
+    if (lastMacd > lastSig) { score += 1; reasons.push({ t: 'MACD فوق الإشارة — زخم إيجابي', c: 'bull' }); }
+    else { score -= 1; reasons.push({ t: 'MACD تحت الإشارة — زخم سلبي', c: 'bear' }); }
+  }
+  if (state.selectedIndicators.includes('bb') && bb.upper.length) {
+    const up = bb.upper[bb.upper.length - 1].value;
+    const lo = bb.lower[bb.lower.length - 1].value;
+    if (price < lo) { score += 2; reasons.push({ t: 'السعر تحت Band السفلي', c: 'bull' }); }
+    else if (price > up) { score -= 2; reasons.push({ t: 'السعر فوق Band العلوي', c: 'bear' }); }
+    else reasons.push({ t: 'السعر داخل نطاق Bollinger', c: 'neutral' });
+  }
+  if (state.selectedIndicators.includes('stoch') && stoch.length) {
+    const k = stoch[stoch.length - 1];
+    if (k < 20) { score += 1; reasons.push({ t: `Stoch = ${k.toFixed(1)} تشبع بيعي`, c: 'bull' }); }
+    else if (k > 80) { score -= 1; reasons.push({ t: `Stoch = ${k.toFixed(1)} تشبع شرائي`, c: 'bear' }); }
+  }
+  if (state.selectedIndicators.includes('sr') && sr.supports.length && sr.resistances.length) {
+    const nearestSup = sr.supports[0];
+    const nearestRes = sr.resistances[0];
+    const distSup = (price - nearestSup) / price;
+    const distRes = (nearestRes - price) / price;
+    if (distSup < 0.003) { score += 2; reasons.push({ t: `قريب من دعم ${nearestSup.toFixed(4)} — ارتداد محتمل`, c: 'bull' }); }
+    else if (distRes < 0.003) { score -= 2; reasons.push({ t: `قريب من مقاومة ${nearestRes.toFixed(4)} — تصحيح محتمل`, c: 'bear' }); }
+    else reasons.push({ t: `دعم: ${nearestSup.toFixed(4)} | مقاومة: ${nearestRes.toFixed(4)}`, c: 'neutral' });
+  }
+
+  let signal = 'NEUTRAL';
+  if (score >= 3) signal = 'BUY';
+  else if (score <= -3) signal = 'SELL';
+  const conf = Math.min(Math.abs(score) * 15 + 40, 95);
+
+  const sw = document.getElementById('signal-wrap');
+  sw.className = 'signal-wrap ' + (signal === 'BUY' ? 'buy' : signal === 'SELL' ? 'sell' : '');
+  document.getElementById('signal-main').textContent = signal === 'BUY' ? 'شراء' : signal === 'SELL' ? 'بيع' : 'محايد';
+  document.getElementById('signal-conf').textContent = conf.toFixed(0) + '%';
+  document.getElementById('signal-trend').textContent = lastE9 > lastE21 ? 'صاعد' : 'هابط';
+  document.getElementById('signal-price').textContent = price.toFixed(4);
+
+  const cards = [];
+  if (state.selectedIndicators.includes('rsi'))
+    cards.push({ n: 'RSI', v: lastRsi.toFixed(2), c: lastRsi < 30 ? 'bull' : lastRsi > 70 ? 'bear' : 'neutral' });
+  if (state.selectedIndicators.includes('ema')) {
+    cards.push({ n: 'EMA 9', v: lastE9.toFixed(4), c: 'bull' });
+    cards.push({ n: 'EMA 21', v: lastE21.toFixed(4), c: lastE9 > lastE21 ? 'bull' : 'bear' });
+  }
+  if (state.selectedIndicators.includes('macd'))
+    cards.push({ n: 'MACD', v: lastMacd.toFixed(5), c: lastMacd > lastSig ? 'bull' : 'bear' });
+  if (state.selectedIndicators.includes('bb') && bb.upper.length)
+    cards.push({ n: 'BB Range', v: (bb.upper[bb.upper.length - 1].value - bb.lower[bb.lower.length - 1].value).toFixed(4), c: 'neutral' });
+  if (state.selectedIndicators.includes('stoch') && stoch.length)
+    cards.push({ n: 'Stoch', v: stoch[stoch.length - 1].toFixed(2), c: stoch[stoch.length - 1] < 20 ? 'bull' : stoch[stoch.length - 1] > 80 ? 'bear' : 'neutral' });
+  if (state.selectedIndicators.includes('atr') && atr.length)
+    cards.push({ n: 'ATR', v: atr[atr.length - 1].toFixed(4), c: 'neutral' });
+  if (state.selectedIndicators.includes('sr') && sr.supports.length) {
+    cards.push({ n: 'دعم أقرب', v: sr.supports[0].toFixed(4), c: 'bull' });
+    cards.push({ n: 'مقاومة أقرب', v: sr.resistances[0].toFixed(4), c: 'bear' });
+  }
+
+  document.getElementById('ind-grid').innerHTML = cards.map(c =>
+    `<div class="ind-card ${c.c}"><div class="ind-name">${c.n}</div><div class="ind-val">${c.v}</div></div>`
+  ).join('');
+
+  document.getElementById('reasons-list').innerHTML = reasons.map(r =>
+    `<div style="color:${r.c === 'bull' ? 'var(--green)' : r.c === 'bear' ? 'var(--red)' : 'var(--text-dim)'}">
+      ${r.c === 'bull' ? '🟢' : r.c === 'bear' ? '🔴' : '⚪'} ${r.t}
+    </div>`
+  ).join('');
+
+  if (state.autoRunning && signal !== 'NEUTRAL' && conf >= parseInt(document.getElementById('auto-min-conf').value)) {
+    executeAutoTrade(signal, conf);
+  }
+}
+
+// ============ INDICATOR PICKER ============
+function setupIndicatorPicker() {
+  document.querySelectorAll('.ind-toggle').forEach(el => {
+    if (state.selectedIndicators.includes(el.dataset.ind)) el.classList.add('active');
+    else el.classList.remove('active');
+
+    el.addEventListener('click', () => {
+      const ind = el.dataset.ind;
+      el.classList.toggle('active');
+      if (el.classList.contains('active')) {
+        if (!state.selectedIndicators.includes(ind)) state.selectedIndicators.push(ind);
+      } else {
+        state.selectedIndicators = state.selectedIndicators.filter(x => x !== ind);
+      }
+      saveCurrentUser();
+      runAnalysis();
+    });
+  });
+}
+
+// ============ TRADING ============
+function placeTrade(side) {
+  const amount = parseFloat(document.getElementById('trade-amount').value);
+  const duration = parseInt(document.getElementById('trade-duration').value);
+  const symbol = document.getElementById('trade-symbol').value;
+
+  if (amount > state.balance) { showToast('الرصيد غير كافٍ', 'red'); return; }
+  if (amount <= 0) { showToast('المبلغ غير صالح', 'red'); return; }
+
+  state.balance -= amount;
+
+  // إذا كان Deriv مربوط → نفّذ الصفقة الحقيقية
+  if (state.derivLinked && state.wsConnected) {
+    const contractType = side === 'BUY' ? 'CALL' : 'PUT';
+    state.ws.send(JSON.stringify({
+      proposal: 1,
+      amount: amount,
+      basis: 'stake',
+      contract_type: contractType,
+      currency: 'USD',
+      duration: duration,
+      duration_unit: 'm',
+      symbol: symbol,
+      req_id: Date.now(),
+    }));
+    showToast(`⚡ إرسال صفقة حقيقية ${side} إلى Deriv`, 'green');
+  } else {
+    showToast(`📝 صفقة محاكاة ${side === 'BUY' ? 'شراء' : 'بيع'} بمبلغ $${amount}`, 'green');
+  }
+
+  const trade = {
+    id: Date.now(),
+    time: new Date().toLocaleTimeString('ar-EG'),
+    symbol, side, amount, duration,
+    openPrice: state.currentPrice,
+    status: 'pending',
+  };
+  state.activeTrades.push(trade);
+  renderActiveTrades();
+  updateUI();
+  saveCurrentUser();
+
+  setTimeout(() => settleTrade(trade.id), duration * 1000);
+}
+
+function settleTrade(id) {
+  const idx = state.activeTrades.findIndex(t => t.id === id);
+  if (idx < 0) return;
+  const t = state.activeTrades[idx];
+  const closePrice = state.currentPrice;
+  const won = (t.side === 'BUY' && closePrice > t.openPrice) || (t.side === 'SELL' && closePrice < t.openPrice);
+  t.status = won ? 'win' : 'loss';
+  t.closePrice = closePrice;
+  t.pnl = won ? t.amount * 0.85 : -t.amount;
+
+  if (won) {
+    state.balance += t.amount + t.pnl;
+    state.profit += t.pnl;
+    state.wins += 1;
+  } else {
+    state.loss += t.amount;
+  }
+  state.totalTrades += 1;
+  state.history.unshift({ ...t });
+  state.activeTrades.splice(idx, 1);
+
+  renderActiveTrades();
+  renderHistory();
+  updateUI();
+  saveCurrentUser();
+  showToast(won ? `🟢 ربح! +$${t.pnl.toFixed(2)}` : `🔴 خسارة -$${t.amount}`, won ? 'green' : 'red');
+}
+
+function renderActiveTrades() {
+  const el = document.getElementById('active-trades');
+  if (!state.activeTrades.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:14px;">لا صفقات نشطة.</div>';
+    return;
+  }
+  el.innerHTML = state.activeTrades.map(t => `
+    <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;">
+      <div><strong class="${t.side === 'BUY' ? 'buy' : 'sell'}">${t.side}</strong> ${t.symbol} — $${t.amount}</div>
+      <div style="color:var(--gold);">⏳ ${t.duration} د</div>
+    </div>
+  `).join('');
+}
+
+// ============ AUTO TRADING ============
+function startAuto() {
+  if (!state.derivLinked) {
+    showToast('⚠️ اربط حساب Deriv أولاً', 'red');
+    setTimeout(() => document.querySelector('[data-page="deriv"]').click(), 800);
+    return;
+  }
+  state.autoRunning = true;
+  state.autoStats = { count: 0, profit: 0, loss: 0 };
+  document.getElementById('auto-start-btn').style.display = 'none';
+  document.getElementById('auto-stop-btn').style.display = 'inline-flex';
+  document.getElementById('auto-status').textContent = 'يعمل';
+  document.getElementById('auto-status').style.color = 'var(--green)';
+  document.getElementById('auto-log').innerHTML = '';
+  addAutoLog('🟢 بدأ التداول التلقائي', 'var(--green)');
+  state.autoTimer = setInterval(() => runAnalysis(), 15000);
+}
+
+function stopAuto() {
+  state.autoRunning = false;
+  clearInterval(state.autoTimer);
+  document.getElementById('auto-start-btn').style.display = 'inline-flex';
+  document.getElementById('auto-stop-btn').style.display = 'none';
+  document.getElementById('auto-status').textContent = 'متوقف';
+  document.getElementById('auto-status').style.color = 'var(--text-dim)';
+  addAutoLog('⏹️ إيقاف التداول التلقائي', 'var(--red)');
+}
+
+function executeAutoTrade(signal, conf) {
+  const amount = parseFloat(document.getElementById('auto-amount').value);
+  const duration = parseInt(document.getElementById('auto-duration').value);
+  const symbol = document.getElementById('auto-symbol').value;
+  const profitTarget = parseFloat(document.getElementById('auto-profit-target').value);
+  const lossLimit = parseFloat(document.getElementById('auto-loss-limit').value);
+
+  if (state.autoStats.profit >= profitTarget) {
+    addAutoLog(`🎯 تحقق هدف الربح $${profitTarget}`, 'var(--gold)');
+    stopAuto(); return;
+  }
+  if (state.autoStats.loss >= lossLimit) {
+    addAutoLog(`🛑 حد الخسارة $${lossLimit}`, 'var(--red)');
+    stopAuto(); return;
+  }
+  if (amount > state.balance) {
+    addAutoLog('⚠️ الرصيد غير كافٍ', 'var(--red)');
+    stopAuto(); return;
+  }
+
+  state.balance -= amount;
+  state.autoStats.count += 1;
+
+  // Deriv حقيقي
+  if (state.derivLinked && state.wsConnected) {
+    const contractType = signal === 'BUY' ? 'CALL' : 'PUT';
+    state.ws.send(JSON.stringify({
+      proposal: 1,
+      amount: amount,
+      basis: 'stake',
+      contract_type: contractType,
+      currency: 'USD',
+      duration: duration,
+      duration_unit: 'm',
+      symbol: symbol,
+      req_id: Date.now(),
+    }));
+  }
+
+  const t = {
+    id: Date.now() + Math.random(),
+    time: new Date().toLocaleTimeString('ar-EG'),
+    symbol, side: signal, amount, duration,
+    openPrice: state.currentPrice,
+    status: 'pending',
+    auto: true,
+  };
+  state.activeTrades.push(t);
+  renderActiveTrades();
+  addAutoLog(`⚡ ${signal} — $${amount} @ ${state.currentPrice.toFixed(4)} (ثقة ${conf.toFixed(0)}%)`);
+
+  setTimeout(() => {
+    const idx = state.activeTrades.findIndex(x => x.id === t.id);
+    if (idx < 0) return;
+    const tr = state.activeTrades[idx];
+    const won = (tr.side === 'BUY' && state.currentPrice > tr.openPrice) || (tr.side === 'SELL' && state.currentPrice < tr.openPrice);
+    tr.status = won ? 'win' : 'loss';
+    tr.pnl = won ? tr.amount * 0.85 : -tr.amount;
+    if (won) {
+      state.balance += tr.amount + tr.pnl;
+      state.profit += tr.pnl;
+      state.autoStats.profit += tr.pnl;
+      state.wins += 1;
+      addAutoLog(`🟢 ربح +$${tr.pnl.toFixed(2)}`, 'var(--green)');
+    } else {
+      state.loss += tr.amount;
+      state.autoStats.loss += tr.amount;
+      addAutoLog(`🔴 خسارة -$${tr.amount.toFixed(2)}`, 'var(--red)');
+    }
+    state.totalTrades += 1;
+    state.history.unshift({ ...tr });
+    state.activeTrades.splice(idx, 1);
+    renderActiveTrades(); renderHistory(); updateUI();
+    document.getElementById('auto-count').textContent = state.autoStats.count;
+    document.getElementById('auto-profit').textContent = '$' + state.autoStats.profit.toFixed(2);
+    document.getElementById('auto-loss').textContent = '$' + state.autoStats.loss.toFixed(2);
+    saveCurrentUser();
+  }, duration * 1000);
+}
+
+function addAutoLog(msg, color = 'var(--text)') {
+  const log = document.getElementById('auto-log');
+  const time = new Date().toLocaleTimeString('ar-EG');
+  const line = document.createElement('div');
+  line.style.color = color;
+  line.textContent = `[${time}] ${msg}`;
+  log.prepend(line);
+  if (log.children.length > 50) log.removeChild(log.lastChild);
+}
+
+// ============ SIGNAL GENERATOR ============
+function startSignalGen() {
+  if (state.genTimer) clearInterval(state.genTimer);
+  const interval = parseInt(document.getElementById('gen-interval').value) * 1000;
+  addSignalFeed('🟢 بدأ مولّد الإشارات', 'var(--green)');
+  runSignalGen();
+  state.genTimer = setInterval(runSignalGen, interval);
+}
+
+function stopSignalGen() {
+  if (state.genTimer) clearInterval(state.genTimer);
+  state.genTimer = null;
+  addSignalFeed('⏹️ إيقاف المولّد', 'var(--red)');
+}
+
+function runSignalGen() {
+  const symbol = document.getElementById('gen-symbol').value;
+  const minConf = parseInt(document.getElementById('gen-min-conf').value);
+  const conf = parseFloat(document.getElementById('signal-conf').textContent) || 0;
+  const sig = document.getElementById('signal-main').textContent;
+  let sigEn = sig === 'شراء' ? 'BUY' : sig === 'بيع' ? 'SELL' : 'NEUTRAL';
+  if (sigEn !== 'NEUTRAL' && conf >= minConf) {
+    addSignalFeed(`⚡ ${sigEn} — ${symbol} — ثقة ${conf}%`, sigEn === 'BUY' ? 'var(--green)' : 'var(--red)');
+  }
+}
+
+function addSignalFeed(msg, color = 'var(--text)') {
+  const feed = document.getElementById('signals-feed');
+  if (feed.children.length === 1 && feed.children[0].textContent.includes('لا إشارات')) feed.innerHTML = '';
+  const time = new Date().toLocaleTimeString('ar-EG');
+  const line = document.createElement('div');
+  line.style.cssText = `color:${color};padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;`;
+  line.textContent = `[${time}] ${msg}`;
+  feed.prepend(line);
+}
+
+// ============ SCREENSHOT ============
+function handleScreenshot(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = document.getElementById('screenshot-preview');
+    img.src = ev.target.result;
+    img.style.display = 'block';
+    img.onload = () => analyzeScreenshot(img);
+  };
+  reader.readAsDataURL(file);
+}
+
+function analyzeScreenshot(img) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  ctx.drawImage(img, 0, 0);
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+  let greens = 0, reds = 0, total = 0;
+  for (let i = 0; i < data.length; i += 40) {
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    if (g > 130 && r < 100 && b < 120) greens++;
+    if (r > 180 && g < 100 && b < 100) reds++;
+    total++;
+  }
+  const bullRatio = greens / (greens + reds || 1);
+  let signal, color;
+  if (bullRatio > 0.6) { signal = 'اتجاه صاعد — فرصة شراء (Rise)'; color = 'var(--green)'; }
+  else if (bullRatio < 0.4) { signal = 'اتجاه هابط — فرصة بيع (Fall)'; color = 'var(--red)'; }
+  else { signal = 'اتجاه عرضي — انتظر تأكيد'; color = 'var(--gold)'; }
+
+  document.getElementById('screenshot-analysis').innerHTML = `
+    <div class="signal-wrap" style="border-color:${color};">
+      <div class="signal-label">نتيجة التحليل</div>
+      <div class="signal-main" style="font-size:22px;letter-spacing:2px;">${signal}</div>
+      <div class="signal-meta">
+        <span>شمعة خضراء: <strong>${greens}</strong></span>
+        <span>شمعة حمراء: <strong>${reds}</strong></span>
+        <span>نسبة الصعود: <strong>${(bullRatio * 100).toFixed(0)}%</strong></span>
+      </div>
+    </div>
+  `;
+}
+
+// ============ DERIV LINK ============
+
+function updateDerivUI() {
+  const badge = document.getElementById('deriv-badge');
+  const badgeText = document.getElementById('deriv-badge-text');
+  const notLinked = document.getElementById('deriv-not-linked');
+  const linked = document.getElementById('deriv-linked');
+
+  if (state.derivLinked && state.derivAccount) {
+    badge.className = 'deriv-badge linked';
+    badgeText.textContent = state.derivAccount.loginid || 'مربوط';
+    notLinked.style.display = 'none';
+    linked.style.display = 'block';
+    document.getElementById('deriv-account-id').textContent = state.derivAccount.loginid || '—';
+    document.getElementById('deriv-account-type').textContent = state.derivAccount.isVirtual ? 'تجريبي (Demo)' : 'حقيقي (Real)';
+    document.getElementById('deriv-account-balance').textContent = (state.derivAccount.balance || 0).toFixed(2) + ' ' + (state.derivAccount.currency || 'USD');
+  } else {
+    badge.className = 'deriv-badge';
+    badgeText.textContent = 'غير مربوط';
+    notLinked.style.display = 'block';
+    linked.style.display = 'none';
+  }
+}
+
+function unlinkDeriv() {
+  if (!confirm('هل تريد فصل الحساب؟')) return;
+  state.derivLinked = false;
+  state.derivToken = null;
+  state.derivAccount = null;
+  saveCurrentUser();
+  updateDerivUI();
+  showToast('تم فصل الحساب', 'green');
+}
+
+// ============ PROFILE ============
+function saveProfile() {
+  if (!state.currentUser) return;
+  const users = getUsers();
+  const u = users[state.currentUser.email];
+  if (!u) return;
+  u.name = document.getElementById('profile-name').value.trim() || u.name;
+  u.phone = document.getElementById('profile-phone').value.trim();
+  u.country = document.getElementById('profile-country').value.trim();
+  const newBal = parseFloat(document.getElementById('profile-balance').value);
+  if (!isNaN(newBal) && newBal >= 0) {
+    state.balance = newBal;
+    u.balance = newBal;
+  }
+  saveUsers(users);
+  state.currentUser = u;
+  updateUserUI();
+  updateUI();
+  showToast('✅ تم الحفظ', 'green');
+}
+
+// ============ SETTINGS ============
+function saveSettings() {
+  const theme = document.getElementById('setting-theme').value;
+  if (theme === 'cyan') {
+    document.documentElement.style.setProperty('--gold', '#00d4ff');
+    document.documentElement.style.setProperty('--gold-dim', '#0080ff');
+  } else {
+    document.documentElement.style.setProperty('--gold', '#d4af37');
+    document.documentElement.style.setProperty('--gold-dim', '#a8862a');
+  }
+  showToast('✅ تم الحفظ', 'green');
+}
+
+// ============ UI ============
+function updateUI() {
+  document.getElementById('stat-balance').textContent = '$' + state.balance.toFixed(2);
+  document.getElementById('stat-profit').textContent = '$' + state.profit.toFixed(2);
+  document.getElementById('stat-loss').textContent = '$' + state.loss.toFixed(2);
+  document.getElementById('stat-wins').textContent = `${state.wins} / ${state.totalTrades}`;
+  document.getElementById('prof-balance').textContent = '$' + state.balance.toFixed(2);
+  document.getElementById('prof-profit').textContent = '$' + state.profit.toFixed(2);
+  document.getElementById('prof-loss').textContent = '$' + state.loss.toFixed(2);
+  const net = state.profit - state.loss;
+  const netEl = document.getElementById('prof-net');
+  netEl.textContent = (net >= 0 ? '+' : '') + '$' + net.toFixed(2);
+  netEl.style.color = net >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('prof-winrate').textContent =
+    state.totalTrades ? ((state.wins / state.totalTrades) * 100).toFixed(0) + '%' : '0%';
+  document.getElementById('prof-total').textContent = state.totalTrades;
+}
+
+function renderHistory() {
+  const tb = document.getElementById('history-tbody');
+  if (!state.history.length) {
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:24px;">لا صفقات بعد</td></tr>';
+    return;
+  }
+  tb.innerHTML = state.history.map(h => `
+    <tr>
+      <td>${h.time}</td>
+      <td>${h.symbol}</td>
+      <td class="${(h.side || '').toLowerCase()}">${h.side}</td>
+      <td>$${h.amount}</td>
+      <td class="${h.status}">${h.status === 'win' ? 'ربح' : 'خسارة'}</td>
+      <td class="${h.pnl >= 0 ? 'win' : 'loss'}">${h.pnl >= 0 ? '+' : ''}$${(h.pnl || 0).toFixed(2)}</td>
+    </tr>
+  `).join('');
+}
+
+function clearHistory() {
+  if (!confirm('مسح السجل كاملاً؟')) return;
+  state.history = [];
+  saveCurrentUser();
+  renderHistory();
+}
+
+// ============ TOAST & MODAL ============
+let toastTimer;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function showModal(html) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal-bg').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal-bg').classList.remove('show');
+}
+
+document.getElementById('modal-bg').addEventListener('click', (e) => {
+  if (e.target.id === 'modal-bg') closeModal();
+});
+
+// ============ REFRESH LOOP ============
+function startRefreshLoop() {
+  setInterval(() => {
+    const rate = parseInt(document.getElementById('refresh-rate').value);
+    if (rate > 0) runAnalysis();
+  }, 5000);
+}
+
+// ============ EVENT LISTENERS ============
+document.addEventListener('DOMContentLoaded', () => {
+  // Listeners setup
+  setTimeout(() => {
+    const symSel = document.getElementById('symbol-select');
+    const tfSel = document.getElementById('timeframe-select');
+    if (symSel) symSel.addEventListener('change', () => {
+      if (state.ws && state.wsConnected) {
+        state.ws.send(JSON.stringify({ forget_all: 'ticks' }));
+        const sym = symSel.value;
+        state.ws.send(JSON.stringify({ ticks: sym, subscribe: 1 }));
+        requestCandles();
+      }
+    });
+    if (tfSel) tfSel.addEventListener('change', () => {
+      if (state.wsConnected) requestCandles();
+    });
+  }, 100);
+});
+</script>
+<style>
+.auth-screen { background: transparent !important; }
+.panel, .stat-card, .signal-wrap, .ind-card {
+  background: rgba(24, 27, 36, 0.55) !important;
+  backdrop-filter: blur(10px);
+}
+.main, .page { background: transparent !important; }
+
+/* ============ CHAT STYLES ============ */
+.chat-messages {
+  height: 420px;
+  overflow-y: auto;
+  padding: 14px;
+  background: rgba(17, 19, 25, 0.7);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chat-msg {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  word-break: break-word;
+  line-height: 1.5;
+  animation: msgIn 0.3s;
+}
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.chat-msg.mine {
+  align-self: flex-end;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%);
+  color: #0a0b0f;
+  border-bottom-right-radius: 4px;
+}
+.chat-msg.other {
+  align-self: flex-start;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-bottom-left-radius: 4px;
+}
+.chat-msg .meta {
+  font-size: 10px;
+  opacity: 0.75;
+  margin-bottom: 4px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.chat-input-area {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+.chat-input-area input {
+  flex: 1;
+  padding: 13px 14px;
+  background: var(--bg-1);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+}
+.chat-input-area input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(212,175,55,0.1);
+}
+.chat-input-area button {
+  padding: 13px 22px;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%);
+  color: #0a0b0f;
+  border: none;
+  border-radius: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+}
+.chat-input-area button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(212,175,55,0.3);
+/* ============ CONTACT BUTTONS (SOLID) ============ */
+.contact-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 340px;
+  margin: 0 auto;
+}
+.contact-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 15px 22px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  width: 100%;
+  color: #0a0b0f;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+}
+.contact-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(0,0,0,0.4);
+  filter: brightness(1.1);
+}
+.contact-btn:active { transform: translateY(0); }
+.cbtn-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
+.cbtn-text { font-size: 15px; font-weight: 800; }
+
+.whatsapp-btn { background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: #ffffff; }
+.telegram-btn { background: linear-gradient(135deg, #29B6F6 0%, #0077B5 100%); color: #ffffff; }
+.channel-btn { background: linear-gradient(135deg, #d4af37 0%, #a8862a 100%); color: #0a0b0f; }
+.call-btn { background: linear-gradient(135deg, #9b6dff 0%, #6a3fd4 100%); color: #ffffff; }
+
+/* ============ LEGAL ACCORDION ============ */
+.legal-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 340px;
+  margin: 0 auto;
+}
+.legal-item {
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(21, 24, 42, 0.7);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  transition: all 0.3s;
+}
+.legal-item.open {
+  border-color: rgba(212, 175, 55, 0.7);
+  box-shadow: 0 4px 16px rgba(212, 175, 55, 0.15);
+}
+.legal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 15px 18px;
+  background: transparent;
+  border: none;
+  color: #e8eaf0;
+  font-size: 15px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: right;
+}
+.legal-header:hover { background: rgba(212, 175, 55, 0.08); }
+.legal-item.open .legal-header {
+  background: linear-gradient(135deg, #d4af37 0%, #a8862a 100%);
+  color: #0a0b0f;
+}
+.legal-header-icon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 28px;
+  text-align: center;
+}
+.legal-header-text { flex: 1; text-align: right; }
+.legal-arrow {
+  font-size: 12px;
+  transition: transform 0.3s;
+  flex-shrink: 0;
+  color: #d4af37;
+}
+.legal-item.open .legal-arrow {
+  transform: rotate(180deg);
+  color: #0a0b0f;
+}
+.legal-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease, padding 0.3s ease;
+  padding: 0 18px;
+  background: rgba(15, 18, 24, 0.5);
+}
+.legal-item.open .legal-body {
+  max-height: 500px;
+  padding: 16px 18px;
+}
+.legal-body p {
+  color: #d1d4dc;
+  font-size: 13.5px;
+  line-height: 1.9;
+  text-align: justify;
+  margin: 0;
+}
+.legal-body strong { color: #d4af37; }
+/* ============ TRANSPARENT BACKGROUNDS ============ */
+body { background: var(--bg-0); }
+.auth-screen,
+.app-layout,
+.main,
+.page,
+.topbar {
+  background: transparent !important;
+}
+.sidebar {
+  background: rgba(17, 19, 25, 0.92) !important;
+}
+.panel, .stat-card, .signal-wrap, .ind-card {
+  background: rgba(24, 27, 36, 0.68) !important;
+  backdrop-filter: blur(10px);
+}
+</style>
+<script>
+/* ============ KANZER CHAT + AI ============ */
+const FIREBASE_URL = 'https://kanzer-chat-default-rtdb.firebaseio.com';
+const GROQ_API_KEY = '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';
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+let chatRoom = 'general';
+let chatTimer = null;
+let lastMsgCount = 0;
+
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function switchRoom(room){
+  chatRoom=room;
+  document.querySelectorAll('[id^="room-"]').forEach(b=>{b.classList.remove('btn-gold');b.classList.add('btn-outline');});
+  const btn=document.getElementById('room-'+room);
+  if(btn){btn.classList.remove('btn-outline');btn.classList.add('btn-gold');}
+  const el=document.getElementById('chat-messages');
+  if(el)el.innerHTML='';
+  lastMsgCount=0;
+  loadChatMessages();
+}
+
+function updateChatStatus(){
+  const el=document.getElementById('chat-status');
+  if(!el)return;
+  el.innerHTML=FIREBASE_URL?'🌍 عالمية':'🏠 محلية';
+  el.style.color=FIREBASE_URL?'var(--green)':'var(--gold)';
+}
+
+async function loadChatMessages(){
+  const el=document.getElementById('chat-messages');
+  if(!el)return;
+  let msgs=[];
+  try{
+    const res=await fetch(FIREBASE_URL+'/messages/'+chatRoom+'.json');
+    const data=await res.json();
+    if(data)msgs=Object.values(data).sort((a,b)=>a.ts-b.ts).slice(-100);
+  }catch(e){console.warn(e);}
+  msgs=msgs.filter(m=>m&&m.user&&m.text&&m.ts);
+  if(msgs.length===lastMsgCount)return;
+  lastMsgCount=msgs.length;
+  if(!msgs.length){el.innerHTML='<div style="text-align:center;color:var(--text-dim);font-size:13px;padding:20px;">لا رسائل بعد. ابدأ المحادثة!</div>';return;}
+  const myEmail=(typeof state!=='undefined'&&state.currentUser)?state.currentUser.email:'';
+  el.innerHTML=msgs.map(m=>{
+    const mine=m.email===myEmail;
+    const time=new Date(m.ts).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+    return '<div class="chat-msg '+(mine?'mine':'other')+'"><div class="meta">'+esc(m.user)+' • '+time+'</div><div>'+esc(m.text)+'</div></div>';
+  }).join('');
+  el.scrollTop=el.scrollHeight;
+}
+
+async function sendChatMsg(){
+  const input=document.getElementById('chat-input');
+  if(!input)return;
+  const text=input.value.trim();
+  if(!text)return;
+  if(typeof state==='undefined'||!state.currentUser){alert('يجب تسجيل الدخول أولاً');return;}
+  const msg={user:state.currentUser.name||'User',email:state.currentUser.email||'',text:text,ts:Date.now()};
+  input.value='';input.focus();
+  try{
+    const res=await fetch(FIREBASE_URL+'/messages/'+chatRoom+'.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(msg)});
+    if(!res.ok){alert('فشل الإرسال: '+res.status);return;}
+    lastMsgCount=-1;
+    await loadChatMessages();
+  }catch(e){alert('خطأ: '+e.message);}
+}
+
+function initChat(){
+  updateChatStatus();
+  switchRoom('general');
+  if(chatTimer)clearInterval(chatTimer);
+  chatTimer=setInterval(loadChatMessages,3000);
+}
+
+/* ============ AI ANALYST ============ */
+function aiMsg(role,text){
+  const el=document.getElementById('ai-messages');
+  if(!el)return;
+  const div=document.createElement('div');
+  div.className='chat-msg '+(role==='user'?'mine':'other');
+  div.innerHTML='<div class="meta">'+(role==='user'?'أنت':'🤖 ريكي')+'</div><div>'+text.replace(/\n/g,'<br>')+'</div>';
+  el.appendChild(div);el.scrollTop=el.scrollHeight;
+  return div;
+}
+
+function getLiveContext(){
+  try{
+    const price=document.getElementById('signal-price')?.textContent||'—';
+    const signal=document.getElementById('signal-main')?.textContent||'—';
+    const conf=document.getElementById('signal-conf')?.textContent||'—';
+    const symbol=document.getElementById('symbol-select')?.value||'R_100';
+    const balance=(typeof state!=='undefined')?state.balance:'—';
+    return 'السياق:\nالأصل: '+symbol+'\nالسعر: '+price+'\nالإشارة: '+signal+'\nالثقة: '+conf+'\nالرصيد: $'+balance;
+  }catch(e){return '';}
+}
+
+async function askAI(){
+  const input=document.getElementById('ai-input');
+  if(!input)return;
+  const q=input.value.trim();
+  if(!q)return;
+  if(GROQ_API_KEY==='gsk_ضع_المفتاح_هنا'){aiMsg('ai','⚠️ المفتاح لم يُعد.');return;}
+  input.value='';
+  aiMsg('user',q);
+  const loading=aiMsg('ai','⏳ يفكر...');
+  const sys='أنت "ريكي" — محلل تداول ذكي في Kanzer. تتحدث العربية.\n1. لا تضمن أرباحاً.\n2. ركز على إدارة المخاطر.\n3. ردود قصيرة (2-5 أسطر).';
+  const full=sys+'\n\n'+getLiveContext()+'\n\nسؤال: '+q;
+  try{
+    const res=await fetch(GROQ_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+GROQ_API_KEY},body:JSON.stringify({model:'openai/gpt-oss-120b',messages:[{role:'system',content:sys},{role:'user',content:full}],temperature:0.7,max_tokens:500})});
+    const data=await res.json();
+    loading.remove();
+    if(data.error){aiMsg('ai','❌ '+data.error.message);return;}
+    aiMsg('ai',data.choices?.[0]?.message?.content||'لم أفهم.');
+  }catch(e){loading.remove();aiMsg('ai','❌ فشل: '+e.message);}
+}
+
+function quickAsk(q){const input=document.getElementById('ai-input');if(input){input.value=q;askAI();}}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(()=>{
+    const chatNav=document.querySelector('.nav-item[data-page="chat"]');
+    if(chatNav)chatNav.addEventListener('click',()=>setTimeout(initChat,100));
+    const aiNav=document.querySelector('.nav-item[data-page="ai"]');
+    if(aiNav)aiNav.addEventListener('click',()=>{
+      const el=document.getElementById('ai-messages');
+      if(el&&el.children.length===0)aiMsg('ai','أهلاً 👋\nأنا ريكي، محللك الذكي.\n\nاسألني أو اضغط أحد الأزرار.');
+    });
+  },1500);
+});
+</script>
+<script>
+(function(){
+  const c = document.createElement('canvas');
+  c.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;pointer-events:none;';
+  document.body.insertBefore(c, document.body.firstChild);
+
+  function fit(){
+    c.width = window.innerWidth;
+    c.height = window.innerHeight;
+  }
+  fit();
+  window.addEventListener('resize', fit);
+
+  const ctx = c.getContext('2d');
+  const chars = '0123456789ABCDEF#$%&@*<>{}[]';
+  let drops = [];
+  function reset(){ drops = Array(Math.floor(c.width / 16)).fill(1); }
+  reset();
+  window.addEventListener('resize', reset);
+
+  function draw(){
+    ctx.fillStyle = 'rgba(10,11,15,0.08)';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.font = '14px monospace';
+    for (let i = 0; i < drops.length; i++){
+      const ch = chars[(Math.random() * chars.length) | 0];
+      const x = i * 16, y = drops[i] * 16;
+      const r = drops[i] % 3;
+      ctx.fillStyle = r === 0 ? 'rgba(212,175,55,0.9)' : r === 1 ? 'rgba(0,212,255,0.85)' : 'rgba(38,166,154,0.8)';
+      ctx.fillText(ch, x, y);
+      if (Math.random() > 0.96){ ctx.fillStyle = '#fff'; ctx.fillText(ch, x, y); }
+      if (y > c.height && Math.random() > 0.975) drops[i] = 0;
+      drops[i]++;
+    }
+    requestAnimationFrame(draw);
+  }
+
+  function update(){
+    const login = document.getElementById('login-screen');
+    if (login && login.classList.contains('active')) c.style.display = 'block';
+    else c.style.display = 'none';
+  }
+
+  draw();
+  update();
+  setInterval(update, 500);
+})();
+</script>
+<script>
+/* ============ KANZER BACKGROUNDS ============ */
+(function(){
+  const CH = '0123456789ABCDEF#$%&@*<>{}[]';
+  const canv = {};
+
+  function make(id){
+    const c = document.createElement('canvas');
+    c.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:-1;pointer-events:none;display:none;';
+    c.id = id;
+    document.body.insertBefore(c, document.body.firstChild);
+    canv[id] = c;
+    return c;
+  }
+
+  function fit(c){ c.width = innerWidth; c.height = innerHeight; }
+
+  /* 1. MATRIX */
+  make('bg-matrix');
+  function startMatrix(){
+    const c = canv['bg-matrix']; fit(c);
+    const ctx = c.getContext('2d');
+    let drops = Array(Math.floor(c.width/16)).fill(1);
+    (function draw(){
+      if (c.style.display === 'none') return requestAnimationFrame(draw);
+      ctx.fillStyle = 'rgba(10,11,15,0.08)';
+      ctx.fillRect(0,0,c.width,c.height);
+      ctx.font = '14px monospace';
+      for (let i=0; i<drops.length; i++){
+        const ch = CH[(Math.random()*CH.length)|0];
+        const x = i*16, y = drops[i]*16;
+        const r = drops[i]%3;
+        ctx.fillStyle = r===0?'rgba(212,175,55,0.9)':r===1?'rgba(0,212,255,0.85)':'rgba(38,166,154,0.8)';
+        ctx.fillText(ch,x,y);
+        if (Math.random()>0.96){ctx.fillStyle='#fff';ctx.fillText(ch,x,y);}
+        if (y>c.height && Math.random()>0.975) drops[i]=0;
+        drops[i]++;
+      }
+      requestAnimationFrame(draw);
+    })();
+  }
+
+  /* 2. CANDLES */
+  make('bg-candles');
+  function startCandles(){
+    const c = canv['bg-candles']; fit(c);
+    const ctx = c.getContext('2d');
+    let off = 0;
+    (function draw(){
+      if (c.style.display === 'none') return requestAnimationFrame(draw);
+      ctx.clearRect(0,0,c.width,c.height);
+      const gap = 14, cw = 10;
+      const total = Math.ceil(c.width/gap)+2;
+      const shift = Math.floor(off/gap);
+      for (let i=0; i<total; i++){
+        const w = i+shift;
+        const x = i*gap-(off%gap);
+        const seed = Math.sin(w*0.3)*100+Math.sin(w*0.7)*50;
+        const cy = c.height/2+seed;
+        const o = cy+Math.sin(w*1.1)*30;
+        const cl = cy+Math.sin(w*1.3)*30;
+        const h = Math.min(o,cl)-20, l = Math.max(o,cl)+20;
+        const up = cl<o;
+        ctx.strokeStyle = up?'rgba(38,166,154,0.5)':'rgba(239,83,80,0.5)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x+cw/2,h); ctx.lineTo(x+cw/2,Math.min(o,cl));
+        ctx.moveTo(x+cw/2,Math.max(o,cl)); ctx.lineTo(x+cw/2,l);
+        ctx.stroke();
+        ctx.fillStyle = up?'rgba(38,166,154,0.3)':'rgba(239,83,80,0.3)';
+        ctx.fillRect(x,Math.min(o,cl),cw,Math.abs(cl-o)||4);
+        ctx.strokeRect(x,Math.min(o,cl),cw,Math.abs(cl-o)||4);
+      }
+      off += 1.2;
+      requestAnimationFrame(draw);
+    })();
+  }
+
+  /* 3. LINES */
+  make('bg-lines');
+  function startLines(){
+    const c = canv['bg-lines']; fit(c);
+    const ctx = c.getContext('2d');
+    const list = [];
+    for (let i=0; i<8; i++) list.push({
+      y:(i+1)*c.height/9, sp:0.3+Math.random()*0.8,
+      off:Math.random()*c.width, amp:20+Math.random()*40,
+      fr:0.005+Math.random()*0.01,
+      col:i%2===0?'rgba(38,166,154,0.18)':'rgba(239,83,80,0.18)'
+    });
+    (function draw(){
+      if (c.style.display === 'none') return requestAnimationFrame(draw);
+      ctx.clearRect(0,0,c.width,c.height);
+      list.forEach(l=>{
+        ctx.strokeStyle = l.col; ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let x=0; x<=c.width; x+=5){
+          const y = l.y+Math.sin((x+l.off)*l.fr)*l.amp;
+          x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+        l.off += l.sp;
+      });
+      requestAnimationFrame(draw);
+    })();
+  }
+
+  /* 4. CIRCLES */
+  make('bg-circles');
+  function startCircles(){
+    const c = canv['bg-circles']; fit(c);
+    const ctx = c.getContext('2d');
+    const list = [];
+    for (let i=0; i<14; i++) list.push({
+      x:Math.random()*c.width, y:Math.random()*c.height,
+      r:2+Math.random()*3, vx:(Math.random()-0.5)*0.4,
+      vy:(Math.random()-0.5)*0.4, pl:Math.random()*6.3
+    });
+    (function draw(){
+      if (c.style.display === 'none') return requestAnimationFrame(draw);
+      ctx.clearRect(0,0,c.width,c.height);
+      for (let i=0; i<list.length; i++)
+        for (let j=i+1; j<list.length; j++){
+          const d = Math.hypot(list[i].x-list[j].x, list[i].y-list[j].y);
+          if (d<180){
+            ctx.strokeStyle = 'rgba(0,212,255,'+(0.18*(1-d/180))+')';
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(list[i].x,list[i].y);
+            ctx.lineTo(list[j].x,list[j].y);
+            ctx.stroke();
+          }
+        }
+      list.forEach(p=>{
+        p.x+=p.vx; p.y+=p.vy; p.pl+=0.05;
+        if (p.x<0||p.x>c.width) p.vx*=-1;
+        if (p.y<0||p.y>c.height) p.vy*=-1;
+        const pr = p.r+Math.sin(p.pl)*1.5;
+        ctx.beginPath(); ctx.arc(p.x,p.y,pr*3,0,6.3);
+        ctx.fillStyle = 'rgba(212,175,55,0.08)'; ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x,p.y,pr,0,6.3);
+        ctx.fillStyle = 'rgba(212,175,55,0.7)'; ctx.fill();
+      });
+      requestAnimationFrame(draw);
+    })();
+  }
+
+  /* 5. SCANNER */
+  make('bg-scanner');
+  function startScanner(){
+    const c = canv['bg-scanner']; fit(c);
+    const ctx = c.getContext('2d');
+    let y = 0, pts = [];
+    (function draw(){
+      if (c.style.display === 'none') return requestAnimationFrame(draw);
+      ctx.clearRect(0,0,c.width,c.height);
+      y = (y+2)%c.height;
+      const g = ctx.createLinearGradient(0,y-70,0,y+70);
+      g.addColorStop(0,'rgba(0,212,255,0)');
+      g.addColorStop(0.5,'rgba(0,212,255,0.15)');
+      g.addColorStop(1,'rgba(0,212,255,0)');
+      ctx.fillStyle = g; ctx.fillRect(0,y-70,c.width,140);
+      ctx.strokeStyle = 'rgba(0,212,255,0.6)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(c.width,y); ctx.stroke();
+      if (Math.random()>0.5) pts.push({x:Math.random()*c.width, y, l:60});
+      pts = pts.filter(p=>p.l>0);
+      pts.forEach(p=>{
+        p.l--;
+        ctx.fillStyle = 'rgba(212,175,55,'+(p.l/60*0.8)+')';
+        ctx.beginPath(); ctx.arc(p.x,p.y,3,0,6.3); ctx.fill();
+      });
+      requestAnimationFrame(draw);
+    })();
+  }
+
+  /* 6. RADAR */
+  make('bg-radar');
+  function startRadar(){
+    const c = canv['bg-radar']; fit(c);
+    const ctx = c.getContext('2d');
+    let a = 0, pings = [];
+    const cx = c.width/2, cy = c.height/2, R = Math.min(c.width,c.height)*0.4;
+    (function draw(){
+      if (c.style.display === 'none') return requestAnimationFrame(draw);
+      ctx.clearRect(0,0,c.width,c.height);
+      [0.3,0.6,0.9].forEach(f=>{
+        ctx.strokeStyle = 'rgba(212,175,55,0.12)';
+        ctx.beginPath(); ctx.arc(cx,cy,R*f,0,6.3); ctx.stroke();
+      });
+      ctx.strokeStyle = 'rgba(212,175,55,0.3)';
+      ctx.beginPath(); ctx.arc(cx,cy,R,0,6.3); ctx.stroke();
+      a = (a+0.02)%6.28;
+      ctx.beginPath();
+      ctx.arc(cx,cy,R,a-0.5,a);
+      ctx.lineTo(cx,cy); ctx.closePath();
+      ctx.fillStyle = 'rgba(0,212,255,0.08)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(0,212,255,0.7)';
+      ctx.beginPath(); ctx.moveTo(cx,cy);
+      ctx.lineTo(cx+Math.cos(a)*R, cy+Math.sin(a)*R); ctx.stroke();
+      if (Math.random()>0.94) pings.push({
+        x:cx+Math.cos(a)*R*(0.3+Math.random()*0.6),
+        y:cy+Math.sin(a)*R*(0.3+Math.random()*0.6),
+        l:100
+      });
+      pings = pings.filter(p=>p.l>0);
+      pings.forEach(p=>{
+        p.l--;
+        ctx.fillStyle = 'rgba(212,175,55,'+(p.l/100)+')';
+        ctx.beginPath(); ctx.arc(p.x,p.y,3+(1-p.l/100)*8,0,6.3); ctx.fill();
+      });
+      requestAnimationFrame(draw);
+    })();
+  }
+
+  /* 7. WAVES */
+  make('bg-waves');
+  function startWaves(){
+    const c = canv['bg-waves']; fit(c);
+    const ctx = c.getContext('2d');
+    let t = 0;
+    const W = [
+      [c.height*0.3, 40, 0.008, 'rgba(0,212,255,0.2)', 0.6],
+      [c.height*0.5, 55, 0.005, 'rgba(212,175,55,0.2)', 0.9],
+      [c.height*0.7, 45, 0.007, 'rgba(155,109,255,0.18)', 0.7]
+    ];
+    (function draw(){
+      if (c.style.display === 'none') return requestAnimationFrame(draw);
+      ctx.clearRect(0,0,c.width,c.height);
+      t += 0.01;
+      W.forEach(w=>{
+        ctx.strokeStyle = w[3]; ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let x=0; x<=c.width; x+=4){
+          const y = w[0]+Math.sin(x*w[2]+t*w[4])*w[1];
+          x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+      });
+      requestAnimationFrame(draw);
+    })();
+  }
+
+  /* 8. TIMELINE */
+  make('bg-timeline');
+  function startTimeline(){
+    const c = canv['bg-timeline']; fit(c);
+    const ctx = c.getContext('2d');
+    let pts = [];
+    const m = c.height/2;
+    (function draw(){
+      if (c.style.display === 'none') return requestAnimationFrame(draw);
+      ctx.clearRect(0,0,c.width,c.height);
+      ctx.strokeStyle = 'rgba(212,175,55,0.2)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(0,m); ctx.lineTo(c.width,m); ctx.stroke();
+      for (let x=0; x<c.width; x+=80){
+        ctx.strokeStyle = 'rgba(212,175,55,0.25)';
+        ctx.beginPath(); ctx.moveTo(x,m-5); ctx.lineTo(x,m+5); ctx.stroke();
+      }
+      if (Math.random()>0.9) pts.push({
+        x:c.width+20, y:m+(Math.random()-0.5)*70, l:1, s:1+Math.random()*0.5
+      });
+      pts = pts.filter(p=>p.l>0);
+      pts.forEach(p=>{
+        p.x-=p.s; p.l-=0.002;
+        ctx.strokeStyle = 'rgba(0,212,255,'+(p.l*0.3)+')'; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x,m); ctx.stroke();
+        ctx.fillStyle = 'rgba(0,212,255,'+p.l+')';
+        ctx.beginPath(); ctx.arc(p.x,p.y,3,0,6.3); ctx.fill();
+      });
+      requestAnimationFrame(draw);
+    })();
+  }
+
+  /* 9. NODES */
+  make('bg-nodes');
+  function startNodes(){
+    const c = canv['bg-nodes']; fit(c);
+    const ctx = c.getContext('2d');
+    const list = [];
+    for (let i=0; i<18; i++) list.push({
+      x:Math.random()*c.width, y:Math.random()*c.height,
+      r:2+Math.random()*3, vx:(Math.random()-0.5)*0.5,
+      vy:(Math.random()-0.5)*0.5, pl:Math.random()*6.3
+    });
+    (function draw(){
+      if (c.style.display === 'none') return requestAnimationFrame(draw);
+      ctx.clearRect(0,0,c.width,c.height);
+      for (let i=0; i<list.length; i++)
+        for (let j=i+1; j<list.length; j++){
+          const d = Math.hypot(list[i].x-list[j].x, list[i].y-list[j].y);
+          if (d<200){
+            ctx.strokeStyle = 'rgba(38,166,154,'+(0.25*(1-d/200))+')';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(list[i].x,list[i].y);
+            ctx.lineTo(list[j].x,list[j].y);
+            ctx.stroke();
+          }
+        }
+      list.forEach(p=>{
+        p.x+=p.vx; p.y+=p.vy; p.pl+=0.05;
+        if (p.x<0||p.x>c.width) p.vx*=-1;
+        if (p.y<0||p.y>c.height) p.vy*=-1;
+        const pr = p.r+Math.sin(p.pl);
+        ctx.beginPath(); ctx.arc(p.x,p.y,pr*4,0,6.3);
+        ctx.fillStyle = 'rgba(38,166,154,0.08)'; ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x,p.y,pr,0,6.3);
+        ctx.fillStyle = 'rgba(38,166,154,0.7)'; ctx.fill();
+      });
+      requestAnimationFrame(draw);
+    })();
+  }
+
+  /* 10. HEXAGONS */
+  make('bg-hexagons');
+  function startHexagons(){
+    const c = canv['bg-hexagons']; fit(c);
+    const ctx = c.getContext('2d');
+    const list = [];
+    for (let i=0; i<12; i++) list.push({
+      x:Math.random()*c.width, y:Math.random()*c.height,
+      r:40+Math.random()*60, a:Math.random()*6.3,
+      sp:(Math.random()-0.5)*0.005, al:0.06+Math.random()*0.08,
+      g:Math.random()>0.5
+    });
+    (function draw(){
+      if (c.style.display === 'none') return requestAnimationFrame(draw);
+      ctx.clearRect(0,0,c.width,c.height);
+      list.forEach(h=>{
+        h.a+=h.sp; h.x+=0.2;
+        if (h.x-h.r>c.width) h.x = -h.r;
+        ctx.strokeStyle = h.g?'rgba(212,175,55,'+h.al+')':'rgba(0,212,255,'+h.al+')';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let i=0; i<6; i++){
+          const ang = h.a+i*Math.PI/3;
+          const px = h.x+Math.cos(ang)*h.r;
+          const py = h.y+Math.sin(ang)*h.r;
+          i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+        }
+        ctx.closePath(); ctx.stroke();
+      });
+      requestAnimationFrame(draw);
+    })();
+  }
+
+  /* 11. GEARS */
+  make('bg-gears');
+  function startGears(){
+    const c = canv['bg-gears']; fit(c);
+    const ctx = c.getContext('2d');
+    const list = [
+      {x:c.width*0.25, y:c.height*0.3, r:90, t:14, sp:0.5, dir:1, col:0},
+      {x:c.width*0.7, y:c.height*0.45, r:65, t:12, sp:0.8, dir:-1, col:1},
+      {x:c.width*0.4, y:c.height*0.75, r:110, t:18, sp:0.35, dir:1, col:0}
+    ];
+    (function draw(){
+      if (c.style.display === 'none') return requestAnimationFrame(draw);
+      ctx.clearRect(0,0,c.width,c.height);
+      const t = Date.now()/1000;
+      list.forEach(g=>{
+        const a0 = t*g.sp*g.dir;
+        ctx.strokeStyle = g.col===0?'rgba(212,175,55,0.16)':'rgba(0,212,255,0.14)';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(g.x,g.y,g.r,0,6.3); ctx.stroke();
+        for (let k=0; k<g.t; k++){
+          const a = a0+(k/g.t)*6.3;
+          ctx.beginPath();
+          ctx.moveTo(g.x+Math.cos(a)*g.r, g.y+Math.sin(a)*g.r);
+          ctx.lineTo(g.x+Math.cos(a)*(g.r+12), g.y+Math.sin(a)*(g.r+12));
+          ctx.stroke();
+        }
+        ctx.beginPath(); ctx.arc(g.x,g.y,g.r*0.2,0,6.3); ctx.stroke();
+      });
+      requestAnimationFrame(draw);
+    })();
+  }
+/* 12. AI ANALYST */
+make('bg-ai');
+function startAI(){
+  const c = canv['bg-ai']; fit(c);
+  const ctx = c.getContext('2d');
+  const nodes = [], layers = [4, 6, 6, 4];
+  let x0 = 60;
+  layers.forEach(function(count, li){
+    for (let i=0; i<count; i++){
+      nodes.push({
+        layer: li, idx: i,
+        x: x0 + li * ((c.width - 120) / (layers.length - 1)),
+        y: (i + 1) * c.height / (count + 1),
+        pulse: Math.random() * 6.3, pulseSp: 0.03 + Math.random() * 0.05
+      });
+    }
+  });
+  (function draw(){
+    if (c.style.display === 'none') return requestAnimationFrame(draw);
+    ctx.clearRect(0,0,c.width,c.height);
+    for (let i=0; i<nodes.length; i++){
+      for (let j=i+1; j<nodes.length; j++){
+        if (nodes[j].layer === nodes[i].layer + 1){
+          const a = nodes[i], b = nodes[j];
+          const sig = (Math.sin(a.pulse) + Math.sin(b.pulse)) * 0.5;
+          const alpha = 0.08 + Math.max(0, sig) * 0.2;
+          ctx.strokeStyle = 'rgba(0,212,255,' + alpha + ')';
+          ctx.lineWidth = 1 + Math.max(0, sig);
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+    }
+    nodes.forEach(function(n){
+      n.pulse += n.pulseSp;
+      const glow = 0.4 + Math.sin(n.pulse) * 0.4;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 10, 0, 6.3);
+      ctx.fillStyle = 'rgba(0,212,255,' + (glow * 0.15) + ')';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 3 + Math.sin(n.pulse) * 1.5, 0, 6.3);
+      ctx.fillStyle = n.layer % 2 === 0 ? 'rgba(0,212,255,' + glow + ')' : 'rgba(212,175,55,' + glow + ')';
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  })();
+}
+
+/* 13. CHAT */
+make('bg-chat');
+function startChat(){
+  const c = canv['bg-chat']; fit(c);
+  const ctx = c.getContext('2d');
+  const bubbles = [];
+  for (let i=0; i<15; i++){
+    bubbles.push({
+      x: Math.random() * c.width,
+      y: c.height + Math.random() * 400,
+      r: 20 + Math.random() * 50,
+      sp: 0.3 + Math.random() * 0.7,
+      sway: Math.random() * 6.3,
+      swayAmp: 20 + Math.random() * 40,
+      gold: Math.random() > 0.6
+    });
+  }
+  (function draw(){
+    if (c.style.display === 'none') return requestAnimationFrame(draw);
+    ctx.clearRect(0,0,c.width,c.height);
+    bubbles.forEach(function(b){
+      b.y -= b.sp;
+      b.sway += 0.01;
+      if (b.y + b.r < 0){
+        b.y = c.height + 50;
+        b.x = Math.random() * c.width;
+      }
+      const x = b.x + Math.sin(b.sway) * b.swayAmp;
+      ctx.beginPath();
+      ctx.arc(x, b.y, b.r, 0, 6.3);
+      const col = b.gold ? 'rgba(212,175,55,' : 'rgba(0,212,255,';
+      ctx.fillStyle = col + '0.06)';
+      ctx.fill();
+      ctx.strokeStyle = col + '0.25)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, b.y, b.r + 8, 0, 6.3);
+      ctx.fillStyle = col + '0.03)';
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  })();
+}
+
+/* 14. ABOUT */
+make('bg-about');
+function startAbout(){
+  const c = canv['bg-about']; fit(c);
+  const ctx = c.getContext('2d');
+  const stars = [];
+  for (let i=0; i<80; i++){
+    stars.push({
+      x: Math.random() * c.width,
+      y: Math.random() * c.height,
+      r: 0.5 + Math.random() * 1.5,
+      tw: Math.random() * 6.3,
+      twSp: 0.02 + Math.random() * 0.05
+    });
+  }
+  const lines = [];
+  for (let i=0; i<8; i++){
+    lines.push({
+      x1: Math.random() * c.width,
+      y1: Math.random() * c.height,
+      x2: Math.random() * c.width,
+      y2: Math.random() * c.height,
+      alpha: 0.03 + Math.random() * 0.05
+    });
+  }
+  (function draw(){
+    if (c.style.display === 'none') return requestAnimationFrame(draw);
+    ctx.clearRect(0,0,c.width,c.height);
+    lines.forEach(function(l){
+      const g = ctx.createLinearGradient(l.x1, l.y1, l.x2, l.y2);
+      g.addColorStop(0, 'rgba(212,175,55,0)');
+      g.addColorStop(0.5, 'rgba(212,175,55,' + l.alpha + ')');
+      g.addColorStop(1, 'rgba(0,212,255,0)');
+      ctx.strokeStyle = g;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(l.x1, l.y1);
+      ctx.lineTo(l.x2, l.y2);
+      ctx.stroke();
+    });
+    stars.forEach(function(s){
+      s.tw += s.twSp;
+      const glow = 0.3 + Math.sin(s.tw) * 0.5;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r * (1 + Math.sin(s.tw) * 0.5), 0, 6.3);
+      ctx.fillStyle = Math.random() > 0.7 ? 'rgba(212,175,55,' + glow + ')' : 'rgba(255,255,255,' + glow + ')';
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  })();
+}
+
+  /* ============ MANAGER ============ */
+  const MAP = {
+    'login':      ['bg-matrix', startMatrix],
+    'dashboard':  ['bg-candles', startCandles],
+    'trading':    ['bg-lines', startLines],
+    'auto':       ['bg-circles', startCircles],
+    'screenshot': ['bg-scanner', startScanner],
+    'signals':    ['bg-radar', startRadar],
+    'indicators': ['bg-waves', startWaves],
+    'history':    ['bg-timeline', startTimeline],
+'ai':         ['bg-ai', startAI],
+'chat':       ['bg-chat', startChat],
+'about':      ['bg-about', startAbout],
+    'deriv':      ['bg-nodes', startNodes],
+    'profile':    ['bg-hexagons', startHexagons],
+    'settings':   ['bg-gears', startGears]
+  };
+
+  const started = {};
+
+  function getPage(){
+    const login = document.getElementById('login-screen');
+    if (login && login.classList.contains('active')) return 'login';
+    const active = document.querySelector('.page.active');
+    if (!active) return null;
+    return active.id.replace('page-','');
+  }
+
+  function update(){
+    const page = getPage();
+    Object.entries(MAP).forEach(function(entry){
+      const k = entry[0], v = entry[1];
+      const c = canv[v[0]];
+      if (k === page){
+        c.style.display = 'block';
+        if (!started[k]){ started[k] = true; v[1](); }
+      } else {
+        c.style.display = 'none';
+      }
+    });
+  }
+
+  setInterval(update, 400);
+  setTimeout(update, 800);
+  window.addEventListener('resize', function(){
+    Object.values(canv).forEach(function(c){ c.width = innerWidth; c.height = innerHeight; });
+  });
+})();
+</script>
+<script>
+function toggleLegal(btn){
+  const item = btn.parentElement;
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.legal-item').forEach(function(el){
+    el.classList.remove('open');
+  });
+  if (!isOpen) item.classList.add('open');
+}
+</script>
+<script>
+(function(){
+  const intro = document.getElementById('lux-intro');
+  if (!intro) return;
+
+  if (sessionStorage.getItem('kanzer_lux_intro')) {
+    intro.remove();
+    return;
+  }
+
+  function animateChart(canvasId, color, trend){
+    const c = document.getElementById(canvasId);
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    function fit(){ c.width = c.clientWidth * 2; c.height = c.clientHeight * 2; ctx.scale(2,2); }
+    fit();
+    const w = c.clientWidth, h = c.clientHeight;
+    const candles = [];
+    const count = 30;
+    for (let i=0; i<count; i++){
+      const base = h/2 + Math.sin(i*0.4) * h*0.15 + (trend==='up' ? (count-i)*1.2 : i*1.2);
+      const o = base + (Math.random()-0.5)*8;
+      const cl = base + (trend==='up' ? -Math.random()*8 : Math.random()*8);
+      candles.push({o, cl, x: i*((w-10)/count)+5});
+    }
+    let tick = 0;
+    function draw(){
+      if (!document.body.contains(c)) return;
+      ctx.clearRect(0, 0, w, h);
+      candles.forEach((k, idx)=>{
+        const isUp = k.cl < k.o;
+        const offset = Math.sin(tick*0.05 + idx*0.3) * 1.2;
+        const col = isUp ? color.up : color.down;
+        const cw = 3;
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(k.x+1.5, Math.min(k.o, k.cl)+offset-4);
+        ctx.lineTo(k.x+1.5, Math.max(k.o, k.cl)+offset+4);
+        ctx.stroke();
+        ctx.fillStyle = col;
+        ctx.fillRect(k.x, Math.min(k.o, k.cl)+offset, cw, Math.max(Math.abs(k.cl-k.o), 2));
+      });
+      tick++;
+      requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
+  setTimeout(function(){
+    animateChart('luxcv1', {up:'#26a69a', down:'#ef5350'}, 'up');
+    animateChart('luxcv2', {up:'#26a69a', down:'#ef5350'}, 'up');
+    animateChart('luxcv3', {up:'#26a69a', down:'#ef5350'}, 'down');
+  }, 800);
+
+  setTimeout(function(){
+    intro.classList.add('fade-out');
+    sessionStorage.setItem('kanzer_lux_intro', '1');
+    setTimeout(function(){ intro.remove(); }, 1000);
+  }, 8000);
+})();
+</script>
+<script>
+/* ============ LIVE USERS COUNTER ============ */
+(function(){
+  const FIREBASE_URL = 'https://kanzer-chat-default-rtdb.firebaseio.com';
+  const VISITOR_KEY = 'kanzer_visitor_id';
+
+  let visitorId = localStorage.getItem(VISITOR_KEY);
+  if (!visitorId) {
+    visitorId = 'v_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+    localStorage.setItem(VISITOR_KEY, visitorId);
+  }
+
+  async function registerPresence(){
+    const payload = {
+      id: visitorId,
+      lastSeen: Date.now(),
+      page: window.location.pathname
+    };
+    try {
+      await fetch(FIREBASE_URL + '/presence/' + visitorId + '.json', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch(e) { console.warn('Presence error:', e); }
+  }
+
+  async function removePresence(){
+    try {
+      await fetch(FIREBASE_URL + '/presence/' + visitorId + '.json', {
+        method: 'DELETE'
+      });
+    } catch(e) {}
+  }
+
+  async function fetchStats(){
+    try {
+      const presenceRes = await fetch(FIREBASE_URL + '/presence.json');
+      const presence = await presenceRes.json() || {};
+      const now = Date.now();
+      const ONLINE_WINDOW = 60000;
+      let onlineCount = 0;
+      for (const k in presence){
+        if (presence[k] && presence[k].lastSeen && (now - presence[k].lastSeen) < ONLINE_WINDOW){
+          onlineCount++;
+        }
+      }
+
+      let totalUsers = 0;
+      try {
+        const usersRes = await fetch(FIREBASE_URL + '/users.json');
+        const users = await usersRes.json() || {};
+        totalUsers = Object.keys(users).length;
+      } catch(e) {
+        totalUsers = Object.keys(presence).length;
+      }
+
+      const onlineEl = document.getElementById('live-online');
+      const totalEl = document.getElementById('live-total');
+      if (onlineEl) onlineEl.textContent = onlineCount;
+      if (totalEl) totalEl.textContent = totalUsers;
+    } catch(e) {
+      console.warn('Stats error:', e);
+    }
+  }
+
+  registerPresence();
+  fetchStats();
+  setInterval(registerPresence, 20000);
+  setInterval(fetchStats, 5000);
+  window.addEventListener('beforeunload', removePresence);
+  window.addEventListener('pagehide', removePresence);
+  window.addEventListener('pageshow', registerPresence);
+
+  document.addEventListener('DOMContentLoaded', function(){
+    var app = document.getElementById('app');
+    if (app){
+      new MutationObserver(function(){
+        var stats = document.getElementById('live-stats');
+        if (!stats) return;
+        stats.style.display = app.classList.contains('active') ? 'none' : 'flex';
+      }).observe(app, { attributes: true, attributeFilter: ['class'] });
+    }
+  });
+})();
+</script>
+<script>
+/* ============ KANZER PRO SIGNAL ============ */
+let proChart = null;
+let proCandleSeries = null;
+let proEma9 = null;
+let proEma21 = null;
+let proBbU = null;
+let proBbL = null;
+let proWs = null;
+let proCandles = [];
+let proTickSubscribed = false;
+let proAutoTimer = null;
+let proHistory = [];
+
+function proInitChart() {
+  if (proChart) return;
+  const el = document.getElementById('pro-chart');
+  if (!el) return;
+  proChart = LightweightCharts.createChart(el, {
+    layout: { background: { color: '#0f1218' }, textColor: '#8a90a3' },
+    grid: { vertLines: { color: '#1d2230' }, horzLines: { color: '#1d2230' } },
+    timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#2a3040' },
+    rightPriceScale: { borderColor: '#2a3040' },
+    crosshair: { mode: 0 },
+    width: el.clientWidth,
+    height: 380,
+  });
+  proCandleSeries = proChart.addCandlestickSeries({
+    upColor: '#26a69a', downColor: '#ef5350',
+    borderUpColor: '#26a69a', borderDownColor: '#ef5350',
+    wickUpColor: '#26a69a', wickDownColor: '#ef5350',
+  });
+  proEma9 = proChart.addLineSeries({ color: '#d4af37', lineWidth: 2 });
+  proEma21 = proChart.addLineSeries({ color: '#00d4ff', lineWidth: 2 });
+  proBbU = proChart.addLineSeries({ color: 'rgba(155,109,255,0.4)', lineWidth: 1 });
+  proBbL = proChart.addLineSeries({ color: 'rgba(155,109,255,0.4)', lineWidth: 1 });
+  window.addEventListener('resize', () => {
+    proChart.applyOptions({ width: el.clientWidth });
+  });
+}
+
+function proEnsureWS() {
+  if (proWs && proWs.readyState === 1) return;
+  proWs = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=34obrF7Hahze3EBxEBq1Z');
+  proWs.onopen = () => {
+    const symbol = document.getElementById('pro-symbol').value;
+    const tf = document.getElementById('pro-timeframe').value;
+    proWs.send(JSON.stringify({
+      ticks_history: symbol,
+      adjust_start_time: 1,
+      count: 200,
+      end: 'latest',
+      start: 1,
+      style: 'candles',
+      granularity: parseInt(tf),
+    }));
+    if (!proTickSubscribed) {
+      proWs.send(JSON.stringify({ ticks: symbol, subscribe: 1 }));
+      proTickSubscribed = true;
+    }
+  };
+  proWs.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data);
+    if (msg.msg_type === 'candles' && msg.candles) {
+      proCandles = msg.candles.map(c => ({
+        time: c.epoch,
+        open: parseFloat(c.open),
+        high: parseFloat(c.high),
+        low: parseFloat(c.low),
+        close: parseFloat(c.close),
+      }));
+      if (proCandleSeries) proCandleSeries.setData(proCandles);
+      runProAnalysis();
+    } else if (msg.msg_type === 'tick' && msg.tick) {
+      const price = parseFloat(msg.tick.quote);
+      const el = document.getElementById('pro-price');
+      if (el) el.textContent = price.toFixed(4);
+      if (proCandles.length > 0 && proCandleSeries) {
+        const last = proCandles[proCandles.length - 1];
+        const now = Math.floor(Date.now() / 1000);
+        const tf = parseInt(document.getElementById('pro-timeframe').value);
+        if (now - last.time < tf) {
+          last.close = price;
+          last.high = Math.max(last.high, price);
+          last.low = Math.min(last.low, price);
+          proCandleSeries.update(last);
+        }
+      }
+    }
+  };
+  proWs.onclose = () => {
+    proTickSubscribed = false;
+    setTimeout(proEnsureWS, 5000);
+  };
+}
+
+/* ============ INDICATORS MATH ============ */
+function proEMA(data, period) {
+  const k = 2 / (period + 1);
+  const out = [data[0]];
+  for (let i = 1; i < data.length; i++) out.push(data[i] * k + out[i - 1] * (1 - k));
+  return out;
+}
+function proRSI(closes, period = 14) {
+  const out = new Array(closes.length).fill(NaN);
+  let g = 0, l = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = closes[i] - closes[i - 1];
+    if (d > 0) g += d; else l -= d;
+  }
+  let ag = g / period, al = l / period;
+  out[period] = al === 0 ? 100 : 100 - (100 / (1 + ag / al));
+  for (let i = period + 1; i < closes.length; i++) {
+    const d = closes[i] - closes[i - 1];
+    const gain = d > 0 ? d : 0, loss = d < 0 ? -d : 0;
+    ag = (ag * (period - 1) + gain) / period;
+    al = (al * (period - 1) + loss) / period;
+    out[i] = al === 0 ? 100 : 100 - (100 / (1 + ag / al));
+  }
+  return out;
+}
+function proMACD(closes, f = 12, s = 26, sig = 9) {
+  const emaF = proEMA(closes, f);
+  const emaS = proEMA(closes, s);
+  const macd = emaF.map((v, i) => v - emaS[i]);
+  const signal = proEMA(macd.slice(s - 1), sig);
+  return { macd, signal };
+}
+function proBB(closes, p = 20, m = 2) {
+  const upper = [], lower = [];
+  for (let i = p - 1; i < closes.length; i++) {
+    const slice = closes.slice(i - p + 1, i + 1);
+    const mean = slice.reduce((a, b) => a + b, 0) / p;
+    const v = slice.reduce((a, b) => a + (b - mean) ** 2, 0) / p;
+    const std = Math.sqrt(v);
+    upper.push({ time: proCandles[i].time, value: mean + m * std });
+    lower.push({ time: proCandles[i].time, value: mean - m * std });
+  }
+  return { upper, lower };
+}
+function proDivergence(closes, rsi, lb = 30) {
+  if (closes.length < lb) return 0;
+  const c = closes.slice(-lb);
+  const r = rsi.slice(-lb);
+  const lows = [], highs = [];
+  for (let i = 5; i < lb - 5; i++) {
+    if (c[i] < c[i-1] && c[i] < c[i+1] && c[i] < c[i-2] && c[i] < c[i+2]) lows.push(i);
+    if (c[i] > c[i-1] && c[i] > c[i+1] && c[i] > c[i-2] && c[i] > c[i+2]) highs.push(i);
+  }
+  if (lows.length >= 2) {
+    const a = lows[lows.length-2], b = lows[lows.length-1];
+    if (c[b] < c[a] && r[b] > r[a] + 3) return 2.5;
+  }
+  if (highs.length >= 2) {
+    const a = highs[highs.length-2], b = highs[highs.length-1];
+    if (c[b] > c[a] && r[b] < r[a] - 3) return -2.5;
+  }
+  return 0;
+}
+
+/* ============ MAIN ANALYSIS ============ */
+function runProAnalysis() {
+  if (!proCandles || proCandles.length < 30) return;
+  const closes = proCandles.map(c => c.close);
+  const price = closes[closes.length - 1];
+
+  const e9 = proEMA(closes, 9);
+  const e21 = proEMA(closes, 21);
+  const rsi = proRSI(closes, 14);
+  const { macd, signal: macdS } = proMACD(closes);
+  const bb = proBB(closes);
+
+  const lastE9 = e9[e9.length-1], lastE21 = e21[e21.length-1];
+  const prevE9 = e9[e9.length-2], prevE21 = e21[e21.length-2];
+  const lastRSI = rsi[rsi.length-1];
+  const lastM = macd[macd.length-1], lastMS = macdS[macdS.length-1];
+  const prevM = macd[macd.length-2], prevMS = macdS[macdS.length-2];
+
+  let score = 0;
+  const reasons = [];
+
+  // 1. EMA (2)
+  if (lastE9 > lastE21) {
+    score += 1;
+    reasons.push({ t: 'EMA 9 فوق EMA 21 — اتجاه صاعد', c: 'bull' });
+    if (prevE9 <= prevE21) { score += 1; reasons.push({ t: '⚡ تقاطع ذهبي جديد', c: 'bull' }); }
+  } else {
+    score -= 1;
+    reasons.push({ t: 'EMA 9 تحت EMA 21 — اتجاه هابط', c: 'bear' });
+    if (prevE9 >= prevE21) { score -= 1; reasons.push({ t: '⚡ تقاطع الموت', c: 'bear' }); }
+  }
+
+  // 2. MACD (2)
+  if (lastM > lastMS) {
+    score += 1;
+    reasons.push({ t: 'MACD فوق الإشارة — زخم صاعد', c: 'bull' });
+    if (prevM <= prevMS) { score += 1; reasons.push({ t: '⚡ MACD تقاطع صاعد', c: 'bull' }); }
+  } else {
+    score -= 1;
+    reasons.push({ t: 'MACD تحت الإشارة — زخم هابط', c: 'bear' });
+    if (prevM >= prevMS) { score -= 1; reasons.push({ t: '⚡ MACD تقاطع هابط', c: 'bear' }); }
+  }
+
+  // 3. RSI (1.5)
+  if (lastRSI < 30) { score += 1.5; reasons.push({ t: `RSI = ${lastRSI.toFixed(1)} — تشبع بيعي`, c: 'bull' }); }
+  else if (lastRSI < 40) { score += 0.5; reasons.push({ t: `RSI = ${lastRSI.toFixed(1)} — ضعيف`, c: 'bull' }); }
+  else if (lastRSI > 70) { score -= 1.5; reasons.push({ t: `RSI = ${lastRSI.toFixed(1)} — تشبع شرائي`, c: 'bear' }); }
+  else if (lastRSI > 60) { score -= 0.5; reasons.push({ t: `RSI = ${lastRSI.toFixed(1)} — قوي`, c: 'bear' }); }
+  else { reasons.push({ t: `RSI = ${lastRSI.toFixed(1)} — محايد`, c: 'neutral' }); }
+
+  // 4. BB (1)
+  const up = bb.upper[bb.upper.length-1]?.value;
+  const lo = bb.lower[bb.lower.length-1]?.value;
+  if (up && lo) {
+    if (price < lo) { score += 1; reasons.push({ t: 'السعر تحت BB السفلي', c: 'bull' }); }
+    else if (price > up) { score -= 1; reasons.push({ t: 'السعر فوق BB العلوي', c: 'bear' }); }
+    else { reasons.push({ t: 'السعر داخل نطاق BB', c: 'neutral' }); }
+  }
+
+  // 5. Divergence (2.5)
+  const div = proDivergence(closes, rsi);
+  if (div > 0) { score += div; reasons.push({ t: '🔮 دايفرجنس صاعد — انعكاس محتمل', c: 'bull' }); }
+  else if (div < 0) { score += div; reasons.push({ t: '🔮 دايفرجنس هابط — انعكاس محتمل', c: 'bear' }); }
+
+  const minScore = parseFloat(document.getElementById('pro-min-score').value);
+  let signal = 'NEUTRAL';
+  if (score >= minScore) signal = 'BUY';
+  else if (score <= -minScore) signal = 'SELL';
+  const conf = Math.min(Math.abs(score) / 10 * 100, 95);
+
+  // ============ RENDER ============
+  const panel = document.getElementById('pro-signal-panel');
+  const main = document.getElementById('pro-signal-main');
+  panel.className = 'signal-wrap';
+  if (signal === 'BUY') panel.classList.add('buy');
+  else if (signal === 'SELL') panel.classList.add('sell');
+  main.textContent = signal === 'BUY' ? 'شراء' : signal === 'SELL' ? 'بيع' : 'محايد';
+  document.getElementById('pro-confidence').textContent = conf.toFixed(0) + '%';
+  document.getElementById('pro-score').textContent = score.toFixed(1);
+  document.getElementById('pro-trend').textContent = lastE9 > lastE21 ? 'صاعد' : 'هابط';
+  document.getElementById('pro-price').textContent = price.toFixed(4);
+
+  // indicators cards
+  const cards = [
+    { n: 'EMA 9', v: lastE9.toFixed(4), c: lastE9 > lastE21 ? 'bull' : 'bear' },
+    { n: 'EMA 21', v: lastE21.toFixed(4), c: lastE9 > lastE21 ? 'bull' : 'bear' },
+    { n: 'RSI', v: lastRSI.toFixed(2), c: lastRSI < 30 ? 'bull' : lastRSI > 70 ? 'bear' : 'neutral' },
+    { n: 'MACD', v: lastM.toFixed(5), c: lastM > lastMS ? 'bull' : 'bear' },
+    { n: 'Signal', v: lastMS.toFixed(5), c: lastM > lastMS ? 'bull' : 'bear' },
+    { n: 'Divergence', v: div > 0 ? 'صاعد' : div < 0 ? 'هابط' : 'لا يوجد', c: div > 0 ? 'bull' : div < 0 ? 'bear' : 'neutral' },
+  ];
+  document.getElementById('pro-indicators').innerHTML = cards.map(c =>
+    `<div class="ind-card ${c.c}"><div class="ind-name">${c.n}</div><div class="ind-val">${c.v}</div></div>`
+  ).join('');
+
+  document.getElementById('pro-reasons').innerHTML = reasons.map(r =>
+    `<div style="color:${r.c === 'bull' ? 'var(--green)' : r.c === 'bear' ? 'var(--red)' : 'var(--text-dim)'}">
+      ${r.c === 'bull' ? '🟢' : r.c === 'bear' ? '🔴' : '⚪'} ${r.t}
+    </div>`
+  ).join('');
+
+  // سجّل الإشارة
+  if (signal !== 'NEUTRAL' && conf >= 60) {
+    const last = proHistory[proHistory.length - 1];
+    const now = Date.now();
+    if (!last || (now - last.ts) > 60000 || last.sig !== signal) {
+      proHistory.push({
+        ts: now, sig: signal, conf: conf, price: price, score: score
+      });
+      if (proHistory.length > 30) proHistory.shift();
+      proRenderHistory();
+    }
+  }
+}
+
+function proRenderHistory() {
+  const el = document.getElementById('pro-history');
+  if (!el) return;
+  if (!proHistory.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:20px;">لا سجل بعد...</div>';
+    return;
+  }
+  el.innerHTML = proHistory.slice().reverse().map(h => {
+    const time = new Date(h.ts).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
+    const color = h.sig === 'BUY' ? 'var(--green)' : 'var(--red)';
+    const icon = h.sig === 'BUY' ? '🟢' : '🔴';
+    return `<div style="display:flex;justify-content:space-between;padding:6px 8px;border-bottom:1px solid var(--border);">
+      <span style="color:${color};">${icon} ${h.sig}</span>
+      <span style="color:var(--text-dim);">${time}</span>
+      <span style="color:var(--gold);">${h.conf.toFixed(0)}%</span>
+      <span style="color:var(--text);">${h.price.toFixed(4)}</span>
+    </div>`;
+  }).join('');
+}
+
+/* ============ AUTO MODE ============ */
+function startProAuto() {
+  if (proAutoTimer) {
+    clearInterval(proAutoTimer);
+    proAutoTimer = null;
+    document.getElementById('pro-auto-btn').textContent = '⚡ تفعيل التحديث الحي';
+    document.getElementById('pro-auto-btn').classList.remove('btn-cyan');
+    document.getElementById('pro-auto-btn').classList.add('btn-outline');
+    return;
+  }
+  proEnsureWS();
+  proAutoTimer = setInterval(() => {
+    if (proCandles.length) runProAnalysis();
+  }, 15000);
+  document.getElementById('pro-auto-btn').textContent = '⏸️ إيقاف التحديث';
+  document.getElementById('pro-auto-btn').classList.remove('btn-outline');
+  document.getElementById('pro-auto-btn').classList.add('btn-cyan');
+}
+
+/* ============ HIDE/REINIT on page switch ============ */
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    const proNav = document.querySelector('.nav-item[data-page="pro"]');
+    if (proNav) proNav.addEventListener('click', () => {
+if (!isPro()) {
+  const page = document.getElementById('page-pro');
+  if (page && !document.getElementById('pro-locked')) {
+    const banner = document.createElement('div');
+    banner.id = 'pro-locked';
+    banner.className = 'panel';
+    banner.style.cssText = 'text-align:center;padding:50px 20px;';
+    banner.innerHTML = '<div style="font-size:70px;margin-bottom:14px;">🔒</div>' +
+      '<h3 style="color:var(--gold);font-size:24px;margin-bottom:12px;">ميزة Pro حصرية</h3>' +
+      '<p style="color:var(--text-dim);font-size:14px;line-height:1.9;margin-bottom:24px;max-width:420px;margin-inline:auto;">💎 <b>KANZER PRO SIGNAL</b><br>5 مؤشرات + كشف دايفرجنس + إشارات موثوقة</p>' +
+      '<button class="btn btn-gold" onclick="document.querySelector(\'.nav-item[data-page=\\\'pricing\\\']\').click();" style="font-size:16px;padding:14px 32px;">🚀 ارفع إلى Pro — $19/شهر</button>';
+    const oldChart = document.getElementById('pro-chart-wrap');
+    if (oldChart) oldChart.style.display = 'none';
+    page.insertBefore(banner, page.firstChild);
+  }
+  return;
+} else {
+  const banner = document.getElementById('pro-locked');
+  if (banner) banner.remove();
+  const oldChart = document.getElementById('pro-chart-wrap');
+  if (oldChart) oldChart.style.display = 'block';
+}
+      setTimeout(() => {
+        if (!document.getElementById('pro-chart')) return;
+        proInitChart();
+        proEnsureWS();
+        if (proCandles.length) runProAnalysis();
+      }, 100);
+    });
+    const symSel = document.getElementById('pro-symbol');
+    const tfSel = document.getElementById('pro-timeframe');
+    if (symSel) symSel.addEventListener('change', () => {
+      proCandles = [];
+      if (proWs) { try { proWs.close(); } catch(e){} }
+      proTickSubscribed = false;
+      proEnsureWS();
+    });
+    if (tfSel) tfSel.addEventListener('change', () => {
+      proCandles = [];
+      if (proWs) { try { proWs.close(); } catch(e){} }
+      proTickSubscribed = false;
+      proEnsureWS();
+    });
+  }, 1500);
+});
+</script>
+<!-- ===== كود ربط Deriv ===== -->
+<div id="deriv-section" style="text-align:center; margin: 30px 0;">
+  <button id="deriv-login" style="background:#ff444f; color:#fff; padding:14px 30px; border:none; border-radius:10px; font-size:16px; cursor:pointer; font-weight:bold;">
+    🔗 ربط حساب Deriv
+  </button>
+  <div id="deriv-dashboard" style="display:none; margin-top:20px;">
+    <p>تم الربط بنجاح</p>
+    <p>الرصيد: <span id="deriv-balance" style="color:#ff444f; font-size:24px;">جاري التحميل...</span></p>
+    <button id="deriv-logout" style="margin-top:10px; padding:10px 20px; cursor:pointer;">تسجيل الخروج</button>
+  </div>
+  <div id="deriv-status" style="margin-top:10px; color:#888; font-size:13px;"></div>
+</div>
+
+<script>
+// ===== إعدادات Deriv =====
+const APP_ID = '34obrF7Hahze3EBxEBq1Z';
+const REDIRECT_URI = window.location.href.split('#')[0].split('?')[0];
+const AUTH_ENDPOINT = 'https://oauth.deriv.com/oauth2/authorize';
+const WS_URL = `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`;
+
+// ===== بدء تسجيل الدخول =====
+function startLogin() {
+  const params = new URLSearchParams({
+    app_id: APP_ID,
+    l: 'ar',
+    redirect_uri: REDIRECT_URI
+  });
+  window.location.href = `${AUTH_ENDPOINT}?${params.toString()}`;
+}
+
+// ===== معالجة العودة =====
+function handleCallback() {
+  const hash = window.location.hash.substring(1);
+  const query = window.location.search.substring(1);
+  const params = new URLSearchParams(hash || query);
+  const token = params.get('token1') || params.get('access_token');
+
+  if (!token) return null;
+
+  localStorage.setItem('deriv_token', token);
+  window.history.replaceState({}, document.title, REDIRECT_URI);
+  return token;
+}
+
+// ===== عرض لوحة التحكم =====
+function showDashboard() {
+  document.getElementById('deriv-login').style.display = 'none';
+  document.getElementById('deriv-dashboard').style.display = 'block';
+  fetchBalance();
+}
+
+function fetchBalance() {
+  const token = localStorage.getItem('deriv_token');
+  if (!token) return;
+
+  const ws = new WebSocket(WS_URL);
+  ws.onopen = () => ws.send(JSON.stringify({ authorize: token }));
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.msg_type === 'authorize') {
+      if (data.error) {
+        document.getElementById('deriv-balance').textContent = 'توكن غير صالح';
+        ws.close();
+        return;
+      }
+      ws.send(JSON.stringify({ balance: 1, subscribe: 1 }));
+    }
+    if (data.msg_type === 'balance') {
+      document.getElementById('deriv-balance').textContent = `${data.balance.balance} ${data.balance.currency}`;
+    }
+  };
+  ws.onerror = () => document.getElementById('deriv-balance').textContent = 'خطأ';
+}
+
+function logout() {
+  localStorage.removeItem('deriv_token');
+  document.getElementById('deriv-login').style.display = 'block';
+  document.getElementById('deriv-dashboard').style.display = 'none';
+}
+
+// ===== التهيئة =====
+(function init() {
+  const token = handleCallback();
+  if (token) showDashboard();
+  else if (localStorage.getItem('deriv_token')) showDashboard();
+
+  const loginBtn = document.getElementById('deriv-login');
+  if (loginBtn) loginBtn.addEventListener('click', startLogin);
+
+  const logoutBtn = document.getElementById('deriv-logout');
+  if (logoutBtn) logoutBtn.addEventListener('click', logout);
+})();
+</script>
+</body>
+</html>
