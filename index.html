@@ -5049,7 +5049,7 @@ function proInitChart() {
 
 function proEnsureWS() {
   if (proWs && proWs.readyState === 1) return;
-  proWs = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=34obrF7Hahze3EBxEBq1Z');
+  proWs = new WebSocket('wss://ws.derivws.com/websockets/v3?app_');
   proWs.onopen = () => {
     const symbol = document.getElementById('pro-symbol').value;
     const tf = document.getElementById('pro-timeframe').value;
@@ -5373,7 +5373,7 @@ if (!isPro()) {
 </script>
   <script> 
 // ===== إعدادات Deriv =====
-const APP_ID = '34obrF7Hahze3EBxEBq1Z';
+const APP_ID = '1089';
 const REDIRECT_URI = window.location.href.split('#')[0].split('?')[0];
 const AUTH_ENDPOINT = 'https://oauth.deriv.com/oauth2/authorize';
 const WS_URL = `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`;
