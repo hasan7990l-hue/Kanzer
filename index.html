@@ -5074,7 +5074,7 @@ function proInitChart() {
 
 function proEnsureWS() {
   if (proWs && proWs.readyState === 1) return;
-  proWs = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=34ol4ZgeVS1c9G1ZgUbiK');
+  proWs = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');
   proWs.onopen = () => {
     const symbol = document.getElementById('pro-symbol').value;
     const tf = document.getElementById('pro-timeframe').value;
