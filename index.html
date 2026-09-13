@@ -5456,42 +5456,5 @@ function logout() {
   if (logoutBtn) logoutBtn.addEventListener('click', logout);
 })();
 </script>
-<script>
-/* ===== Fallback WebSocket Endpoints ===== */
-(function(){
-  const ALT_WS = 'ws.binaryws.com';
-  const OriginalWebSocket = window.WebSocket;
-
-  window.WebSocket = function(url, protocols) {
-    if (typeof url === 'string' && url.includes('ws.derivws.com')) {
-      const altUrl = url.replace('ws.derivws.com', ALT_WS);
-      console.log('[WS] Primary attempted. Fallback ready:', altUrl);
-      const ws = new OriginalWebSocket(url, protocols);
-      let opened = false;
-      const originalOnOpen = Object.getOwnPropertyDescriptor(OriginalWebSocket.prototype, 'onopen');
-      
-      setTimeout(() => {
-        if (ws.readyState !== 1 && !opened) {
-          try { ws.close(); } catch(e) {}
-          console.log('[WS] Primary failed. Switching to fallback:', altUrl);
-          const ws2 = new OriginalWebSocket(altUrl, protocols);
-          ws2.onopen = ws.onopen;
-          ws2.onmessage = ws.onmessage;
-          ws2.onerror = ws.onerror;
-          ws2.onclose = ws.onclose;
-          return ws2;
-        }
-      }, 3000);
-      return ws;
-    }
-    return new OriginalWebSocket(url, protocols);
-  };
-  window.WebSocket.prototype = OriginalWebSocket.prototype;
-  window.WebSocket.CONNECTING = 0;
-  window.WebSocket.OPEN = 1;
-  window.WebSocket.CLOSING = 2;
-  window.WebSocket.CLOSED = 3;
-})();
-</script>
 </body>
 </html>
