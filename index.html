@@ -5393,14 +5393,19 @@ const WS_URL = `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`;
 
 // ===== بدء تسجيل الدخول =====
 function startLogin() {
-  const params = new URLSearchParams({
-    app_id: APP_ID,
-    l: 'ar',
-    redirect_uri: REDIRECT_URI
-  });
-  window.location.href = `${AUTH_ENDPOINT}?${params.toString()}`;
-}
+  const state = Math.random().toString(36).substring(2);
+  sessionStorage.setItem('oauth_state', state);
 
+  const params = new URLSearchParams({
+    response_type: 'token',
+    client_id: APP_ID,
+    redirect_uri: REDIRECT_URI,
+    scope: 'read trade',
+    state: state
+  });
+
+  window.location.href = `https://oauth.deriv.com/oauth2/authorize?${params.toString()}`;
+  }
 // ===== معالجة العودة =====
 function handleCallback() {
   const hash = window.location.hash.substring(1);
