@@ -5506,7 +5506,8 @@ async function handleCallback() {
     setTimeout(() => {
       updateDerivUI();
       connectWS();
-    }, 500);
+      authorizeToken(token);
+    }, 1500);
   }
 })();
 </script>
