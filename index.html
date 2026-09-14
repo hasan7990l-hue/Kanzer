@@ -4177,8 +4177,7 @@ body { background: var(--bg-0); }
 <script>
 /* ============ KANZER CHAT + AI ============ */
 const FIREBASE_URL = 'https://kanzer-chat-default-rtdb.firebaseio.com';
-const GROQ_API_KEY = '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';
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const AI_PROXY_URL = (window.KANZER_API || 'https://kanzer-worker.hasan7990l.workers.dev') + '/ai';
 let chatRoom = 'general';
 let chatTimer = null;
 let lastMsgCount = 0;
@@ -4224,21 +4223,20 @@ async function loadChatMessages(){
   }).join('');
   el.scrollTop=el.scrollHeight;
 }
-
-async function sendChatMsg(){
-  const input=document.getElementById('chat-input');
-  if(!input)return;
-  const text=input.value.trim();
-  if(!text)return;
-  if(typeof state==='undefined'||!state.currentUser){alert('يجب تسجيل الدخول أولاً');return;}
-  const msg={user:state.currentUser.name||'User',email:state.currentUser.email||'',text:text,ts:Date.now()};
-  input.value='';input.focus();
-  try{
-    const res=await fetch(FIREBASE_URL+'/messages/'+chatRoom+'.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(msg)});
-    if(!res.ok){alert('فشل الإرسال: '+res.status);return;}
-    lastMsgCount=-1;
-    await loadChatMessages();
-  }catch(e){alert('خطأ: '+e.message);}
+function aiMsg(role,text){
+  const el=document.getElementById('ai-messages');
+  if(!el)return;
+  const div=document.createElement('div');
+  div.className='chat-msg '+(role==='user'?'mine':'other');
+  const meta=document.createElement('div');
+  meta.className='meta';
+  meta.textContent = role==='user'?'أنت':'🤖 ريكي';
+  const body=document.createElement('div');
+  body.style.whiteSpace='pre-wrap';
+  body.textContent = String(text);
+  div.appendChild(meta); div.appendChild(body);
+  el.appendChild(div); el.scrollTop=el.scrollHeight;
+  return div;
 }
 
 function initChat(){
@@ -4249,16 +4247,6 @@ function initChat(){
 }
 
 /* ============ AI ANALYST ============ */
-function aiMsg(role,text){
-  const el=document.getElementById('ai-messages');
-  if(!el)return;
-  const div=document.createElement('div');
-  div.className='chat-msg '+(role==='user'?'mine':'other');
-  div.innerHTML='<div class="meta">'+(role==='user'?'أنت':'🤖 ريكي')+'</div><div>'+text.replace(/\n/g,'<br>')+'</div>';
-  el.appendChild(div);el.scrollTop=el.scrollHeight;
-  return div;
-}
-
 function getLiveContext(){
   try{
     const price=document.getElementById('signal-price')?.textContent||'—';
@@ -4275,18 +4263,21 @@ async function askAI(){
   if(!input)return;
   const q=input.value.trim();
   if(!q)return;
-  if(GROQ_API_KEY==='gsk_ضع_المفتاح_هنا'){aiMsg('ai','⚠️ المفتاح لم يُعد.');return;}
   input.value='';
   aiMsg('user',q);
   const loading=aiMsg('ai','⏳ يفكر...');
   const sys='أنت "ريكي" — محلل تداول ذكي في Kanzer. تتحدث العربية.\n1. لا تضمن أرباحاً.\n2. ركز على إدارة المخاطر.\n3. ردود قصيرة (2-5 أسطر).';
   const full=sys+'\n\n'+getLiveContext()+'\n\nسؤال: '+q;
   try{
-    const res=await fetch(GROQ_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+GROQ_API_KEY},body:JSON.stringify({model:'openai/gpt-oss-120b',messages:[{role:'system',content:sys},{role:'user',content:full}],temperature:0.7,max_tokens:500})});
+    const res=await fetch(AI_PROXY_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({system:sys,user:full})
+    });
     const data=await res.json();
     loading.remove();
-    if(data.error){aiMsg('ai','❌ '+data.error.message);return;}
-    aiMsg('ai',data.choices?.[0]?.message?.content||'لم أفهم.');
+    if(data.error){aiMsg('ai','❌ '+data.error);return;}
+    aiMsg('ai',data.reply||'لم أفهم.');
   }catch(e){loading.remove();aiMsg('ai','❌ فشل: '+e.message);}
 }
 
