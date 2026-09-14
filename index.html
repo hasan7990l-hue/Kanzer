@@ -5481,11 +5481,11 @@ async function handleCallback() {
       redirect_uri: REDIRECT_URI,
       code_verifier: ver
     });
-    const r = await fetch('https://kanzer-proxy.hasan7990l.workers.dev', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: b.toString()
-    });
+    const r = await fetch(window.KANZER_API, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  body: b.toString()
+});
     const d = await r.json();
     if (!d.access_token) return null;
     localStorage.setItem('deriv_token', d.access_token);
