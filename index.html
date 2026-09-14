@@ -3152,6 +3152,14 @@ function toggleConnection() {
   state.wsConnected = false;
   connectWS();
 }
+function updateConn(status) {
+  const el = document.getElementById('conn');
+  const txt = document.getElementById('conn-text');
+  if (!el || !txt) return;
+  if (status === 'online') { el.className = 'conn-badge online'; txt.textContent = 'متصل'; }
+  else if (status === 'connecting') { el.className = 'conn-badge'; txt.textContent = 'يتصل...'; }
+  else { el.className = 'conn-badge offline'; txt.textContent = 'غير متصل'; }
+}  
 function handleWSMessage(msg) {
   if (msg.msg_type === 'tick' && msg.tick) {
     state.prevTick = state.currentPrice;
