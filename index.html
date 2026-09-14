@@ -2981,8 +2981,7 @@ async function logout(confirmFirst) {
   clearSession();
   location.reload();
 }
-
-function showApp() {
+async function showApp() {
   document.getElementById('login-screen').classList.remove('active');
   document.getElementById('app').classList.add('active');
   updateUserUI();
@@ -2992,7 +2991,7 @@ function showApp() {
   updateUI();
   renderHistory();
   renderActiveTrades();
-  loadDerivTokenFromFirebase();
+  await loadDerivTokenFromFirebase();
   updateDerivUI();
   connectWS();
   startRefreshLoop();
