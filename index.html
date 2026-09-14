@@ -2997,7 +2997,6 @@ function showApp() {
   connectWS();
   startRefreshLoop();
 }
-
 async function loadDerivTokenFromFirebase() {
   try {
     const u = state.currentUser;
@@ -3008,10 +3007,10 @@ async function loadDerivTokenFromFirebase() {
       localStorage.setItem('deriv_token', token);
       state.derivToken = token;
       console.log('✅ Deriv token loaded from Firebase');
+      if (state.wsConnected) authorizeToken(token);
     }
   } catch (e) { console.warn('Firebase load failed', e); }
 }
-
 function updateUserUI() {
   const u = state.currentUser;
   if (!u) return;
