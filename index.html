@@ -5467,8 +5467,16 @@ async function handleCallback() {
   } catch(e) { return null; }
   }
 // ===== عرض لوحة التحكم =====
-(function init() {
-  handleCallback();
+(async function init() {
+  const token = await handleCallback();
+  if (token) {
+    state.derivToken = token;
+    state.derivLinked = true;
+    setTimeout(() => {
+      updateDerivUI();
+      connectWS();
+    }, 500);
+  }
 })();
 </script>
 </body>
