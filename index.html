@@ -2999,17 +2999,26 @@ async function showApp() {
 async function loadDerivTokenFromFirebase() {
   try {
     const u = state.currentUser;
-    if (!u || !u.firebaseUid) return;
-    const res = await fetch('https://kanzer-chat-default-rtdb.firebaseio.com/users/' + u.firebaseUid + '/deriv_token.json');
-    const token = await res.json();
-    if (token) {
-      localStorage.setItem('deriv_token', token);
-      state.derivToken = token;
-      console.log('✅ Deriv token loaded from Firebase');
-      if (state.wsConnected) authorizeToken(token);
+    // 1. جرّب Firebase أولاً
+    if (u && u.firebaseUid) {
+      const res = await fetch('https://kanzer-chat-default-rtdb.firebaseio.com/users/' + u.firebaseUid + '/deriv_token.json');
+      const token = await res.json();
+      if (token) {
+        localStorage.setItem('deriv_token', token);
+        state.derivToken = token;
+        console.log('✅ Deriv token loaded from Firebase');
+        return token;
+      }
     }
-  } catch (e) { console.warn('Firebase load failed', e); }
-}
+    // 2. إذا فشل Firebase، جرّب localStorage
+    const localToken = localStorage.getItem('deriv_token');
+    if (localToken) {
+      state.derivToken = localToken;
+      console.log('✅ Deriv token loaded from localStorage');
+      return localToken;
+    }
+  } catch (e) { console.warn('Token load failed', e); }
+  }
 function updateUserUI() {
   const u = state.currentUser;
   if (!u) return;
