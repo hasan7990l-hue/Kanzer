@@ -5441,8 +5441,8 @@ async function startLogin() {
   const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ver));
   const chl = btoa(String.fromCharCode(...new Uint8Array(h))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
   const st = crypto.getRandomValues(new Uint8Array(16)).reduce((s,b)=>s+b.toString(16).padStart(2,'0'),'');
-  sessionStorage.setItem('pkce_verifier', ver);
-  sessionStorage.setItem('oauth_state', st);
+  localStorage.setItem('pkce_verifier', ver);
+  localStorage.setItem('oauth_state', st);
   const p = new URLSearchParams({
     response_type: 'code',
     client_id: APP_ID,
@@ -5460,8 +5460,8 @@ async function handleCallback() {
   const code = p.get('code');
   const rs = p.get('state');
   if (!code) return null;
-  if (rs !== sessionStorage.getItem('oauth_state')) return null;
-  const ver = sessionStorage.getItem('pkce_verifier');
+  if (rs !== localStorage.getItem('oauth_state')) return null;
+  const ver = localStorage.getItem('pkce_verifier');
   if (!ver) return null;
   try {
     const b = new URLSearchParams({
@@ -5491,8 +5491,8 @@ async function handleCallback() {
         });
       }
     } catch(e) {}
-    sessionStorage.removeItem('pkce_verifier');
-    sessionStorage.removeItem('oauth_state');
+    localStorage.removeItem('pkce_verifier');
+    localStorage.removeItem('oauth_state');
     window.history.replaceState({}, document.title, REDIRECT_URI);
     return d.access_token;
   } catch(e) { return null; }
