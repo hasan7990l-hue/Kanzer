@@ -5404,47 +5404,48 @@ const AUTH_ENDPOINT = 'https://oauth.deriv.com/oauth2/authorize';
 const WS_URL = `wss://ws.derivws.com/websockets/v3?app_id=1089`;
 
 // ===== بدء تسجيل الدخول =====
-function startLogin() {
-  const state = Math.random().toString(36).substring(2);
-  sessionStorage.setItem('oauth_state', state);
-  const params = new URLSearchParams({
-    response_type: 'token',
-    client_id: APP_ID,
-    redirect_uri: REDIRECT_URI,
-    scope: 'read trade',
-    state: state
-  });
-  window.location.href = `https://oauth.deriv.com/oauth2/authorize?${params.toString()}`;
-}
-// ===== معالجة العودة =====
-function handleCallback() {
-  const hash = window.location.hash.substring(1);
-  const query = window.location.search.substring(1);
-  const params = new URLSearchParams(hash || query);
-  const token = params.get('token1') || params.get('access_token');
-
-  if (!token) return null;
-
-  localStorage.setItem('deriv_token', token);
-  window.history.replaceState({}, document.title, REDIRECT_URI);
-
-  // حفظ التوكن في Firebase
+async function handleCallback() {
+  const p = new URLSearchParams(window.location.search);
+  const code = p.get('code');
+  const rs = p.get('state');
+  if (!code) return null;
+  if (rs !== sessionStorage.getItem('oauth_state')) return null;
+  const ver = sessionStorage.getItem('pkce_verifier');
+  if (!ver) return null;
   try {
-    const session = getSession();
-    const users = getUsers();
-    const u = session ? users[session] : null;
-    if (u && u.firebaseUid) {
-      fetch('https://kanzer-chat-default-rtdb.firebaseio.com/users/' + u.firebaseUid + '/deriv_token.json', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(token)
-      }).then(function() { console.log('✅ Deriv token saved to Firebase'); });
-    }
-  } catch (e) { console.warn('Firebase save failed', e); }
-
-  return token;
-}
-
+    const b = new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: APP_ID,
+      code: code,
+      redirect_uri: REDIRECT_URI,
+      code_verifier: ver
+    });
+    const r = await fetch('https://kanzer-proxy.hasan7990l.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: b.toString()
+    });
+    const d = await r.json();
+    if (!d.access_token) return null;
+    localStorage.setItem('deriv_token', d.access_token);
+    state.derivToken = d.access_token;
+    try {
+      const s = getSession();
+      const u = s ? getUsers()[s] : null;
+      if (u && u.firebaseUid) {
+        await fetch('https://kanzer-chat-default-rtdb.firebaseio.com/users/' + u.firebaseUid + '/deriv_token.json', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(d.access_token)
+        });
+      }
+    } catch(e) {}
+    sessionStorage.removeItem('pkce_verifier');
+    sessionStorage.removeItem('oauth_state');
+    window.history.replaceState({}, document.title, REDIRECT_URI);
+    return d.access_token;
+  } catch(e) { return null; }
+  }
 // ===== عرض لوحة التحكم =====
 (function init() {
   handleCallback();
