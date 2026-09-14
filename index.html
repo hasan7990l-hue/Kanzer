@@ -3130,13 +3130,15 @@ function connectWS() {
 
 function authorizeToken(token) {
   try {
-    const url = `wss://kanzer-proxy.hasan7990l.workers.dev/?ws-proxy=1&a=${APP_ID}&t=${encodeURIComponent(token)}`;
+    const appId = '34ol4ZgeVS1c9G1ZgUbiK';
+    const url = window.KANZER_API + '/?ws-proxy=1&a=' + appId + '&t=' + encodeURIComponent(token);
     const authWs = new WebSocket(url);
     authWs.onmessage = (ev) => {
       const msg = JSON.parse(ev.data);
       if (msg.msg_type === 'authorize') {
         if (msg.error) {
           console.warn('Auth error:', msg.error);
+          showToast('❌ فشل الربط: ' + (msg.error.message || ''), 'red');
           return;
         }
         const a = msg.authorize;
@@ -3149,6 +3151,16 @@ function authorizeToken(token) {
         state.derivLinked = true;
         state.derivToken = token;
         localStorage.setItem('deriv_token', token);
+        try {
+          const u = state.currentUser;
+          if (u && u.firebaseUid) {
+            fetch('https://kanzer-chat-default-rtdb.firebaseio.com/users/' + u.firebaseUid + '/deriv_token.json', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(token)
+            });
+          }
+        } catch(e) {}
         updateDerivUI();
         showToast('✅ تم ربط حسابك', 'green');
       }
