@@ -5402,7 +5402,27 @@ const APP_ID = '34ol4ZgeVS1c9G1ZgUbiK';
 const REDIRECT_URI = window.location.href.split('#')[0].split('?')[0];
 const AUTH_ENDPOINT = 'https://auth.deriv.com/oauth2/auth';
 const WS_URL = `wss://ws.derivws.com/websockets/v3?app_id=1089`;
-
+async function startLogin() {
+  const arr = crypto.getRandomValues(new Uint8Array(64));
+  const ch = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  let ver = '';
+  for (let i = 0; i < arr.length; i++) ver += ch[arr[i] % ch.length];
+  const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ver));
+  const chl = btoa(String.fromCharCode(...new Uint8Array(h))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  const st = crypto.getRandomValues(new Uint8Array(16)).reduce((s,b)=>s+b.toString(16).padStart(2,'0'),'');
+  sessionStorage.setItem('pkce_verifier', ver);
+  sessionStorage.setItem('oauth_state', st);
+  const p = new URLSearchParams({
+    response_type: 'code',
+    client_id: APP_ID,
+    redirect_uri: REDIRECT_URI,
+    scope: 'read trade',
+    state: st,
+    code_challenge: chl,
+    code_challenge_method: 'S256'
+  });
+  window.location.href = `https://auth.deriv.com/oauth2/auth?${p.toString()}`;
+  }
 // ===== بدء تسجيل الدخول =====
 async function handleCallback() {
   const p = new URLSearchParams(window.location.search);
