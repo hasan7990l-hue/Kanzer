@@ -3120,9 +3120,8 @@ function connectWS() {
 
 function authorizeToken(token) {
   try {
-    const authUrl = `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`;
-    const authWs = new WebSocket(authUrl);
-    authWs.onopen = () => authWs.send(JSON.stringify({ authorize: token, req_id: 1 }));
+    const url = `wss://kanzer-proxy.hasan7990l.workers.dev/?ws-proxy=1&a=${APP_ID}&t=${encodeURIComponent(token)}`;
+    const authWs = new WebSocket(url);
     authWs.onmessage = (ev) => {
       const msg = JSON.parse(ev.data);
       if (msg.msg_type === 'authorize') {
@@ -3138,13 +3137,15 @@ function authorizeToken(token) {
           balance: a.balance
         };
         state.derivLinked = true;
+        state.derivToken = token;
+        localStorage.setItem('deriv_token', token);
         updateDerivUI();
-        setTimeout(() => { try { authWs.close(); } catch(e){} }, 2000);
+        showToast('✅ تم ربط حسابك', 'green');
       }
     };
     authWs.onerror = () => console.warn('Auth WS error');
   } catch(e) { console.warn(e); }
-}
+  }
 function toggleConnection() {
   if (state.ws) { try { state.ws.close(); } catch(e){} }
   state.wsConnected = false;
