@@ -4238,7 +4238,42 @@ function aiMsg(role,text){
   el.appendChild(div); el.scrollTop=el.scrollHeight;
   return div;
 }
-
+async function sendChatMsg(){
+  const input=document.getElementById('chat-input');
+  if(!input)return;
+  const text=input.value.trim();
+  if(!text)return;
+  if(typeof state==='undefined'||!state.currentUser){
+    alert('يجب تسجيل الدخول أولاً');
+    return;
+  }
+  const msg={
+    user:state.currentUser.name||'User',
+    email:state.currentUser.email||'',
+    text:text,
+    ts:Date.now()
+  };
+  input.value='';
+  input.focus();
+  try{
+    const res=await fetch(
+      FIREBASE_URL+'/messages/'+chatRoom+'.json',
+      {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(msg)
+      }
+    );
+    if(!res.ok){
+      alert('فشل الإرسال: '+res.status);
+      return;
+    }
+    lastMsgCount=-1;
+    await loadChatMessages();
+  }catch(e){
+    alert('خطأ: '+e.message);
+  }
+}
 function initChat(){
   updateChatStatus();
   switchRoom('general');
