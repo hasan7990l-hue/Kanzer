@@ -3147,6 +3147,11 @@ function authorizeToken(token) {
     authWs.onerror = () => console.warn('Auth WS error');
   } catch(e) { console.warn(e); }
 }
+function toggleConnection() {
+  if (state.ws) { try { state.ws.close(); } catch(e){} }
+  state.wsConnected = false;
+  connectWS();
+}
 function handleWSMessage(msg) {
   if (msg.msg_type === 'tick' && msg.tick) {
     state.prevTick = state.currentPrice;
