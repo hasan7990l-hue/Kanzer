@@ -3096,18 +3096,16 @@ function connectWS() {
   if (state.ws) { try { state.ws.close(); } catch(e){} }
   updateConn('connecting');
   try {
-    const url = `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`;
+    const url = `wss://ws.derivws.com/websockets/v3?app_id=1089`;
     state.ws = new WebSocket(url);
 
     state.ws.onopen = () => {
       state.wsConnected = true;
       updateConn('online');
-      if (state.derivLinked && state.derivToken) {
-        state.ws.send(JSON.stringify({ authorize: state.derivToken, req_id: 1 }));
-      }
       const sym = document.getElementById('symbol-select').value;
       state.ws.send(JSON.stringify({ ticks: sym, subscribe: 1 }));
       requestCandles();
+      if (state.derivToken) authorizeToken(state.derivToken);
     };
 
     state.ws.onmessage = (ev) => handleWSMessage(JSON.parse(ev.data));
@@ -3121,19 +3119,34 @@ function connectWS() {
     updateConn('offline');
   }
 }
-function toggleConnection() {
-  if (state.ws) { try { state.ws.close(); } catch(e){} }
-  state.wsConnected = false;
-  connectWS();
-  }
-function updateConn(status) {
-  const el = document.getElementById('conn');
-  const txt = document.getElementById('conn-text');
-  if (status === 'online') { el.className = 'conn-badge online'; txt.textContent = 'متصل'; }
-  else if (status === 'connecting') { el.className = 'conn-badge'; txt.textContent = 'يتصل...'; }
-  else { el.className = 'conn-badge offline'; txt.textContent = 'غير متصل'; }
-}
 
+function authorizeToken(token) {
+  try {
+    const authUrl = `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`;
+    const authWs = new WebSocket(authUrl);
+    authWs.onopen = () => authWs.send(JSON.stringify({ authorize: token, req_id: 1 }));
+    authWs.onmessage = (ev) => {
+      const msg = JSON.parse(ev.data);
+      if (msg.msg_type === 'authorize') {
+        if (msg.error) {
+          console.warn('Auth error:', msg.error);
+          return;
+        }
+        const a = msg.authorize;
+        state.derivAccount = {
+          loginid: a.loginid,
+          currency: a.currency,
+          isVirtual: a.is_virtual === 1,
+          balance: a.balance
+        };
+        state.derivLinked = true;
+        updateDerivUI();
+        setTimeout(() => { try { authWs.close(); } catch(e){} }, 2000);
+      }
+    };
+    authWs.onerror = () => console.warn('Auth WS error');
+  } catch(e) { console.warn(e); }
+}
 function handleWSMessage(msg) {
   if (msg.msg_type === 'tick' && msg.tick) {
     state.prevTick = state.currentPrice;
