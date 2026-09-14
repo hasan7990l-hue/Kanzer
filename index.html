@@ -3092,9 +3092,11 @@ function initChart() {
 
 // ============ WEBSOCKET ============
 function connectWS() {
+  if (state.ws && state.ws.readyState === 1) return;
+  if (state.ws) { try { state.ws.close(); } catch(e){} }
   updateConn('connecting');
   try {
-    const url = `wss://ws.derivws.com/websockets/v3?app_id=${DERIV_APP_ID}`;
+    const url = `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`;
     state.ws = new WebSocket(url);
 
     state.ws.onopen = () => {
@@ -3119,7 +3121,11 @@ function connectWS() {
     updateConn('offline');
   }
 }
-
+function toggleConnection() {
+  if (state.ws) { try { state.ws.close(); } catch(e){} }
+  state.wsConnected = false;
+  connectWS();
+  }
 function updateConn(status) {
   const el = document.getElementById('conn');
   const txt = document.getElementById('conn-text');
