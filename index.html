@@ -3943,27 +3943,32 @@ function saveSettings() {
 
 // ============ UI ============
 function updateUI() {
+  const setEl = (id, txt, color) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = txt;
+    if (color) el.style.color = color;
+  };
   if (state.derivLinked && state.derivAccount) {
     const derivBal = parseFloat(state.derivAccount.balance) || 0;
-    document.getElementById('stat-balance').textContent = '$' + derivBal.toFixed(2);
-    document.getElementById('stat-balance').style.color = state.derivAccount.isVirtual ? 'var(--cyan)' : 'var(--gold)';
+    setEl('stat-balance', '$' + derivBal.toFixed(2), state.derivAccount.isVirtual ? 'var(--cyan)' : 'var(--gold)');
   } else {
-    document.getElementById('stat-balance').textContent = '$' + state.balance.toFixed(2);
+    setEl('stat-balance', '$' + state.balance.toFixed(2));
   }
-  document.getElementById('stat-profit').textContent = '$' + state.profit.toFixed(2);
-  document.getElementById('stat-loss').textContent = '$' + state.loss.toFixed(2);
-  document.getElementById('stat-wins').textContent = `${state.wins} / ${state.totalTrades}`;
-  document.getElementById('prof-balance').textContent = '$' + state.balance.toFixed(2);
-  document.getElementById('prof-profit').textContent = '$' + state.profit.toFixed(2);
-  document.getElementById('prof-loss').textContent = '$' + state.loss.toFixed(2);
+  setEl('stat-profit', '$' + state.profit.toFixed(2));
+  setEl('stat-loss', '$' + state.loss.toFixed(2));
+  setEl('stat-wins', state.wins + ' / ' + state.totalTrades);
+  setEl('prof-balance', '$' + state.balance.toFixed(2));
+  setEl('prof-profit', '$' + state.profit.toFixed(2));
+  setEl('prof-loss', '$' + state.loss.toFixed(2));
   const net = state.profit - state.loss;
-  const netEl = document.getElementById('prof-net');
-  netEl.textContent = (net >= 0 ? '+' : '') + '$' + net.toFixed(2);
-  netEl.style.color = net >= 0 ? 'var(--green)' : 'var(--red)';
-  document.getElementById('prof-winrate').textContent =
-    state.totalTrades ? ((state.wins / state.totalTrades) * 100).toFixed(0) + '%' : '0%';
-  document.getElementById('prof-total').textContent = state.totalTrades;
-}
+  setEl('prof-net', (net >= 0 ? '+' : '') + '$' + net.toFixed(2), net >= 0 ? 'var(--green)' : 'var(--red)');
+  setEl('prof-winrate', state.totalTrades ? ((state.wins / state.totalTrades) * 100).toFixed(0) + '%' : '0%');
+  setEl('prof-total', state.totalTrades);
+  setEl('auto-count', state.autoStats.count);
+  setEl('auto-profit', '$' + state.autoStats.profit.toFixed(2));
+  setEl('auto-loss', '$' + state.autoStats.loss.toFixed(2));
+  }
 
 function renderHistory() {
   const tb = document.getElementById('history-tbody');
