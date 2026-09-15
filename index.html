@@ -3085,7 +3085,7 @@ const account = accounts.find(a => a.account_type === wantType && a.status === '
         }
       } catch(e) {}
       updateDerivUI();
-      showToast('✅ تم ربط حسابك', 'green');
+      if (!silent) showToast('✅ تم ربط حسابك', 'green');
       startDerivKeepAlive();
       updateUI();
     };
