@@ -2810,6 +2810,7 @@ function setupNav() {
 function initChart() {
   if (state.chart) return;
   const el = document.getElementById('chart');
+  if (!el) return;
   state.chart = LightweightCharts.createChart(el, {
     layout: { background: { color: '#111319' }, textColor: '#8a90a3' },
     grid: { vertLines: { color: '#1f2330' }, horzLines: { color: '#1f2330' } },
@@ -2828,11 +2829,10 @@ function initChart() {
   state.ema21Series = state.chart.addLineSeries({ color: '#00d4ff', lineWidth: 1.5, title: 'EMA 21' });
   state.bbUpper = state.chart.addLineSeries({ color: 'rgba(155,109,255,0.5)', lineWidth: 1 });
   state.bbLower = state.chart.addLineSeries({ color: 'rgba(155,109,255,0.5)', lineWidth: 1 });
-
   window.addEventListener('resize', () => {
     state.chart.applyOptions({ width: el.clientWidth });
   });
-}
+  }
 
 // ============ WEBSOCKET ============
 function connectWS() {
