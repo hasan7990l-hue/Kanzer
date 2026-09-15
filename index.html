@@ -3523,8 +3523,20 @@ function executeSignalTrade(side) {
             buy: msg.proposal.id,
             price: msg.proposal.ask_price
           }));
-          showToast('تم إرسال الصفقة — ' + amount + ' دولار', 'green');
-        } else if (msg.error) {
+          showToast('تم إرسال الصفقة — ' + amount + ' دولار', 'green')
+          const t = {
+  id: reqId,
+  time: new Date().toLocaleTimeString('ar-EG'),
+  symbol, side, amount, duration,
+  openPrice: state.currentPrice,
+  status: 'pending'
+};
+state.activeTrades.push(t);
+renderActiveTrades();
+setTimeout(() => settleTrade(t.id), duration * 60 * 1000);
+        
+          } else if (msg.error) { 
+          
           state.derivWS.removeEventListener('message', handler);
           showToast('رُفض الطلب: ' + (msg.error.message || 'خطأ غير معروف'), 'red');
           console.warn('Proposal error:', msg.error);
