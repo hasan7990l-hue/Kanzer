@@ -2844,13 +2844,14 @@ function connectWS() {
     state.ws = new WebSocket(url);
 
     state.ws.onopen = () => {
-      state.wsConnected = true;
-      updateConn('online');
-      const sym = document.getElementById('symbol-select').value;
-      state.ws.send(JSON.stringify({ ticks: sym, subscribe: 1 }));
-      requestCandles();
-      if (state.derivToken) authorizeToken(state.derivToken);
-    };
+  state.wsConnected = true;
+  updateConn('online');
+  const symEl = document.getElementById('symbol-select') || document.getElementById('auto-symbol');
+  const sym = symEl ? symEl.value : 'R_100';
+  state.ws.send(JSON.stringify({ ticks: sym, subscribe: 1 }));
+  requestCandles();
+  if (state.derivToken) authorizeToken(state.derivToken, null, true);
+};
 
     state.ws.onmessage = (ev) => handleWSMessage(JSON.parse(ev.data));
     state.ws.onerror = () => updateConn('offline');
