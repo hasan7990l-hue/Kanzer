@@ -2773,6 +2773,26 @@ function updateUserUI() {
 }
 
 // ============ AUTO LOGIN ============
+  document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    if (state.derivLinked && localStorage.getItem('deriv_token')) {
+      setTimeout(() => {
+        if (!state.derivWS) authorizeToken(localStorage.getItem('deriv_token'), null, true);
+      }, 500);
+    }
+    if (!state.wsConnected) connectWS();
+  }
+});
+
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) {
+    if (state.derivLinked && localStorage.getItem('deriv_token') && !state.derivWS) {
+      setTimeout(() => authorizeToken(localStorage.getItem('deriv_token'), null, true), 500);
+    }
+    if (!state.wsConnected) connectWS();
+  }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   const session = getSession();
   if (session) {
