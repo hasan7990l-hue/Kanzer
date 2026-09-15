@@ -3583,6 +3583,7 @@ function placeTrade(side) {
           };
           state.activeTrades.push(t);
           renderActiveTrades();
+          setTimeout(() => settleTrade(t.id), duration * 60 * 1000);
         } else if (msg.error) {
           state.derivWS.removeEventListener('message', handler);
           showToast('رُفض الطلب: ' + (msg.error.message || 'خطأ'), 'red');
