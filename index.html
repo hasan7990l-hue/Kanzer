@@ -3880,7 +3880,13 @@ function saveSettings() {
 
 // ============ UI ============
 function updateUI() {
-  document.getElementById('stat-balance').textContent = '$' + state.balance.toFixed(2);
+  if (state.derivLinked && state.derivAccount) {
+    const derivBal = parseFloat(state.derivAccount.balance) || 0;
+    document.getElementById('stat-balance').textContent = '$' + derivBal.toFixed(2);
+    document.getElementById('stat-balance').style.color = state.derivAccount.isVirtual ? 'var(--cyan)' : 'var(--gold)';
+  } else {
+    document.getElementById('stat-balance').textContent = '$' + state.balance.toFixed(2);
+  }
   document.getElementById('stat-profit').textContent = '$' + state.profit.toFixed(2);
   document.getElementById('stat-loss').textContent = '$' + state.loss.toFixed(2);
   document.getElementById('stat-wins').textContent = `${state.wins} / ${state.totalTrades}`;
