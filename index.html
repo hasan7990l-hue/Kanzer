@@ -3632,6 +3632,10 @@ function settleTrade(id) {
   } else {
     state.loss += t.amount;
   }
+  if (t.auto) {
+  if (won) { state.autoStats.profit += t.pnl; }
+  else { state.autoStats.loss += t.amount; }
+  }
   state.totalTrades += 1;
   state.history.unshift({ ...t });
   state.activeTrades.splice(idx, 1);
