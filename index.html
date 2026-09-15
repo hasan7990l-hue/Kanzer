@@ -3282,27 +3282,36 @@ if (state.ema21Series) state.ema21Series.setData(state.candles.map((c, i) => ({ 
   const conf = Math.min(Math.abs(score) * 15 + 40, 95);
 
   const sw = document.getElementById('signal-wrap');
-  sw.className = 'signal-wrap ' + (signal === 'BUY' ? 'buy' : signal === 'SELL' ? 'sell' : '');
-  document.getElementById('signal-main').textContent = signal === 'BUY' ? 'شراء' : signal === 'SELL' ? 'بيع' : 'محايد';
-  document.getElementById('signal-conf').textContent = conf.toFixed(0) + '%';
-  document.getElementById('signal-trend').textContent = lastE9 > lastE21 ? 'صاعد' : 'هابط';
-  document.getElementById('signal-price').textContent = price.toFixed(4);
-
+if (sw) sw.className = 'signal-wrap ' + (signal === 'BUY' ? 'buy' : signal === 'SELL' ? 'sell' : '');
+  state.lastSignal = signal === 'BUY' ? 'شراء' : signal === 'SELL' ? 'بيع' : 'محايد';
+state.lastConfidence = Math.round(conf);
+state.lastTrend = lastE9 > lastE21 ? 'صاعد' : 'هابط';
+state.lastPrice = price;
+const smEl = document.getElementById('signal-main');
+const scEl = document.getElementById('signal-conf');
+const stEl = document.getElementById('signal-trend');
+const spEl = document.getElementById('signal-price');
+if (smEl) smEl.textContent = state.lastSignal;
+if (scEl) scEl.textContent = conf.toFixed(0) + '%';
+if (stEl) stEl.textContent = state.lastTrend;
+if (spEl) spEl.textContent = price.toFixed(4);
 const actionDiv = document.getElementById('signal-action');
 const buyBtn = document.getElementById('signal-buy-btn');
 const sellBtn = document.getElementById('signal-sell-btn');
-if (signal === 'BUY') {
-  actionDiv.style.display = 'flex';
-  buyBtn.style.display = 'inline-flex';
-  sellBtn.style.display = 'none';
-} else if (signal === 'SELL') {
-  actionDiv.style.display = 'flex';
-  buyBtn.style.display = 'none';
-  sellBtn.style.display = 'inline-flex';
-} else {
-  actionDiv.style.display = 'none';
-  buyBtn.style.display = 'none';
-  sellBtn.style.display = 'none';
+if (actionDiv && buyBtn && sellBtn) {
+  if (signal === 'BUY') {
+    actionDiv.style.display = 'flex';
+    buyBtn.style.display = 'inline-flex';
+    sellBtn.style.display = 'none';
+  } else if (signal === 'SELL') {
+    actionDiv.style.display = 'flex';
+    buyBtn.style.display = 'none';
+    sellBtn.style.display = 'inline-flex';
+  } else {
+    actionDiv.style.display = 'none';
+    buyBtn.style.display = 'none';
+    sellBtn.style.display = 'none';
+  }
 }
   const cards = [];
   if (state.selectedIndicators.includes('rsi'))
