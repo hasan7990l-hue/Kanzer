@@ -5509,6 +5509,7 @@ async function handleCallback() {
   const code = p.get('code');
   const rs = p.get('state');
   if (!code) return null;
+  window.history.replaceState({}, document.title, REDIRECT_URI);
   if (rs !== localStorage.getItem('oauth_state')) return null;
   const ver = localStorage.getItem('pkce_verifier');
   if (!ver) return null;
