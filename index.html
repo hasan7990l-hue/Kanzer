@@ -3128,46 +3128,72 @@ function connectWS() {
   }
 }
 
-function authorizeToken(token) {
+async function authorizeToken(token) {
   try {
-    const appId = '34ol4ZgeVS1c9G1ZgUbiK';
-    const wsBase = window.KANZER_API.replace('https://', 'wss://').replace('http://', 'ws://');
-const url = wsBase + '/?ws-proxy=1&a=' + appId + '&t=' + encodeURIComponent(token);
-const authWs = new WebSocket(url);
-    authWs.onmessage = (ev) => {
-      const msg = JSON.parse(ev.data);
-      if (msg.msg_type === 'authorize') {
-        if (msg.error) {
-          console.warn('Auth error:', msg.error);
-          showToast('❌ فشل الربط: ' + (msg.error.message || ''), 'red');
-          return;
+    const r1 = await fetch(window.KANZER_API + '/deriv/accounts', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const d1 = await r1.json();
+    if (!d1.data || !d1.data.length) {
+      showToast('❌ لا توجد حسابات', 'red');
+      return;
+    }
+    const accounts = d1.data;
+    const account = accounts.find(a => a.account_type === 'real' && a.status === 'active')
+                 || accounts.find(a => a.status === 'active')
+                 || accounts[0];
+
+    const r2 = await fetch(window.KANZER_API + '/deriv/otp?accountId=' + account.account_id, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const d2 = await r2.json();
+    if (!d2.data || !d2.data.url) {
+      showToast('❌ فشل الحصول على OTP', 'red');
+      return;
+    }
+
+    const ws = new WebSocket(d2.data.url);
+    ws.onopen = () => {
+      state.derivAccount = {
+        loginid: account.account_id,
+        currency: account.currency,
+        isVirtual: account.account_type !== 'real',
+        balance: parseFloat(account.balance) || 0
+      };
+      state.derivLinked = true;
+      state.derivToken = token;
+      state.derivWS = ws;
+      localStorage.setItem('deriv_token', token);
+      try {
+        const u = state.currentUser;
+        if (u && u.firebaseUid) {
+          fetch('https://kanzer-chat-default-rtdb.firebaseio.com/users/' + u.firebaseUid + '/deriv_token.json', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(token)
+          });
         }
-        const a = msg.authorize;
-        state.derivAccount = {
-          loginid: a.loginid,
-          currency: a.currency,
-          isVirtual: a.is_virtual === 1,
-          balance: a.balance
-        };
-        state.derivLinked = true;
-        state.derivToken = token;
-        localStorage.setItem('deriv_token', token);
-        try {
-          const u = state.currentUser;
-          if (u && u.firebaseUid) {
-            fetch('https://kanzer-chat-default-rtdb.firebaseio.com/users/' + u.firebaseUid + '/deriv_token.json', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(token)
-            });
-          }
-        } catch(e) {}
-        updateDerivUI();
-        showToast('✅ تم ربط حسابك', 'green');
-      }
+      } catch(e) {}
+      updateDerivUI();
+      showToast('✅ تم ربط حسابك', 'green');
     };
-    authWs.onerror = () => console.warn('Auth WS error');
-  } catch(e) { console.warn(e); }
+    ws.onerror = () => showToast('❌ فشل الاتصال بـ Deriv', 'red');
+    ws.onclose = () => { state.derivWS = null; };
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.msg_type === 'balance' && msg.balance) {
+          state.derivAccount.balance = parseFloat(msg.balance.balance) || 0;
+          updateDerivUI();
+        }
+        console.log('Deriv WS:', msg);
+      } catch(e){}
+    };
+  } catch(e) {
+    console.warn('authorizeToken error:', e);
+    showToast('❌ فشل الربط', 'red');
+  }
   }
 function toggleConnection() {
   if (state.ws) { try { state.ws.close(); } catch(e){} }
