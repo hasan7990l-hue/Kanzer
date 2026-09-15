@@ -3036,7 +3036,7 @@ function connectWS() {
   }
 }
 
-async function authorizeToken(token, preferredType) {
+async function authorizeToken(token, preferredType, silent) {
   try {
     const r1 = await fetch(window.KANZER_API + '/deriv/accounts', {
       headers: { 'Authorization': 'Bearer ' + token }
