@@ -4294,7 +4294,7 @@ async function sendChatMsg(){
   input.focus();
   try{
     const res=await fetch(
-      FIREBASE_URL+'/messages/'+chatRoom+'.json',
+      await fbUrl('/messages/'+chatRoom+'.json'),
       {
         method:'POST',
         headers:{'Content-Type':'application/json'},
