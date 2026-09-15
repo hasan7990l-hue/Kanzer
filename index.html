@@ -3603,18 +3603,46 @@ function settleTrade(id) {
 
 function renderActiveTrades() {
   const el = document.getElementById('active-trades');
+  if (!el) return;
   if (!state.activeTrades.length) {
     el.innerHTML = '<div style="color:var(--text-dim);font-size:14px;">لا صفقات نشطة.</div>';
     return;
   }
-  el.innerHTML = state.activeTrades.map(t => `
-    <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;">
-      <div><strong class="${t.side === 'BUY' ? 'buy' : 'sell'}">${t.side}</strong> ${t.symbol} — $${t.amount}</div>
-      <div style="color:var(--gold);">⏳ ${t.duration} د</div>
-    </div>
-  `).join('');
-}
-
+  const now = Date.now();
+  el.innerHTML = state.activeTrades.map(t => {
+    const total = (t.duration || 1) * 60 * 1000;
+    const elapsed = now - (t.closeTime - total);
+    const pct = Math.max(0, Math.min(100, (elapsed / total) * 100));
+    const remain = Math.max(0, Math.floor(((t.closeTime || now) - now) / 1000));
+    const mm = String(Math.floor(remain / 60)).padStart(2, '0');
+    const ss = String(remain % 60).padStart(2, '0');
+    const isBuy = t.side === 'BUY';
+    const color = isBuy ? 'var(--green)' : 'var(--red)';
+    const arrow = isBuy ? '▲' : '▼';
+    return `
+      <div style="background:var(--bg-1);border:1px solid ${color};border-radius:12px;padding:14px;position:relative;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="color:${color};font-size:20px;font-weight:900;">${arrow}</span>
+            <div>
+              <div style="color:${color};font-weight:900;font-size:15px;">${t.side} ${t.symbol || ''}</div>
+              <div style="color:var(--text-dim);font-size:11px;">$${t.amount} • ${t.duration} دقيقة${t.auto ? ' • تلقائي' : ''}</div>
+            </div>
+          </div>
+          <div style="font-family:monospace;font-size:24px;font-weight:900;color:${color};">${mm}:${ss}</div>
+        </div>
+        <div style="height:6px;background:var(--bg-3);border-radius:3px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${color},var(--gold));transition:width 0.5s linear;box-shadow:0 0 10px ${color};"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text-dim);">
+          <span>بدأ</span>
+          <span style="color:${color};font-weight:700;">${Math.floor(pct)}%</span>
+          <span>ينتهي</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+  }
 // ============ AUTO TRADING ============
 function startAuto() {
   if (!state.derivLinked) {
