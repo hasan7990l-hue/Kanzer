@@ -4048,6 +4048,12 @@ function startRefreshLoop() {
     if (rate > 0) runAnalysis();
   }, 5000);
 }
+function startCountdownTimer() {
+  if (window._countdownTimer) return;
+  window._countdownTimer = setInterval(() => {
+    if (state.activeTrades.length) renderActiveTrades();
+  }, 500);
+}
 
 // ============ EVENT LISTENERS ============
 document.addEventListener('DOMContentLoaded', () => {
