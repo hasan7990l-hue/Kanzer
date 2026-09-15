@@ -4103,9 +4103,15 @@ function startRefreshLoop() {
 function startCountdownTimer() {
   if (window._countdownTimer) return;
   window._countdownTimer = setInterval(() => {
+    const now = Date.now();
+    state.activeTrades.slice().forEach(t => {
+      if (t.closeTime && now > t.closeTime + 2000) {
+        try { settleTrade(t.id); } catch(e) {}
+      }
+    });
     if (state.activeTrades.length) renderActiveTrades();
   }, 500);
-}
+  }
 
 // ============ EVENT LISTENERS ============
 document.addEventListener('DOMContentLoaded', () => {
