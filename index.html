@@ -3281,21 +3281,29 @@ function calcSR(candles, lookback = 5) {
   for (let i = lookback; i < candles.length - lookback; i++) {
     const hWindow = highs.slice(i - lookback, i + lookback + 1);
     const lWindow = lows.slice(i - lookback, i + lookback + 1);
-    if (highs[i] === Math.max(...hWindow)) resistances.push(highs[i]);
-    if (lows[i] === Math.min(...lWindow)) supports.push(lows[i]);
+    if (highs[i] === Math.max(...hWindow)) resistances.push({ price: highs[i], idx: i });
+    if (lows[i] === Math.min(...lWindow)) supports.push({ price: lows[i], idx: i });
   }
   const cluster = (arr) => {
     if (!arr.length) return [];
-    const sorted = [...arr].sort((a, b) => a - b);
+    const sorted = [...arr].sort((a, b) => a.price - b.price);
     const groups = []; let cur = [sorted[0]];
     for (let i = 1; i < sorted.length; i++) {
-      if ((sorted[i] - cur[cur.length - 1]) / (sorted[i] || 1) < 0.002) cur.push(sorted[i]);
-      else { groups.push(cur); cur = [sorted[i]]; }
+      if ((sorted[i].price - cur[cur.length - 1].price) / (sorted[i].price || 1) < 0.002) {
+        cur.push(sorted[i]);
+      } else { groups.push(cur); cur = [sorted[i]]; }
     }
     if (cur.length) groups.push(cur);
-    return groups.map(g => g.reduce((a, b) => a + b, 0) / g.length).sort((a, b) => b - a);
+    return groups.map(g => ({
+      price: g.reduce((a, b) => a + b.price, 0) / g.length,
+      tests: g.length,
+      lastIdx: Math.max(...g.map(x => x.idx))
+    })).sort((a, b) => b.price - a.price);
   };
-  return { resistances: cluster(resistances).slice(0, 3), supports: cluster(supports).slice(0, 3) };
+  return {
+    resistances: cluster(resistances).slice(0, 3),
+    supports: cluster(supports).slice(0, 3)
+  };
 }
 
 // ============ ANALYSIS ============
