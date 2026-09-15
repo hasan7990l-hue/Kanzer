@@ -4366,14 +4366,30 @@ function initChat(){
 /* ============ AI ANALYST ============ */
 function getLiveContext(){
   try{
-    const price=document.getElementById('signal-price')?.textContent||'—';
-    const signal=document.getElementById('signal-main')?.textContent||'—';
-    const conf=document.getElementById('signal-conf')?.textContent||'—';
-    const symbol=document.getElementById('symbol-select')?.value||'R_100';
-    const balance=(typeof state!=='undefined')?state.balance:'—';
-    return 'السياق:\nالأصل: '+symbol+'\nالسعر: '+price+'\nالإشارة: '+signal+'\nالثقة: '+conf+'\nالرصيد: $'+balance;
-  }catch(e){return '';}
-}
+    const symbolEl = document.getElementById('auto-symbol') || document.getElementById('symbol-select');
+    const symbol = symbolEl ? symbolEl.value : (state.symbol || 'R_100');
+    const price = state.currentPrice || (state.candles.length > 0 ? state.candles[state.candles.length-1].close : 0);
+    const balance = state.derivAccount ? state.derivAccount.balance : state.balance;
+    const account = state.derivAccount ? state.derivAccount.loginid : 'غير مربوط';
+    const linked = state.derivLinked ? 'نعم' : 'لا';
+    const autoRunning = state.autoRunning ? 'يعمل' : 'متوقف';
+    const trades = state.totalTrades || 0;
+    const wins = state.wins || 0;
+    const losses = trades - wins;
+    const rate = trades > 0 ? ((wins / trades) * 100).toFixed(0) : '0';
+    const lastSignal = state.lastSignal || 'لا توجد إشارة حديثة';
+    const lastConf = state.lastConfidence || 0;
+    return 'السياق الحالي:\n' +
+      'الأصل: ' + symbol + '\n' +
+      'السعر الحالي: ' + (price ? price.toFixed(4) : '—') + '\n' +
+      'آخر إشارة: ' + lastSignal + ' (ثقة ' + lastConf + '%)\n' +
+      'البوت التلقائي: ' + autoRunning + '\n' +
+      'الحساب: ' + account + ' (مربوط: ' + linked + ')\n' +
+      'الرصيد: $' + (typeof balance === 'number' ? balance.toFixed(2) : balance) + '\n' +
+      'الصفقات: ' + trades + ' | فوز: ' + wins + ' | خسارة: ' + losses + '\n' +
+      'نسبة النجاح: ' + rate + '%';
+  }catch(e){ return ''; }
+  }
 
 async function askAI(){
   const input=document.getElementById('ai-input');
