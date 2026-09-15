@@ -3085,6 +3085,7 @@ async function authorizeToken(token) {
       updateDerivUI();
       showToast('✅ تم ربط حسابك', 'green');
       startDerivKeepAlive();
+      updateUI();
     };
     ws.onerror = () => showToast('❌ فشل الاتصال بـ Deriv', 'red');
     ws.onclose = () => { state.derivWS = null; };
