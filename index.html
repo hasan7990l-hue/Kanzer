@@ -3652,6 +3652,9 @@ function renderActiveTrades() {
     return;
   }
   const now = Date.now();
+  state.activeTrades.forEach(t => {
+  if (!t.closeTime) t.closeTime = now;
+});
   el.innerHTML = state.activeTrades.map(t => {
     const total = (t.duration || 1) * 60 * 1000;
     const elapsed = now - (t.closeTime - total);
