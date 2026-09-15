@@ -2899,6 +2899,9 @@ async function showApp() {
   await loadDerivTokenFromFirebase();
   updateDerivUI();
   connectWS();
+  if (state.derivToken) {
+  setTimeout(() => authorizeToken(state.derivToken), 1500);
+  }
   startRefreshLoop();
 }
 async function loadDerivTokenFromFirebase() {
@@ -2908,7 +2911,7 @@ async function loadDerivTokenFromFirebase() {
     if (u && u.firebaseUid) {
       const res = await fetch('https://kanzer-chat-default-rtdb.firebaseio.com/users/' + u.firebaseUid + '/deriv_token.json');
       const token = await res.json();
-      if (token) {
+      if (token && typeof token === 'string' && token.startsWith('ory_')) {
         localStorage.setItem('deriv_token', token);
         state.derivToken = token;
         console.log('✅ Deriv token loaded from Firebase');
