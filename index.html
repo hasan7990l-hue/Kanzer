@@ -3830,7 +3830,27 @@ function updateDerivUI() {
   }
 }
 async function switchDerivAccount() {
-  const accounts = state.derivAccounts || [];
+async function switchDerivAccount() {
+  let accounts = state.derivAccounts;
+  if (!accounts || !accounts.length) {
+    const t0 = localStorage.getItem('deriv_token');
+    if (!t0) { showToast('❌ لا يوجد توكن', 'red'); return; }
+    try {
+      const r = await fetch(window.KANZER_API + '/deriv/accounts', {
+        headers: { 'Authorization': 'Bearer ' + t0 }
+      });
+      const d = await r.json();
+      if (!d.data || !d.data.length) {
+        showToast('❌ لم يتم العثور على الحسابات', 'red');
+        return;
+      }
+      accounts = d.data;
+      state.derivAccounts = accounts;
+    } catch(e) {
+      showToast('❌ فشل جلب الحسابات', 'red');
+      return;
+    }
+  }
   const realAcc = accounts.find(a => a.account_type === 'real' && a.status === 'active');
   const demoAcc = accounts.find(a => a.account_type === 'demo' && a.status === 'active');
   if (!realAcc || !demoAcc) {
@@ -3846,7 +3866,7 @@ async function switchDerivAccount() {
   if (state.derivWS) { try { state.derivWS.close(); } catch(e){} state.derivWS = null; }
   showToast('🔄 جاري التبديل...', 'green');
   await authorizeToken(t, newType);
-}
+  }
 
 function unlinkDeriv() {
   if (!confirm('هل تريد فصل الحساب؟')) return;
