@@ -3544,16 +3544,15 @@ function placeTrade(side) {
   const amount = parseFloat(document.getElementById('trade-amount').value);
   const duration = parseInt(document.getElementById('trade-duration').value);
   const symbol = document.getElementById('trade-symbol').value;
-
-  if (amount > state.balance) { showToast('الرصيد غير كافٍ', 'red'); return; }
+  if (!state.derivLinked || !state.derivWS) {
+    showToast('اربط حساب Deriv أولاً', 'red');
+    return;
+  }
   if (amount <= 0) { showToast('المبلغ غير صالح', 'red'); return; }
-
-  state.balance -= amount;
-
-  // إذا كان Deriv مربوط → نفّذ الصفقة الحقيقية
-  if (state.derivLinked && state.wsConnected) {
-    const contractType = side === 'BUY' ? 'CALL' : 'PUT';
-    state.ws.send(JSON.stringify({
+  const contractType = side === 'BUY' ? 'CALL' : 'PUT';
+  const reqId = Date.now();
+  try {
+    state.derivWS.send(JSON.stringify({
       proposal: 1,
       amount: amount,
       basis: 'stake',
@@ -3561,29 +3560,44 @@ function placeTrade(side) {
       currency: 'USD',
       duration: duration,
       duration_unit: 'm',
-      symbol: symbol,
-      req_id: Date.now(),
+      underlying_symbol: symbol,
+      req_id: reqId
     }));
-    showToast(`⚡ إرسال صفقة حقيقية ${side} إلى Deriv`, 'green');
-  } else {
-    showToast(`📝 صفقة محاكاة ${side === 'BUY' ? 'شراء' : 'بيع'} بمبلغ $${amount}`, 'green');
+    showToast('جاري طلب السعر من Deriv', 'green');
+    const handler = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.msg_type === 'proposal' && msg.proposal && msg.proposal.id) {
+          state.derivWS.removeEventListener('message', handler);
+          state.derivWS.send(JSON.stringify({
+            buy: msg.proposal.id,
+            price: msg.proposal.ask_price
+          }));
+          showToast('تم إرسال ' + (side === 'BUY' ? 'الشراء' : 'البيع') + ' — ' + amount + ' دولار', 'green');
+          const t = {
+            id: reqId,
+            time: new Date().toLocaleTimeString('ar-EG'),
+            symbol, side, amount, duration,
+            openPrice: state.currentPrice,
+            status: 'pending'
+          };
+          state.activeTrades.push(t);
+          renderActiveTrades();
+        } else if (msg.error) {
+          state.derivWS.removeEventListener('message', handler);
+          showToast('رُفض الطلب: ' + (msg.error.message || 'خطأ'), 'red');
+          console.warn('Trade error:', msg.error);
+        }
+      } catch(e) {}
+    };
+    state.derivWS.addEventListener('message', handler);
+    setTimeout(() => {
+      try { state.derivWS.removeEventListener('message', handler); } catch(e){}
+    }, 10000);
+  } catch(e) {
+    showToast('فشل الإرسال: ' + e.message, 'red');
   }
-
-  const trade = {
-    id: Date.now(),
-    time: new Date().toLocaleTimeString('ar-EG'),
-    symbol, side, amount, duration,
-    openPrice: state.currentPrice,
-    status: 'pending',
-  };
-  state.activeTrades.push(trade);
-  renderActiveTrades();
-  updateUI();
-  saveCurrentUser();
-
-  setTimeout(() => settleTrade(trade.id), duration * 1000);
-}
-
+  }
 function settleTrade(id) {
   const idx = state.activeTrades.findIndex(t => t.id === id);
   if (idx < 0) return;
