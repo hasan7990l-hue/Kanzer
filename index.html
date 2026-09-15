@@ -3068,9 +3068,12 @@ function handleWSMessage(msg) {
 
 function requestCandles() {
   if (!state.wsConnected) return;
-  const symbol = document.getElementById('symbol-select').value;
-  const tf = document.getElementById('timeframe-select').value;
-  document.getElementById('chart-loader').classList.remove('hidden');
+  const symEl = document.getElementById('symbol-select') || document.getElementById('auto-symbol');
+  const symbol = symEl ? symEl.value : 'R_100';
+  const tfEl = document.getElementById('timeframe-select');
+  const tf = tfEl ? tfEl.value : 60;
+  const loader = document.getElementById('chart-loader');
+  if (loader) loader.classList.remove('hidden');
   state.ws.send(JSON.stringify({
     ticks_history: symbol,
     adjust_start_time: 1,
@@ -3080,7 +3083,7 @@ function requestCandles() {
     style: 'candles',
     granularity: parseInt(tf),
   }));
-}
+  }
 
 // ============ INDICATORS ============
 function calcEMA(data, p) {
