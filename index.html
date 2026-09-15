@@ -3596,7 +3596,13 @@ function settleTrade(id) {
   const idx = state.activeTrades.findIndex(t => t.id === id);
   if (idx < 0) return;
   const t = state.activeTrades[idx];
-  const closePrice = state.currentPrice;
+  let closePrice = state.currentPrice;
+if (!closePrice || closePrice === 0) {
+  closePrice = state.candles.length > 0
+    ? state.candles[state.candles.length - 1].close
+    : t.openPrice;
+}
+state.currentPrice = closePrice;
   const won = (t.side === 'BUY' && closePrice > t.openPrice) || (t.side === 'SELL' && closePrice < t.openPrice);
   t.status = won ? 'win' : 'loss';
   t.closePrice = closePrice;
