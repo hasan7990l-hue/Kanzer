@@ -1969,70 +1969,7 @@ console.log('Firebase Auth Ready');
           <span id="conn-text">غير متصل</span>
         </div>
       </div>
-    </div>
-          </div>
-          <div class="field">
-            <label>تردد التحديث</label>
-            <select id="refresh-rate">
-              <option value="0">يدوي</option>
-              <option value="5">5 ثواني</option>
-              <option value="15" selected>15 ثانية</option>
-              <option value="30">30 ثانية</option>
-              <option value="60">دقيقة</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>مدة الصفقة</label>
-            <select id="duration-select">
-              <option value="1">1 دقيقة</option>
-              <option value="5" selected>5 دقائق</option>
-              <option value="15">15 دقيقة</option>
-              <option value="30">30 دقيقة</option>
-              <option value="60">1 ساعة</option>
-            </select>
-          </div>
-        </div>
-        <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn btn-gold" onclick="runAnalysis()">🔍 تحليل الآن</button>
-          <button class="btn btn-outline" onclick="toggleConnection()">🔄 إعادة الاتصال</button>
-        </div>
-      </div>
-
-      <div class="chart-wrap">
-        <div id="chart"></div>
-        <div class="chart-loader" id="chart-loader">
-          <span class="spinner"></span> جاري جلب البيانات...
-        </div>
-      </div>
-
-      <div class="signal-wrap" id="signal-wrap">
-        <div class="signal-label">الإشارة الحالية</div>
-        <div class="signal-main" id="signal-main">—</div>
-        <div class="signal-meta">
-          <span>الثقة: <strong id="signal-conf">—</strong></span>
-          <span>الاتجاه: <strong id="signal-trend">—</strong></span>
-          <span>السعر: <strong id="signal-price">—</strong></span>
-        </div>
-        <div id="signal-action" style="display:none; margin-top:18px; gap:10px; justify-content:center;">
-  <button class="btn btn-buy" id="signal-buy-btn" onclick="executeSignalTrade('BUY')" style="display:none; padding:14px 32px; font-size:16px;">
-    🟢 تنفيذ شراء (Rise)
-  </button>
-  <button class="btn btn-sell" id="signal-sell-btn" onclick="executeSignalTrade('SELL')" style="display:none; padding:14px 32px; font-size:16px;">
-    🔴 تنفيذ بيع (Fall)
-  </button>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">📊 المؤشرات النشطة</div>
-        <div class="ind-grid" id="ind-grid"></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">💡 أسباب الإشارة</div>
-        <div id="reasons-list" style="font-size:14px; line-height:2;"></div>
-      </div>
-    </section>
+    </div>      
     <!-- ============ AUTO TRADING ============ -->
     <section class="page active" id="page-auto">
       <div class="panel">
