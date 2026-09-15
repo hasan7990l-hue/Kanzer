@@ -5531,7 +5531,7 @@ async function startLogin() {
   const p = new URLSearchParams({
     response_type: 'code',
     client_id: APP_ID,
-    scope: 'trade account_manage offline_access'
+    scope: 'trade account_manage offline_access',
     redirect_uri: REDIRECT_URI,
     state: st,
     code_challenge: chl,
@@ -5565,6 +5565,8 @@ async function handleCallback() {
     const d = await r.json();
     if (!d.access_token) return null;
     localStorage.setItem('deriv_token', d.access_token);
+    localStorage.setItem('deriv_refresh', d.refresh_token || '');
+localStorage.setItem('deriv_token_time', Date.now().toString());
     state.derivToken = d.access_token;
     try {
       const s = getSession();
