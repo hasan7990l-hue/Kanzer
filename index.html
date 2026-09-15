@@ -4208,7 +4208,17 @@ const AI_PROXY_URL = (window.KANZER_API || 'https://kanzer-worker.hasan7990l.wor
 let chatRoom = 'general';
 let chatTimer = null;
 let lastMsgCount = 0;
-
+async function fbUrl(path){
+  try{
+    const u = window.firebaseAuth && window.firebaseAuth.currentUser;
+    if(u){
+      const t = await u.getIdToken();
+      const sep = path.includes('?') ? '&' : '?';
+      return FIREBASE_URL + path + sep + 'auth=' + t;
+    }
+  }catch(e){}
+  return FIREBASE_URL + path;
+  }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
 function switchRoom(room){
