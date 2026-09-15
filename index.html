@@ -3829,6 +3829,24 @@ function updateDerivUI() {
     linked.style.display = 'none';
   }
 }
+async function switchDerivAccount() {
+  const accounts = state.derivAccounts || [];
+  const realAcc = accounts.find(a => a.account_type === 'real' && a.status === 'active');
+  const demoAcc = accounts.find(a => a.account_type === 'demo' && a.status === 'active');
+  if (!realAcc || !demoAcc) {
+    showToast('⚠️ تحتاج حسابين على Deriv', 'red');
+    return;
+  }
+  const isDemo = state.derivAccount && state.derivAccount.isVirtual;
+  const newType = isDemo ? 'real' : 'demo';
+  const label = newType === 'real' ? 'الحقيقي' : 'التجريبي';
+  if (!confirm('تبديل إلى الحساب ' + label + '؟')) return;
+  const t = localStorage.getItem('deriv_token');
+  if (!t) { showToast('❌ لا يوجد توكن', 'red'); return; }
+  if (state.derivWS) { try { state.derivWS.close(); } catch(e){} state.derivWS = null; }
+  showToast('🔄 جاري التبديل...', 'green');
+  await authorizeToken(t, newType);
+}
 
 function unlinkDeriv() {
   if (!confirm('هل تريد فصل الحساب؟')) return;
