@@ -2078,6 +2078,14 @@ console.log('Firebase Auth Ready');
           <span>الاتجاه: <strong id="signal-trend">—</strong></span>
           <span>السعر: <strong id="signal-price">—</strong></span>
         </div>
+        <div id="signal-action" style="display:none; margin-top:18px; gap:10px; justify-content:center;">
+  <button class="btn btn-buy" id="signal-buy-btn" onclick="executeSignalTrade('BUY')" style="display:none; padding:14px 32px; font-size:16px;">
+    🟢 تنفيذ شراء (Rise)
+  </button>
+  <button class="btn btn-sell" id="signal-sell-btn" onclick="executeSignalTrade('SELL')" style="display:none; padding:14px 32px; font-size:16px;">
+    🔴 تنفيذ بيع (Fall)
+  </button>
+        </div>
       </div>
 
       <div class="panel">
