@@ -3368,13 +3368,27 @@ function runAnalysis() {
     else if (k > 80) { score -= 1; reasons.push({ t: `Stoch = ${k.toFixed(1)} تشبع شرائي`, c: 'bear' }); }
   }
   if (state.selectedIndicators.includes('sr') && sr.supports.length && sr.resistances.length) {
-    const nearestSup = sr.supports[0];
-    const nearestRes = sr.resistances[0];
-    const distSup = (price - nearestSup) / price;
-    const distRes = (nearestRes - price) / price;
-    if (distSup < 0.003) { score += 2; reasons.push({ t: `قريب من دعم ${nearestSup.toFixed(4)} — ارتداد محتمل`, c: 'bull' }); }
-    else if (distRes < 0.003) { score -= 2; reasons.push({ t: `قريب من مقاومة ${nearestRes.toFixed(4)} — تصحيح محتمل`, c: 'bear' }); }
-    else reasons.push({ t: `دعم: ${nearestSup.toFixed(4)} | مقاومة: ${nearestRes.toFixed(4)}`, c: 'neutral' });
+  const nearestSup = sr.supports.find(s => s.tests >= 3) || sr.supports[0];
+  const nearestRes = sr.resistances.find(r => r.tests >= 3) || sr.resistances[0];
+  const distSup = (price - nearestSup.price) / price;
+  const distRes = (nearestRes.price - price) / price;
+  const trendUp = lastE9 > lastE21;
+  const trendDown = lastE9 < lastE21;
+  if (distSup < 0.003 && nearestSup.tests >= 3 && trendUp && lastRsi > 40 && lastRsi < 65) {
+    score += 2;
+    reasons.push({ t: `دعم مؤكد (${nearestSup.tests} اختبار) + اتجاه صاعد + RSI سليم`, c: 'bull' });
+  } else if (distRes < 0.003 && nearestRes.tests >= 3 && trendDown && lastRsi < 60 && lastRsi > 35) {
+    score -= 2;
+    reasons.push({ t: `مقاومة مؤكدة (${nearestRes.tests} اختبار) + اتجاه هابط + RSI سليم`, c: 'bear' });
+  } else if (distSup < 0.003) {
+    score += 0.5;
+    reasons.push({ t: `قريب من دعم (${nearestSup.tests} اختبار) — بانتظار تأكيد`, c: 'neutral' });
+  } else if (distRes < 0.003) {
+    score -= 0.5;
+    reasons.push({ t: `قريب من مقاومة (${nearestRes.tests} اختبار) — بانتظار تأكيد`, c: 'neutral' });
+  } else {
+    reasons.push({ t: `دعم: ${nearestSup.price.toFixed(4)} (${nearestSup.tests}x) | مقاومة: ${nearestRes.price.toFixed(4)} (${nearestRes.tests}x)`, c: 'neutral' });
+  }
   }
 
   let signal = 'NEUTRAL';
