@@ -3096,7 +3096,7 @@ const account = accounts.find(a => a.account_type === wantType && a.status === '
     setTimeout(() => {
       if (!state.derivWS && state.derivLinked) {
         console.log('Reconnecting Deriv WS...');
-        authorizeToken(localStorage.getItem('deriv_token'));
+        authorizeToken(localStorage.getItem('deriv_token'), null, true);
       }
     }, 3000);
   }
