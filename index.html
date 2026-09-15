@@ -2215,36 +2215,6 @@ console.log('Firebase Auth Ready');
         </div>
       </div>
     </section>
-    <!-- ============ INDICATORS ============ -->
-    <section class="page" id="page-indicators">
-      <div class="panel">
-        <div class="panel-title">📈 اختيار المؤشرات</div>
-        <p style="color:var(--text-dim);font-size:13px;margin-bottom:14px;">
-          اختر 3 مؤشرات لتشغيلها في التحليل. الدعم والمقاومة يُنصح بإبقائه دائماً.
-        </p>
-        <div class="ind-picker" id="ind-picker">
-          <label class="ind-toggle active" data-ind="rsi"><span class="checkbox"></span><span class="ind-label">RSI (14)</span></label>
-          <label class="ind-toggle active" data-ind="macd"><span class="checkbox"></span><span class="ind-label">MACD</span></label>
-          <label class="ind-toggle active" data-ind="ema"><span class="checkbox"></span><span class="ind-label">EMA 9/21</span></label>
-          <label class="ind-toggle" data-ind="bb"><span class="checkbox"></span><span class="ind-label">Bollinger Bands</span></label>
-          <label class="ind-toggle" data-ind="stoch"><span class="checkbox"></span><span class="ind-label">Stochastic</span></label>
-          <label class="ind-toggle" data-ind="atr"><span class="checkbox"></span><span class="ind-label">ATR</span></label>
-          <label class="ind-toggle active" data-ind="sr"><span class="checkbox"></span><span class="ind-label">Support/Resistance</span></label>
-        </div>
-      </div>
-      <div class="panel">
-        <div class="panel-title">⚙️ إعدادات المؤشرات</div>
-        <div class="form-grid">
-          <div class="field"><label>RSI Period</label><input type="number" id="rsi-period" value="14" min="5" max="50"></div>
-          <div class="field"><label>RSI Overbought</label><input type="number" id="rsi-ob" value="70" min="60" max="90"></div>
-          <div class="field"><label>RSI Oversold</label><input type="number" id="rsi-os" value="30" min="10" max="40"></div>
-          <div class="field"><label>EMA Fast</label><input type="number" id="ema-fast" value="9" min="3" max="50"></div>
-          <div class="field"><label>EMA Slow</label><input type="number" id="ema-slow" value="21" min="10" max="200"></div>
-          <div class="field"><label>BB Period</label><input type="number" id="bb-period" value="20" min="10" max="50"></div>
-        </div>
-      </div>
-    </section>
-
     <!-- ============ HISTORY ============ -->
     <section class="page" id="page-history">
       <div class="panel">
@@ -2267,7 +2237,6 @@ console.log('Firebase Auth Ready');
         <button class="btn btn-sell btn-full" onclick="clearHistory()">🗑️ مسح السجل</button>
       </div>
     </section>
-
     <!-- ============ DERIV LINK ============ -->
     <section class="page" id="page-deriv">
       <div class="panel">
