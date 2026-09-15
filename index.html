@@ -3206,8 +3206,8 @@ function runAnalysis() {
   const atr = calcATR(closes, highs, lows);
   const sr = calcSR(state.candles);
 
-  state.ema9Series.setData(state.candles.map((c, i) => ({ time: c.time, value: ema9[i] })));
-  state.ema21Series.setData(state.candles.map((c, i) => ({ time: c.time, value: ema21[i] })));
+  if (state.ema9Series) state.ema9Series.setData(state.candles.map((c, i) => ({ time: c.time, value: ema9[i] })));
+if (state.ema21Series) state.ema21Series.setData(state.candles.map((c, i) => ({ time: c.time, value: ema21[i] })));
   if (state.selectedIndicators.includes('bb')) {
     state.bbUpper.setData(bb.upper);
     state.bbLower.setData(bb.lower);
