@@ -3435,8 +3435,8 @@ if (signal === 'BUY') {
   if (state.selectedIndicators.includes('atr') && atr.length)
     cards.push({ n: 'ATR', v: atr[atr.length - 1].toFixed(4), c: 'neutral' });
   if (state.selectedIndicators.includes('sr') && sr.supports.length) {
-    cards.push({ n: 'دعم أقرب', v: sr.supports[0].toFixed(4), c: 'bull' });
-    cards.push({ n: 'مقاومة أقرب', v: sr.resistances[0].toFixed(4), c: 'bear' });
+  cards.push({ n: 'دعم أقرب', v: sr.supports[0].price.toFixed(4), c: 'bull' });
+  cards.push({ n: 'مقاومة أقرب', v: sr.resistances[0].price.toFixed(4), c: 'bear' });
   }
 
   document.getElementById('ind-grid').innerHTML = cards.map(c =>
