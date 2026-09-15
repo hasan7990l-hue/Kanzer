@@ -3047,6 +3047,7 @@ async function authorizeToken(token) {
       return;
     }
     const accounts = d1.data;
+    state.derivAccounts = accounts;
     const account = accounts.find(a => a.account_type === 'demo' && a.status === 'active')
                  || accounts.find(a => a.status === 'active')
                  || accounts[0];
