@@ -4244,7 +4244,7 @@ async function loadChatMessages(){
   if(!el)return;
   let msgs=[];
   try{
-    const res=await fetch(FIREBASE_URL+'/messages/'+chatRoom+'.json');
+    const res=await fetch(await fbUrl('/messages/'+chatRoom+'.json'));
     const data=await res.json();
     if(data)msgs=Object.values(data).sort((a,b)=>a.ts-b.ts).slice(-100);
   }catch(e){console.warn(e);}
