@@ -3719,6 +3719,12 @@ function stopAuto() {
   state.autoPending = true;
   setTimeout(() => { state.autoPending = false; }, 5000);
   const amount = parseFloat(document.getElementById('auto-amount').value);
+  const balance = parseFloat(state.derivAccount?.balance) || 0;
+const maxRisk = balance * 0.01;
+if (amount > maxRisk) {
+  addAutoLog('⚠️ المبلغ يتجاوز 1% من الرصيد ($' + maxRisk.toFixed(2) + ')', 'var(--gold)');
+  stopAuto(); return;
+  }  
   const duration = parseInt(document.getElementById('auto-duration').value);
   const symbol = document.getElementById('auto-symbol').value;
   const profitTarget = parseFloat(document.getElementById('auto-profit-target').value);
