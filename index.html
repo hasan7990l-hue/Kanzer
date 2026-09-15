@@ -2858,6 +2858,7 @@ async function showApp() {
   setTimeout(() => authorizeToken(state.derivToken), 1500);
   }
   startRefreshLoop();
+  startCountdownTimer(); 
 }
 async function loadDerivTokenFromFirebase() {
   try {
