@@ -3208,12 +3208,14 @@ function runAnalysis() {
 
   if (state.ema9Series) state.ema9Series.setData(state.candles.map((c, i) => ({ time: c.time, value: ema9[i] })));
 if (state.ema21Series) state.ema21Series.setData(state.candles.map((c, i) => ({ time: c.time, value: ema21[i] })));
+  if (state.bbUpper && state.bbLower) {
   if (state.selectedIndicators.includes('bb')) {
     state.bbUpper.setData(bb.upper);
     state.bbLower.setData(bb.lower);
   } else {
     state.bbUpper.setData([]);
     state.bbLower.setData([]);
+  }
   }
 
   let score = 0;
