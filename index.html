@@ -3177,6 +3177,7 @@ async function authorizeToken(token) {
       } catch(e) {}
       updateDerivUI();
       showToast('✅ تم ربط حسابك', 'green');
+      startDerivKeepAlive();
     };
     ws.onerror = () => showToast('❌ فشل الاتصال بـ Deriv', 'red');
     ws.onclose = () => { state.derivWS = null; };
@@ -3195,6 +3196,48 @@ async function authorizeToken(token) {
     showToast('❌ فشل الربط', 'red');
   }
   }
+  window._derivKeepAlive = null;
+
+async function derivHealthCheck(){
+  const t = localStorage.getItem('deriv_token');
+  if(!t){
+    if(window._derivKeepAlive){
+      clearInterval(window._derivKeepAlive);
+      window._derivKeepAlive = null;
+    }
+    return;
+  }
+  try{
+    const r = await fetch(window.KANZER_API + '/deriv/accounts', {
+      headers: { 'Authorization': 'Bearer ' + t }
+    });
+    if(r.status === 200){
+      if(!state.derivLinked){
+        await authorizeToken(t);
+      }
+    } else if(r.status === 401 || r.status === 403){
+      state.derivLinked = false;
+      state.derivAccount = null;
+      if(state.derivWS){ try{ state.derivWS.close(); }catch(e){} state.derivWS = null; }
+      updateDerivUI();
+      showToast('⚠️ انتهت صلاحية اتصال Deriv — اضغط "ربط" لإعادة الاتصال', 'red');
+    }
+  }catch(e){ console.warn('Deriv health check:', e); }
+}
+
+function startDerivKeepAlive(){
+  if(window._derivKeepAlive) return;
+  window._derivKeepAlive = setInterval(derivHealthCheck, 5 * 60 * 1000);
+  setTimeout(derivHealthCheck, 30 * 1000);
+}
+
+function stopDerivKeepAlive(){
+  if(window._derivKeepAlive){
+    clearInterval(window._derivKeepAlive);
+    window._derivKeepAlive = null;
+  }
+}
+
 function toggleConnection() {
   if (state.ws) { try { state.ws.close(); } catch(e){} }
   state.wsConnected = false;
