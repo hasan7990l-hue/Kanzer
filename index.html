@@ -3409,6 +3409,22 @@ function runAnalysis() {
   document.getElementById('signal-trend').textContent = lastE9 > lastE21 ? 'صاعد' : 'هابط';
   document.getElementById('signal-price').textContent = price.toFixed(4);
 
+const actionDiv = document.getElementById('signal-action');
+const buyBtn = document.getElementById('signal-buy-btn');
+const sellBtn = document.getElementById('signal-sell-btn');
+if (signal === 'BUY') {
+  actionDiv.style.display = 'flex';
+  buyBtn.style.display = 'inline-flex';
+  sellBtn.style.display = 'none';
+} else if (signal === 'SELL') {
+  actionDiv.style.display = 'flex';
+  buyBtn.style.display = 'none';
+  sellBtn.style.display = 'inline-flex';
+} else {
+  actionDiv.style.display = 'none';
+  buyBtn.style.display = 'none';
+  sellBtn.style.display = 'none';
+}
   const cards = [];
   if (state.selectedIndicators.includes('rsi'))
     cards.push({ n: 'RSI', v: lastRsi.toFixed(2), c: lastRsi < 30 ? 'bull' : lastRsi > 70 ? 'bear' : 'neutral' });
