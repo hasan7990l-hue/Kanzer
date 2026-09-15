@@ -3685,6 +3685,10 @@ function stopAuto() {
   addAutoLog('⏹️ إيقاف التداول التلقائي', 'var(--red)');
 }
   async function executeAutoTrade(signal, conf) {
+  if (state.activeTrades.some(t => t.auto)) return;
+  if (state.autoPending) return;
+  state.autoPending = true;
+  setTimeout(() => { state.autoPending = false; }, 5000);
   const amount = parseFloat(document.getElementById('auto-amount').value);
   const duration = parseInt(document.getElementById('auto-duration').value);
   const symbol = document.getElementById('auto-symbol').value;
@@ -3760,7 +3764,7 @@ function stopAuto() {
   } catch(e) {
     addAutoLog('فشل الإرسال: ' + e.message, 'var(--red)');
   }
-    }
+  }
 function addAutoLog(msg, color = 'var(--text)') {
   const log = document.getElementById('auto-log');
   const time = new Date().toLocaleTimeString('ar-EG');
