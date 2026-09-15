@@ -3039,13 +3039,14 @@ function handleWSMessage(msg) {
       low: parseFloat(c.low),
       close: parseFloat(c.close),
     }));
-    state.candleSeries.setData(state.candles);
+    if (state.candleSeries) state.candleSeries.setData(state.candles);
     if (state.candles.length > 0) {
   state.currentPrice = state.candles[state.candles.length - 1].close;
   const priceEl = document.getElementById('signal-price');
   if (priceEl) priceEl.textContent = state.currentPrice.toFixed(4);
   }
-    document.getElementById('chart-loader').classList.add('hidden');
+    const cl = document.getElementById('chart-loader');
+if (cl) cl.classList.add('hidden');
     runAnalysis();
   } else if (msg.msg_type === 'authorize') {
     if (msg.error) {
