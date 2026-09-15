@@ -3481,6 +3481,36 @@ function setupIndicatorPicker() {
 }
 
 // ============ TRADING ============
+function executeSignalTrade(side) {
+  if (!state.derivLinked || !state.derivWS) {
+    showToast('⚠️ اربط حساب Deriv أولاً', 'red');
+    setTimeout(() => document.querySelector('[data-page="deriv"]').click(), 800);
+    return;
+  }
+  const symbol = document.getElementById('symbol-select').value;
+  const amount = parseFloat(document.getElementById('trade-amount')?.value) || 1;
+  const duration = parseInt(document.getElementById('trade-duration')?.value) || 1;
+  const label = side === 'BUY' ? 'شراء (Rise)' : 'بيع (Fall)';
+  if (!confirm('تنفيذ ' + label + '؟\n\nالأصل: ' + symbol + '\nالمبلغ: $' + amount + '\nالمدة: ' + duration + ' دقيقة')) return;
+  const contractType = side === 'BUY' ? 'CALL' : 'PUT';
+  try {
+    state.derivWS.send(JSON.stringify({
+      proposal: 1,
+      amount: amount,
+      basis: 'stake',
+      contract_type: contractType,
+      currency: 'USD',
+      duration: duration,
+      duration_unit: 'm',
+      symbol: symbol,
+      req_id: Date.now()
+    }));
+    showToast('⚡ إرسال ' + label + ' — $' + amount, 'green');
+  } catch(e) {
+    showToast('❌ فشل الإرسال: ' + e.message, 'red');
+  }
+}
+  
 function placeTrade(side) {
   const amount = parseFloat(document.getElementById('trade-amount').value);
   const duration = parseInt(document.getElementById('trade-duration').value);
