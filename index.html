@@ -5577,8 +5577,7 @@ async function handleCallback() {
 (async function init() {
   const token = await handleCallback();
   if (token) {
-    state.derivToken = token;
-    state.derivLinked = true;
+    state.derivToken = token; 
     setTimeout(() => {
       updateDerivUI();
       connectWS();
