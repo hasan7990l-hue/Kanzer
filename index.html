@@ -3043,7 +3043,7 @@ async function authorizeToken(token) {
       return;
     }
     const accounts = d1.data;
-    const account = accounts.find(a => a.account_type === 'real' && a.status === 'active')
+    const account = accounts.find(a => a.account_type === 'demo' && a.status === 'active')
                  || accounts.find(a => a.status === 'active')
                  || accounts[0];
 
