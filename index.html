@@ -3131,8 +3131,9 @@ function connectWS() {
 function authorizeToken(token) {
   try {
     const appId = '34ol4ZgeVS1c9G1ZgUbiK';
-    const url = window.KANZER_API + '/?ws-proxy=1&a=' + appId + '&t=' + encodeURIComponent(token);
-    const authWs = new WebSocket(url);
+    const wsBase = window.KANZER_API.replace('https://', 'wss://').replace('http://', 'ws://');
+const url = wsBase + '/?ws-proxy=1&a=' + appId + '&t=' + encodeURIComponent(token);
+const authWs = new WebSocket(url);
     authWs.onmessage = (ev) => {
       const msg = JSON.parse(ev.data);
       if (msg.msg_type === 'authorize') {
