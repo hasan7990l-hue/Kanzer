@@ -4016,10 +4016,16 @@ document.getElementById('modal-bg').addEventListener('click', (e) => {
 // ============ REFRESH LOOP ============
 function startRefreshLoop() {
   setInterval(() => {
-    const rate = parseInt(document.getElementById('refresh-rate').value);
+    const rate = parseInt(document.getElementById('refresh-rate')?.value || '15');
     if (rate > 0) runAnalysis();
+    if (!state.wsConnected || !state.derivWS) {
+      if (state.derivLinked && localStorage.getItem('deriv_token')) {
+        if (!state.derivWS) authorizeToken(localStorage.getItem('deriv_token'), null, true);
+      }
+      if (!state.wsConnected) connectWS();
+    }
   }, 5000);
-}
+  }
 function startCountdownTimer() {
   if (window._countdownTimer) return;
   window._countdownTimer = setInterval(() => {
