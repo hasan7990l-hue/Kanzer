@@ -3089,9 +3089,10 @@ async function authorizeToken(token) {
       try {
         const msg = JSON.parse(ev.data);
         if (msg.msg_type === 'balance' && msg.balance) {
-          state.derivAccount.balance = parseFloat(msg.balance.balance) || 0;
-          updateDerivUI();
-        }
+  state.derivAccount.balance = parseFloat(msg.balance.balance) || 0;
+  updateDerivUI();
+  updateUI();
+  }
         console.log('Deriv WS:', msg);
       } catch(e){}
     };
