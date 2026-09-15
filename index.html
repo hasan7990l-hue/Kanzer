@@ -3715,12 +3715,20 @@ function stopAuto() {
     stopAuto(); return;
   }
   if (!state.derivWS) {
-    const t = localStorage.getItem('deriv_token');
-    if (!t) { addAutoLog('⚠️ لا يوجد توكن', 'var(--red)'); stopAuto(); return; }
-    addAutoLog('جاري إعادة الاتصال بـ Deriv...', 'var(--gold)');
+  const t = localStorage.getItem('deriv_token');
+  if (!t) { addAutoLog('⚠️ لا يوجد توكن', 'var(--red)'); stopAuto(); return; }
+  addAutoLog('جاري إعادة الاتصال بـ Deriv...', 'var(--gold)');
+  try { await authorizeToken(t, null, true); } catch(e) {}
+  if (!state.derivWS) {
+    await new Promise(r => setTimeout(r, 2000));
     try { await authorizeToken(t, null, true); } catch(e) {}
-    if (!state.derivWS) { addAutoLog('فشل الاتصال', 'var(--red)'); stopAuto(); return; }
-    await new Promise(r => setTimeout(r, 500));
+  }
+  if (!state.derivWS) {
+    addAutoLog('❌ توكن Deriv منتهي — أعد الربط يدوياً', 'var(--red)');
+    showToast('توكن Deriv منتهي — أعد الربط', 'red');
+    stopAuto(); return;
+  }
+  await new Promise(r => setTimeout(r, 500));
   }
   const contractType = signal === 'BUY' ? 'CALL' : 'PUT';
   const reqId = Date.now() + Math.floor(Math.random() * 1000);
