@@ -2216,58 +2216,6 @@ console.log('Firebase Auth Ready');
         </div>
       </div>
     </section>
-    <!-- ============ SIGNALS ============ -->
-    <section class="page" id="page-signals">
-      <div class="panel">
-        <div class="panel-title">⚡ مولّد الإشارات المخصص</div>
-        <p style="color:var(--text-dim);font-size:13px;margin-bottom:14px;">
-          خصّص الإشارات: اختر العملة، الفريم، والمؤشرات. النظام يولّد إشارات تلقائياً حسب إعداداتك.
-        </p>
-        <div class="form-grid">
-          <div class="field">
-            <label>الأصل</label>
-            <select id="gen-symbol">
-              <option value="R_10">Volatility 10</option>
-              <option value="R_50">Volatility 50</option>
-              <option value="R_100" selected>Volatility 100</option>
-              <option value="1HZ100V">1s Volatility 100</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>الفريم</label>
-            <select id="gen-timeframe">
-              <option value="60">1 دقيقة</option>
-              <option value="300" selected>5 دقائق</option>
-              <option value="900">15 دقيقة</option>
-              <option value="3600">1 ساعة</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>فترة التوليد</label>
-            <select id="gen-interval">
-              <option value="30">كل 30 ثانية</option>
-              <option value="60" selected>كل دقيقة</option>
-              <option value="300">كل 5 دقائق</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>أدنى ثقة (%)</label>
-            <input type="number" id="gen-min-conf" value="70" min="40" max="95">
-          </div>
-        </div>
-        <div style="margin-top:14px;display:flex;gap:10px;">
-          <button class="btn btn-gold" onclick="startSignalGen()">⚡ بدء التوليد</button>
-          <button class="btn btn-sell" onclick="stopSignalGen()">⏹️ إيقاف</button>
-        </div>
-      </div>
-      <div class="panel">
-        <div class="panel-title">🔔 الإشارات المُولَّدة</div>
-        <div id="signals-feed" style="max-height:400px;overflow-y:auto;">
-          <div style="color:var(--text-dim);font-size:13px;">لا إشارات بعد...</div>
-        </div>
-      </div>
-    </section>
-
     <!-- ============ INDICATORS ============ -->
     <section class="page" id="page-indicators">
       <div class="panel">
