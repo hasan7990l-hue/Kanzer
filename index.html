@@ -1634,6 +1634,33 @@ function stopAuto() {
   setText('auto-status', 'متوقف', 'var(--text-dim)');
   addAutoLog('⏹️ إيقاف التداول التلقائي', 'var(--red)');
 }
+// Kelly fraction — ربع Kelly، بحد أقصى 2% من الرصيد
+function kellyFraction(p, b) {
+  if (b <= 0 || p <= 0 || p >= 1) return 0;
+  const f = (p * b - (1 - p)) / b;
+  return Math.max(0, Math.min(f * 0.25, 0.02));
+}
+
+// حساب حجم الصفقة التلقائية — يعتمد على سجل الصفقات الفعلي
+function computeKellyAmount(balance) {
+  const manual = parseFloat($('auto-amount').value) || 1;
+  const closed = (state.history || []).filter(h => typeof h.pnl === 'number' && h.status);
+
+  // أقل من 30 صفقة → لا نثق بالعينة
+  if (closed.length < 30) return Math.min(manual, balance * 0.01);
+
+  const wins = closed.filter(h => h.pnl > 0);
+  const losses = closed.filter(h => h.pnl <= 0);
+  if (!wins.length || !losses.length) return Math.min(manual, balance * 0.01);
+
+  const p = wins.length / closed.length;
+  const avgWin = wins.reduce((s, h) => s + h.pnl, 0) / wins.length;
+  const avgLoss = Math.abs(losses.reduce((s, h) => s + h.pnl, 0) / losses.length);
+  if (avgWin <= 0 || avgLoss <= 0) return Math.min(manual, balance * 0.01);
+
+  const f = kellyFraction(p, avgWin / avgLoss);
+  return Math.max(0.35, balance * f);
+}
 
 async function executeAutoTrade(signal, conf) {
   if (state.activeTrades.some(t => t.auto)) return;
