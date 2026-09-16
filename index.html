@@ -1637,6 +1637,17 @@ function stopAuto() {
 
 async function executeAutoTrade(signal, conf) {
   if (state.activeTrades.some(t => t.auto)) return;
+  const live = state.candles[state.candles.length - 1];
+if (live) {
+  if (signal === 'BUY' && live.close < live.open) {
+    addAutoLog('⏸️ تأجيل شراء — الشمعة الجارية حمراء', 'var(--gold)');
+    return;
+  }
+  if (signal === 'SELL' && live.close > live.open) {
+    addAutoLog('⏸️ تأجيل بيع — الشمعة الجارية خضراء', 'var(--gold)');
+    return;
+  }
+      }
   if (state.autoPending) return;
   state.autoPending = true;
   setTimeout(() => { state.autoPending = false; }, 5000);
