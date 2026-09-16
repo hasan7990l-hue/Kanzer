@@ -2741,6 +2741,7 @@ async function logout(confirmFirst) {
   location.reload();
 }
 async function showApp() {
+  document.getElementById('intro-screen').classList.remove('active');
   document.getElementById('login-screen').classList.remove('active');
   document.getElementById('app').classList.add('active');
   updateUserUI();
