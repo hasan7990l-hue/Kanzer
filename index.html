@@ -1562,7 +1562,7 @@ function sendProposal({ side, symbol, amount, duration, auto }) {
             symbol, side, amount, duration,
             openPrice: state.currentPrice,
             buyPrice: parseFloat(msg.buy.buy_price) || amount,
-            status: 'pending', auto,
+            status: 'pending', auto, smart: !!smart,
             closeTime: Date.now() + duration * 60 * 1000,
           };
           state.activeTrades.push(trade);
