@@ -1321,7 +1321,7 @@ function runAnalysis() {
   const highs = state.candles.map(c => c.high);
   const lows = state.candles.map(c => c.low);
   const price = closes[closes.length - 1];
-  const ema9 = calcEMA(closes, 9), ema21 = calcEMA(closes, 21);
+  const ema9 = calcEMA(closes, 9), ema21 = calcEMA(closes, 21), ema50 = calcEMA(closes, 50);
   const rsi = calcRSI(closes, 14);
   const { macd, signal: macdSig } = calcMACD(closes);
   const bb = calcBB(closes);
