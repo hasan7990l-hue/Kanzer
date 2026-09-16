@@ -1952,6 +1952,125 @@ function updateUI() {
   setText('auto-profit', '$' + state.autoStats.profit.toFixed(2));
   setText('auto-loss', '$' + state.autoStats.loss.toFixed(2));
 }
+// حساب الإحصائيات الكاملة من سجل الصفقات
+function computeTradeStats() {
+  const all = (state.history || []).filter(h =>
+    typeof h.pnl === 'number' && h.status && h.status !== 'pending'
+  );
+  if (!all.length) {
+    return { n:0, wins:0, losses:0, winRate:0, ev:0, sharpe:0, pf:0,
+             maxDD:0, avgWin:0, avgLoss:0, totalPnL:0, verdict:'empty' };
+  }
+  const trades = all.slice().reverse();
+  const wins = trades.filter(t => t.pnl > 0);
+  const losses = trades.filter(t => t.pnl <= 0);
+  const p = wins.length / trades.length;
+  const q = 1 - p;
+  const avgWin = wins.length ? wins.reduce((s,t) => s + t.pnl, 0) / wins.length : 0;
+  const avgLoss = losses.length ? Math.abs(losses.reduce((s,t) => s + t.pnl, 0) / losses.length) : 0;
+  const ev = (p * avgWin) - (q * avgLoss);
+
+  const pnls = trades.map(t => t.pnl);
+  const mean = pnls.reduce((a,b) => a+b, 0) / pnls.length;
+  const variance = pnls.reduce((s,x) => s + (x-mean)**2, 0) / pnls.length;
+  const sd = Math.sqrt(variance);
+  const sharpe = sd > 0 ? mean / sd : 0;
+
+  const grossWin = wins.reduce((s,t) => s + t.pnl, 0);
+  const grossLoss = Math.abs(losses.reduce((s,t) => s + t.pnl, 0));
+  const pf = grossLoss > 0 ? grossWin / grossLoss : (grossWin > 0 ? 999 : 0);
+
+  let equity = 0, peak = 0, maxDD = 0;
+  for (const t of trades) {
+    equity += t.pnl;
+    if (equity > peak) peak = equity;
+    const dd = peak - equity;
+    if (dd > maxDD) maxDD = dd;
+  }
+
+  let verdict;
+  if (trades.length < 30) verdict = 'sample_low';
+  else if (ev > 0 && pf > 1.1) verdict = 'profitable';
+  else if (ev > 0) verdict = 'marginal';
+  else verdict = 'losing';
+
+  return {
+    n: trades.length,
+    wins: wins.length, losses: losses.length,
+    winRate: p * 100,
+    ev, sharpe, pf, maxDD,
+    avgWin, avgLoss,
+    totalPnL: trades.reduce((s,t) => s + t.pnl, 0),
+    verdict
+  };
+}
+
+function renderTradeStats() {
+  const el = $('trade-stats'); if (!el) return;
+  const s = computeTradeStats();
+
+  if (s.verdict === 'empty') {
+    el.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:20px;">لا صفقات مسجّلة بعد. ابدأ بالتداول (تجريبي) لتظهر الإحصائيات.</div>';
+    return;
+  }
+
+  const verdictMap = {
+    sample_low:  { t: '⚠️ عينة صغيرة — أقل من 30 صفقة', c: 'var(--text-dim)' },
+    losing:      { t: '🔴 النظام خاسر إحصائياً', c: 'var(--red)' },
+    marginal:    { t: '🟡 ربح هامشي — يحتاج تحسين', c: 'var(--gold)' },
+    profitable:  { t: '🟢 النظام رابح إحصائياً', c: 'var(--green)' }
+  };
+  const v = verdictMap[s.verdict];
+
+  const card = (label, val, color) =>
+    `<div style="background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">${label}</div>
+      <div style="font-size:20px;font-weight:900;color:${color};">${val}</div>
+    </div>`;
+
+  el.innerHTML = `
+    <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;margin-bottom:12px;">
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">الحكم الإحصائي</div>
+      <div style="font-size:18px;font-weight:900;color:${v.c};">${v.t}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">بناءً على ${s.n} صفقة</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+      ${card('Expected Value',
+          (s.ev >= 0 ? '+' : '') + '$' + s.ev.toFixed(3),
+          s.ev > 0 ? 'var(--green)' : 'var(--red)')}
+      ${card('Sharpe Ratio',
+          s.sharpe.toFixed(2),
+          s.sharpe >= 1 ? 'var(--green)' : s.sharpe > 0 ? 'var(--gold)' : 'var(--red)')}
+      ${card('Profit Factor',
+          s.pf >= 999 ? '∞' : s.pf.toFixed(2),
+          s.pf >= 1.2 ? 'var(--green)' : s.pf >= 1 ? 'var(--gold)' : 'var(--red)')}
+      ${card('Max Drawdown',
+          '$' + s.maxDD.toFixed(2),
+          'var(--cyan)')}
+      ${card('نسبة النجاح',
+          s.winRate.toFixed(1) + '%',
+          s.winRate >= 52 ? 'var(--green)' : s.winRate >= 50 ? 'var(--gold)' : 'var(--red)')}
+      ${card('صافي الربح',
+          (s.totalPnL >= 0 ? '+' : '') + '$' + s.totalPnL.toFixed(2),
+          s.totalPnL >= 0 ? 'var(--green)' : 'var(--red)')}
+      ${card('متوسط الربح',
+          '$' + s.avgWin.toFixed(2),
+          'var(--green)')}
+      ${card('متوسط الخسارة',
+          '$' + s.avgLoss.toFixed(2),
+          'var(--red)')}
+    </div>
+
+    <div style="margin-top:12px;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.2);border-radius:8px;padding:10px;font-size:11px;color:var(--text-dim);line-height:1.7;">
+      <b style="color:var(--cyan);">دليل قراءة الأرقام</b><br>
+      • <b>EV &gt; 0</b> = النظام رابح رياضياً.<br>
+      • <b>Sharpe &gt; 1</b> = عائد جيد مقابل المخاطرة.<br>
+      • <b>PF &gt; 1.2</b> = أرباحك تتجاوز خسائرك بهامش صحي.<br>
+      • <b>Max DD</b> = أقصى تراجع من قمة الرصيد.
+    </div>
+  `;
+}
 function renderHistory() {
   const tb = $('history-tbody'); if (!tb) return;
   if (!state.history.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:24px;">لا صفقات بعد</td></tr>'; return; }
