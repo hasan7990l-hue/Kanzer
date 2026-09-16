@@ -3693,6 +3693,7 @@ function stopAuto() {
    // ========== SHADOW MODE ==========
 const shadowMode = (document.getElementById('shadow-mode')?.value || 'on') === 'on';
 if (shadowMode) {
+  if (state.shadowTrades.some(t => t.result === 'pending')) return;
   const _sym = document.getElementById('auto-symbol').value;
   const _dur = parseInt(document.getElementById('auto-duration').value) || 1;
   const _amt = parseFloat(document.getElementById('auto-amount').value) || 1;
