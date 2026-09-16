@@ -1171,20 +1171,35 @@ function handleWSMessage(msg) {
     state.prevTick = state.currentPrice;
     state.currentPrice = parseFloat(msg.tick.quote);
     setText('signal-price', state.currentPrice.toFixed(4));
+    window._lastTickAt = Date.now();
+
     if (state.candles.length > 0 && state.candleSeries) {
-      const last = state.candles[state.candles.length - 1];
-      const now = Math.floor(Date.now() / 1000);
       const tf = parseInt($('timeframe-select')?.value || '60');
-      if (now - last.time < tf) {
-        last.close = state.currentPrice;
-        last.high = Math.max(last.high, state.currentPrice);
-        last.low = Math.min(last.low, state.currentPrice);
-      } else {
-        const next = { time: last.time + tf, open: last.close, high: state.currentPrice, low: state.currentPrice, close: state.currentPrice };
-        state.candles.push(next);
-        if (state.candles.length > 200) state.candles.shift();
+      const barTime = Math.floor(Date.now() / 1000 / tf) * tf;
+      const last = state.candles[state.candles.length - 1];
+      try {
+        if (last.time === barTime) {
+          last.close = state.currentPrice;
+          last.high = Math.max(last.high, state.currentPrice);
+          last.low = Math.min(last.low, state.currentPrice);
+          state.candleSeries.update(last);
+        } else if (last.time < barTime) {
+          const next = {
+            time: barTime,
+            open: last.close,
+            high: Math.max(last.close, state.currentPrice),
+            low: Math.min(last.close, state.currentPrice),
+            close: state.currentPrice
+          };
+          state.candles.push(next);
+          if (state.candles.length > 500) state.candles.shift();
+          state.candleSeries.update(next);
+        }
+        window._lastChartErr = null;
+      } catch (e) {
+        window._lastChartErr = String(e.message || e);
+        console.warn('chart update failed:', e);
       }
-      state.candleSeries.update(state.candles[state.candles.length - 1]);
     }
   } else if (msg.msg_type === 'candles') {
     const raw = msg.candles || [];
@@ -1192,7 +1207,7 @@ function handleWSMessage(msg) {
     if (!raw.length) { if (loader) loader.classList.add('hidden'); return; }
     state.candles = raw.map(c => ({
       time: c.epoch, open: parseFloat(c.open), high: parseFloat(c.high),
-      low: parseFloat(c.low), close: parseFloat(c.close),
+      low: parseFloat(c.low), close: parseFloat(c.close)
     }));
     if (state.candleSeries) state.candleSeries.setData(state.candles);
     if (state.candles.length > 0) {
@@ -1204,7 +1219,10 @@ function handleWSMessage(msg) {
   } else if (msg.msg_type === 'authorize') {
     if (msg.error) { console.warn('Deriv auth error', msg.error); return; }
     const a = msg.authorize;
-    state.derivAccount = { loginid: a.loginid, currency: a.currency, isVirtual: a.is_virtual === 1, balance: a.balance };
+    state.derivAccount = {
+      loginid: a.loginid, currency: a.currency,
+      isVirtual: a.is_virtual === 1, balance: a.balance
+    };
     updateDerivUI();
   }
 }
