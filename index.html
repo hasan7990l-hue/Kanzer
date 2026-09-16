@@ -1339,7 +1339,7 @@ function runAnalysis() {
   let score = 0; const reasons = [];
   const lastRsi = rsi[rsi.length - 1];
   const lastMacd = macd[macd.length - 1], lastSig = macdSig[macdSig.length - 1];
-  const lastE9 = ema9[ema9.length - 1], lastE21 = ema21[ema21.length - 1];
+  const lastE9 = ema9[ema9.length - 1], lastE21 = ema21[ema21.length - 1], lastE50 = ema50[ema50.length - 1];
 
   if (state.selectedIndicators.includes('rsi')) {
     if (lastRsi < 30) { score += 2; reasons.push({ t: `RSI = ${lastRsi.toFixed(1)} تشبع بيعي`, c: 'bull' }); }
