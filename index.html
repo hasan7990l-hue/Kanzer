@@ -1829,8 +1829,23 @@ function addAutoLog(msg, color = 'var(--text)') {
           state.derivAccount.balance = parseFloat(msg.balance.balance) || 0;
           updateDerivUI(); updateUI();
         } else if (msg.msg_type === 'proposal_open_contract' && msg.proposal_open_contract) {
-          const c = msg.proposal_open_contract;
-          if (['won','lost','sold','cancelled'].includes(c.status)) { settleTradeFromDeriv(c); try { state.derivWS.send(JSON.stringify({ forget: c.id })); } catch(e){} }
+  const c = msg.proposal_open_contract;
+  const isFinal = ['won','lost','sold','cancelled'].includes(c.status);
+  if (isFinal) {
+    settleTradeFromDeriv(c);
+    try { state.derivWS.send(JSON.stringify({ forget: c.id })); } catch(e){}
+  } else {
+    const tradeId = state.contractMap[c.contract_id];
+    if (tradeId) {
+      const t = state.activeTrades.find(x => x.id === tradeId);
+      if (t) {
+        t.liveProfit = parseFloat(c.profit) || 0;
+        t.liveSpot = parseFloat(c.current_spot) || 0;
+        t.liveBid = parseFloat(c.bid_price) || null;
+        t.liveUpdatedAt = Date.now();
+      }
+    }
+  } 
         } else if (msg.error) { console.warn('Deriv WS error:', msg.error); }
       } catch(e){}
     };
