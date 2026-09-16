@@ -1379,9 +1379,22 @@ function runAnalysis() {
   }
 
   let signal = 'NEUTRAL';
-  if (score >= 3) signal = 'BUY';
-  else if (score <= -3) signal = 'SELL';
-  const conf = Math.min(Math.abs(score) * 15 + 40, 95);
+if (score >= 3) signal = 'BUY';
+else if (score <= -3) signal = 'SELL';
+
+const trendUp = lastE21 > lastE50;
+const trendDown = lastE21 < lastE50;
+
+if (signal === 'BUY' && !trendUp) {
+  reasons.push({ t: '🚫 رفض الشراء — EMA21 تحت EMA50 (ترند هابط)', c: 'bear' });
+  signal = 'NEUTRAL';
+}
+if (signal === 'SELL' && !trendDown) {
+  reasons.push({ t: '🚫 رفض البيع — EMA21 فوق EMA50 (ترند صاعد)', c: 'bull' });
+  signal = 'NEUTRAL';
+}
+
+const conf = Math.min(Math.round(40 + Math.abs(score) * 7), 90);
 
   const sw = $('signal-wrap');
   if (sw) sw.className = 'signal-wrap ' + (signal === 'BUY' ? 'buy' : signal === 'SELL' ? 'sell' : '');
