@@ -1140,7 +1140,7 @@ function connectWS() {
   if (state.ws) { try { state.ws.close(); } catch(e){} }
   updateConn('connecting');
   try {
-    state.ws = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');
+    state.ws = new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
     state.ws.onopen = () => {
       state.wsConnected = true;
       updateConn('online');
