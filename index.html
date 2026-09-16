@@ -1352,12 +1352,15 @@ function detectPinCandle(candle) {
   return { bullish, bearish };
 }
 function runAnalysis() {
-  if (state.candles.length < 30) return;
+  if (state.candles.length < 50) return;
   const closes = state.candles.map(c => c.close);
   const highs = state.candles.map(c => c.high);
   const lows = state.candles.map(c => c.low);
   const price = closes[closes.length - 1];
-  const ema9 = calcEMA(closes, 9), ema21 = calcEMA(closes, 21), ema50 = calcEMA(closes, 50);
+
+  const ema9 = calcEMA(closes, 9);
+  const ema21 = calcEMA(closes, 21);
+  const ema50 = calcEMA(closes, 50);
   const rsi = calcRSI(closes, 14);
   const { macd, signal: macdSig } = calcMACD(closes);
   const bb = calcBB(closes);
@@ -1372,77 +1375,84 @@ function runAnalysis() {
     else { state.bbUpper.setData([]); state.bbLower.setData([]); }
   }
 
-  let score = 0; const reasons = [];
   const lastRsi = rsi[rsi.length - 1];
   const lastMacd = macd[macd.length - 1], lastSig = macdSig[macdSig.length - 1];
   const lastE9 = ema9[ema9.length - 1], lastE21 = ema21[ema21.length - 1], lastE50 = ema50[ema50.length - 1];
+  const lastBBUp = bb.upper.length ? bb.upper[bb.upper.length - 1].value : null;
+  const lastBBLo = bb.lower.length ? bb.lower[bb.lower.length - 1].value : null;
 
-  if (state.selectedIndicators.includes('rsi')) {
-    if (lastRsi < 30) { score += 2; reasons.push({ t: `RSI = ${lastRsi.toFixed(1)} تشبع بيعي`, c: 'bull' }); }
-    else if (lastRsi > 70) { score -= 2; reasons.push({ t: `RSI = ${lastRsi.toFixed(1)} تشبع شرائي`, c: 'bear' }); }
-    else reasons.push({ t: `RSI = ${lastRsi.toFixed(1)} محايد`, c: 'neutral' });
-  }
-  if (state.selectedIndicators.includes('ema')) {
-    if (lastE9 > lastE21) { score += 1; reasons.push({ t: 'EMA 9 فوق EMA 21 — اتجاه صاعد', c: 'bull' }); }
-    else { score -= 1; reasons.push({ t: 'EMA 9 تحت EMA 21 — اتجاه هابط', c: 'bear' }); }
-  }
-  if (state.selectedIndicators.includes('macd')) {
-  const aboveSig = lastMacd > lastSig;
-  const positive = lastMacd > 0;
-  if (positive && aboveSig) {
-    score += 1;
-    reasons.push({ t: 'MACD إيجابي وفوق الإشارة — زخم صاعد', c: 'bull' });
-  } else if (!positive && !aboveSig) {
-    score -= 1;
-    reasons.push({ t: 'MACD سلبي وتحت الإشارة — زخم هابط', c: 'bear' });
-  } else if (positive && !aboveSig) {
-    reasons.push({ t: 'MACD إيجابي لكن تحت الإشارة — ضعف صاعد', c: 'neutral' });
-  } else {
-    reasons.push({ t: 'MACD سلبي لكن فوق الإشارة — تعافٍ مبكر ضعيف', c: 'neutral' });
-  }
-  }
-  if (state.selectedIndicators.includes('bb') && bb.upper.length) {
-    const up = bb.upper[bb.upper.length - 1].value, lo = bb.lower[bb.lower.length - 1].value;
-    if (price < lo) { score += 2; reasons.push({ t: 'السعر تحت Band السفلي', c: 'bull' }); }
-    else if (price > up) { score -= 2; reasons.push({ t: 'السعر فوق Band العلوي', c: 'bear' }); }
-    else reasons.push({ t: 'السعر داخل نطاق Bollinger', c: 'neutral' });
-  }
-  if (state.selectedIndicators.includes('stoch') && stoch.length) {
-    const k = stoch[stoch.length - 1];
-    if (k < 20) { score += 1; reasons.push({ t: `Stoch = ${k.toFixed(1)} تشبع بيعي`, c: 'bull' }); }
-    else if (k > 80) { score -= 1; reasons.push({ t: `Stoch = ${k.toFixed(1)} تشبع شرائي`, c: 'bear' }); }
-  }
-  if (state.selectedIndicators.includes('sr') && sr.supports.length && sr.resistances.length) {
-    const nearestSup = sr.supports.find(s => s.tests >= 3) || sr.supports[0];
-    const nearestRes = sr.resistances.find(r => r.tests >= 3) || sr.resistances[0];
-    const distSup = (price - nearestSup.price) / price;
-    const distRes = (nearestRes.price - price) / price;
-    const trendUp = lastE9 > lastE21, trendDown = lastE9 < lastE21;
-    if (distSup < 0.003 && nearestSup.tests >= 3 && trendUp && lastRsi > 40 && lastRsi < 65) { score += 2; reasons.push({ t: `دعم مؤكد (${nearestSup.tests} اختبار) + اتجاه صاعد + RSI سليم`, c: 'bull' }); }
-    else if (distRes < 0.003 && nearestRes.tests >= 3 && trendDown && lastRsi < 60 && lastRsi > 35) { score -= 2; reasons.push({ t: `مقاومة مؤكدة (${nearestRes.tests} اختبار) + اتجاه هابط + RSI سليم`, c: 'bear' }); }
-    else if (distSup < 0.003) { score += 0.5; reasons.push({ t: `قريب من دعم (${nearestSup.tests} اختبار) — بانتظار تأكيد`, c: 'neutral' }); }
-    else if (distRes < 0.003) { score -= 0.5; reasons.push({ t: `قريب من مقاومة (${nearestRes.tests} اختبار) — بانتظار تأكيد`, c: 'neutral' }); }
-    else reasons.push({ t: `دعم: ${nearestSup.price.toFixed(4)} (${nearestSup.tests}x) | مقاومة: ${nearestRes.price.toFixed(4)} (${nearestRes.tests}x)`, c: 'neutral' });
-  }
+  let score = 0;
+  const reasons = [];
 
+  // 1. فلتر الاتجاه العرضي
+  const trendRatio = lastE21 / lastE50;
+  const isSideways = trendRatio > 0.998 && trendRatio < 1.002;
+  const strongUp = trendRatio >= 1.002;
+  const strongDown = trendRatio <= 0.998;
+
+  if (isSideways) reasons.push({ t: '📊 سوق عرضي — بيئة مناسبة للانعكاسات', c: 'neutral' });
+  else if (strongUp) reasons.push({ t: '📈 اتجاه صاعد قوي — نبحث عن انعكاس هبوطي فقط', c: 'neutral' });
+  else reasons.push({ t: '📉 اتجاه هابط قوي — نبحث عن انعكاس صاعد فقط', c: 'neutral' });
+
+  // 2. لمس حدود Bollinger
+  const touchUp = lastBBUp !== null && price >= lastBBUp * 0.9995;
+  const touchLo = lastBBLo !== null && price <= lastBBLo * 1.0005;
+  if (touchUp) reasons.push({ t: '🔺 السعر عند الحد العلوي لـ BB', c: 'bear' });
+  if (touchLo) reasons.push({ t: '🔻 السعر عند الحد السفلي لـ BB', c: 'bull' });
+  if (!touchUp && !touchLo) reasons.push({ t: '⚪ السعر داخل النطاق — لا انعكاس', c: 'neutral' });
+
+  // 3. دايفرجنس
+  const div = detectDivergence(closes, rsi);
+  if (div.type === 'bullish') { score += 3; reasons.push({ t: '🔮 دايفرجنس صاعد — انعكاس محتمل', c: 'bull' }); }
+  else if (div.type === 'bearish') { score -= 3; reasons.push({ t: '🔮 دايفرجنس هابط — انعكاس محتمل', c: 'bear' }); }
+
+  // 4. شمعة الانعكاس
+  const live = state.candles[state.candles.length - 1];
+  const pin = detectPinCandle(live);
+  if (pin.bullish) { score += 2; reasons.push({ t: '🕯️ شمعة انعكاس صاعدة — ذيل سفلي طويل', c: 'bull' }); }
+  if (pin.bearish) { score -= 2; reasons.push({ t: '🕯️ شمعة انعكاس هابطة — ذيل علوي طويل', c: 'bear' }); }
+
+  // 5. RSI متطرف
+  if (lastRsi < 30) { score += 1.5; reasons.push({ t: `RSI = ${lastRsi.toFixed(1)} تشبع بيعي`, c: 'bull' }); }
+  else if (lastRsi > 70) { score -= 1.5; reasons.push({ t: `RSI = ${lastRsi.toFixed(1)} تشبع شرائي`, c: 'bear' }); }
+  else reasons.push({ t: `RSI = ${lastRsi.toFixed(1)} محايد`, c: 'neutral' });
+
+  // 6. MACD كتأكيد ثانوي
+  const aboveSig = lastMacd > lastSig, positive = lastMacd > 0;
+  if (positive && aboveSig) { score += 0.5; reasons.push({ t: 'MACD إيجابي فوق الإشارة', c: 'bull' }); }
+  else if (!positive && !aboveSig) { score -= 0.5; reasons.push({ t: 'MACD سلبي تحت الإشارة', c: 'bear' }); }
+    // تحويل النقاط إلى إشارة
   let signal = 'NEUTRAL';
-if (score >= 3) signal = 'BUY';
-else if (score <= -3) signal = 'SELL';
+  if (score >= 4) signal = 'BUY';
+  else if (score <= -4) signal = 'SELL';
 
-const trendUp = lastE21 > lastE50;
-const trendDown = lastE21 < lastE50;
+  // شروط إلزامية للانعكاس
+  if (signal === 'BUY') {
+    const confirmations = [touchLo, div.type === 'bullish', pin.bullish].filter(Boolean).length;
+    if (confirmations < 2) {
+      reasons.push({ t: `🚫 رفض الشراء — ${confirmations}/3 شروط (BB + دايفرجنس + شمعة)`, c: 'bear' });
+      signal = 'NEUTRAL';
+    } else if (strongDown) {
+      reasons.push({ t: '🚫 رفض الشراء — ترند هابط قوي (انتظر تصحيحاً)', c: 'bear' });
+      signal = 'NEUTRAL';
+    }
+  }
+  if (signal === 'SELL') {
+    const confirmations = [touchUp, div.type === 'bearish', pin.bearish].filter(Boolean).length;
+    if (confirmations < 2) {
+      reasons.push({ t: `🚫 رفض البيع — ${confirmations}/3 شروط (BB + دايفرجنس + شمعة)`, c: 'bull' });
+      signal = 'NEUTRAL';
+    } else if (strongUp) {
+      reasons.push({ t: '🚫 رفض البيع — ترند صاعد قوي (انتظر تصحيحاً)', c: 'bull' });
+      signal = 'NEUTRAL';
+    }
+  }
 
-if (signal === 'BUY' && !trendUp) {
-  reasons.push({ t: '🚫 رفض الشراء — EMA21 تحت EMA50 (ترند هابط)', c: 'bear' });
-  signal = 'NEUTRAL';
-}
-if (signal === 'SELL' && !trendDown) {
-  reasons.push({ t: '🚫 رفض البيع — EMA21 فوق EMA50 (ترند صاعد)', c: 'bull' });
-  signal = 'NEUTRAL';
-}
+  // الثقة الصادقة
+  let conf = 0;
+  if (signal !== 'NEUTRAL') conf = Math.min(Math.round(55 + Math.abs(score) * 4), 80);
 
-const conf = Math.min(Math.round(40 + Math.abs(score) * 7), 90);
-
+  // تحديث الواجهة
   const sw = $('signal-wrap');
   if (sw) sw.className = 'signal-wrap ' + (signal === 'BUY' ? 'buy' : signal === 'SELL' ? 'sell' : '');
   state.lastSignal = signal === 'BUY' ? 'شراء' : signal === 'SELL' ? 'بيع' : 'محايد';
@@ -1462,28 +1472,25 @@ const conf = Math.min(Math.round(40 + Math.abs(score) * 7), 90);
   }
 
   const cards = [];
-  if (state.selectedIndicators.includes('rsi')) cards.push({ n: 'RSI', v: lastRsi.toFixed(2), c: lastRsi < 30 ? 'bull' : lastRsi > 70 ? 'bear' : 'neutral' });
-  if (state.selectedIndicators.includes('ema')) {
-    cards.push({ n: 'EMA 9', v: lastE9.toFixed(4), c: 'bull' });
-    cards.push({ n: 'EMA 21', v: lastE21.toFixed(4), c: lastE9 > lastE21 ? 'bull' : 'bear' });
-  }
-  if (state.selectedIndicators.includes('macd')) cards.push({ n: 'MACD', v: lastMacd.toFixed(5), c: lastMacd > lastSig ? 'bull' : 'bear' });
-  if (state.selectedIndicators.includes('bb') && bb.upper.length) cards.push({ n: 'BB Range', v: (bb.upper[bb.upper.length-1].value - bb.lower[bb.lower.length-1].value).toFixed(4), c: 'neutral' });
-  if (state.selectedIndicators.includes('stoch') && stoch.length) cards.push({ n: 'Stoch', v: stoch[stoch.length-1].toFixed(2), c: stoch[stoch.length-1] < 20 ? 'bull' : stoch[stoch.length-1] > 80 ? 'bear' : 'neutral' });
-  if (state.selectedIndicators.includes('atr') && atr.length) cards.push({ n: 'ATR', v: atr[atr.length-1].toFixed(4), c: 'neutral' });
-  if (state.selectedIndicators.includes('sr') && sr.supports.length) {
-    cards.push({ n: 'دعم أقرب', v: sr.supports[0].price.toFixed(4), c: 'bull' });
-    cards.push({ n: 'مقاومة أقرب', v: sr.resistances[0].price.toFixed(4), c: 'bear' });
-  }
+  cards.push({ n: 'RSI', v: lastRsi.toFixed(2), c: lastRsi < 30 ? 'bull' : lastRsi > 70 ? 'bear' : 'neutral' });
+  cards.push({ n: 'EMA 9', v: lastE9.toFixed(4), c: lastE9 > lastE21 ? 'bull' : 'bear' });
+  cards.push({ n: 'EMA 21', v: lastE21.toFixed(4), c: lastE21 > lastE50 ? 'bull' : 'bear' });
+  cards.push({ n: 'MACD', v: lastMacd.toFixed(5), c: lastMacd > 0 ? 'bull' : 'bear' });
+  if (lastBBUp !== null) cards.push({ n: 'BB Up', v: lastBBUp.toFixed(4), c: touchUp ? 'bear' : 'neutral' });
+  if (lastBBLo !== null) cards.push({ n: 'BB Lo', v: lastBBLo.toFixed(4), c: touchLo ? 'bull' : 'neutral' });
+  cards.push({ n: 'Divergence', v: div.type === 'bullish' ? 'صاعد' : div.type === 'bearish' ? 'هابط' : 'لا يوجد', c: div.type === 'bullish' ? 'bull' : div.type === 'bearish' ? 'bear' : 'neutral' });
+  if (atr.length) cards.push({ n: 'ATR', v: atr[atr.length - 1].toFixed(4), c: 'neutral' });
+
   const indGrid = $('ind-grid');
   if (indGrid) indGrid.innerHTML = cards.map(c => `<div class="ind-card ${c.c}"><div class="ind-name">${c.n}</div><div class="ind-val">${c.v}</div></div>`).join('');
+
   const reasonsList = $('reasons-list');
   if (reasonsList) reasonsList.innerHTML = reasons.map(r => `<div style="color:${r.c === 'bull' ? 'var(--green)' : r.c === 'bear' ? 'var(--red)' : 'var(--text-dim)'}">${r.c === 'bull' ? '🟢' : r.c === 'bear' ? '🔴' : '⚪'} ${r.t}</div>`).join('');
 
   if (state.autoRunning && signal !== 'NEUTRAL' && conf >= parseInt($('auto-min-conf').value)) {
     executeAutoTrade(signal, conf);
   }
-  }
+}
   function currentCurrency() { return (state.derivAccount && state.derivAccount.currency) || 'USD'; }
 
 function executeSignalTrade(side) {
