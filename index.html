@@ -1773,6 +1773,7 @@ function addAutoLog(msg, color = 'var(--text)') {
       if (!silent) showToast('✅ تم ربط حسابك', 'green');
       startDerivKeepAlive();
       updateUI();
+      ws.send(JSON.stringify({ balance: 1, subscribe: 1 }));
     };
     ws.onerror = () => showToast('❌ فشل الاتصال بـ Deriv', 'red');
     ws.onclose = () => {
