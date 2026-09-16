@@ -2774,6 +2774,8 @@ async function showApp() {
   }
   startRefreshLoop();
   startCountdownTimer(); 
+  loadShadowStats();
+renderShadowStats();
 }
 async function loadDerivTokenFromFirebase() {
   try {
