@@ -3681,6 +3681,33 @@ function stopAuto() {
   if (state.autoPending) return;
   state.autoPending = true;
   setTimeout(() => { state.autoPending = false; }, 5000);
+   // ========== SHADOW MODE ==========
+const shadowMode = (document.getElementById('shadow-mode')?.value || 'on') === 'on';
+if (shadowMode) {
+  const _sym = document.getElementById('auto-symbol').value;
+  const _dur = parseInt(document.getElementById('auto-duration').value) || 1;
+  const _amt = parseFloat(document.getElementById('auto-amount').value) || 1;
+  const _id = 'sh_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+  state.shadowTrades.push({
+    id: _id,
+    ts: Date.now(),
+    time: new Date().toLocaleTimeString('ar-EG'),
+    symbol: _sym,
+    signal: signal,
+    confidence: conf,
+    entryPrice: state.currentPrice,
+    amount: _amt,
+    duration: _dur,
+    result: 'pending',
+    closePrice: null,
+    pnl: 0
+  });
+  state.shadowAccepted = (state.shadowAccepted || 0) + 1;
+  addAutoLog('👻 [ظلّ] ' + signal + ' @ ' + state.currentPrice.toFixed(4) + ' (ثقة ' + conf.toFixed(0) + '%)', 'var(--cyan)');
+  setTimeout(() => settleShadowTrade(_id, _dur), _dur * 60 * 1000);
+  return;
+}
+// ========== END SHADOW MODE ========== 
   const amount = parseFloat(document.getElementById('auto-amount').value);
   const balance = parseFloat(state.derivAccount?.balance) || 0;
 const maxRisk = balance * 0.01;
