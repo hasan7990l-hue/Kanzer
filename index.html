@@ -3814,7 +3814,8 @@ if (amount > maxRisk) {
   const closePrice = state.currentPrice;
   if (!closePrice || closePrice === 0) return;
   const won = (t.signal === 'BUY' && closePrice > t.entryPrice) ||
-              (t.signal === 'SELL' && closePrice < t.entryPrice);
+            (t.signal === 'SELL' && closePrice < t.entryPrice) ||
+            (Math.abs(closePrice - t.entryPrice) < 0.0001 && Math.random() > 0.5);
   t.closePrice = closePrice;
   t.result = won ? 'win' : 'loss';
   t.pnl = won ? t.amount * 0.85 : -t.amount;
