@@ -3384,15 +3384,16 @@ if (actionDiv && buyBtn && sellBtn) {
   cards.push({ n: 'مقاومة أقرب', v: sr.resistances[0].price.toFixed(4), c: 'bear' });
   }
 
-  document.getElementById('ind-grid').innerHTML = cards.map(c =>
-    `<div class="ind-card ${c.c}"><div class="ind-name">${c.n}</div><div class="ind-val">${c.v}</div></div>`
-  ).join('');
-
-  document.getElementById('reasons-list').innerHTML = reasons.map(r =>
-    `<div style="color:${r.c === 'bull' ? 'var(--green)' : r.c === 'bear' ? 'var(--red)' : 'var(--text-dim)'}">
-      ${r.c === 'bull' ? '🟢' : r.c === 'bear' ? '🔴' : '⚪'} ${r.t}
-    </div>`
-  ).join('');
+  const indGrid = document.getElementById('ind-grid');
+if (indGrid) indGrid.innerHTML = cards.map(c =>
+  `<div class="ind-card ${c.c}"><div class="ind-name">${c.n}</div><div class="ind-val">${c.v}</div></div>`
+).join('');
+const reasonsList = document.getElementById('reasons-list');
+if (reasonsList) reasonsList.innerHTML = reasons.map(r =>
+  `<div style="color:${r.c === 'bull' ? 'var(--green)' : r.c === 'bear' ? 'var(--red)' : 'var(--text-dim)'}">
+    ${r.c === 'bull' ? '🟢' : r.c === 'bear' ? '🔴' : '⚪'} ${r.t}
+  </div>`
+).join('');
 
   if (state.autoRunning && signal !== 'NEUTRAL' && conf >= parseInt(document.getElementById('auto-min-conf').value)) {
     executeAutoTrade(signal, conf);
