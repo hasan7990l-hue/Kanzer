@@ -1226,6 +1226,22 @@ function handleWSMessage(msg) {
     updateDerivUI();
   }
 }
+  (function(){
+  const el = document.createElement('div');
+  el.id = 'chart-debug';
+  el.style.cssText = 'position:fixed;top:60px;left:8px;background:rgba(0,0,0,0.78);color:#0f0;font:11px monospace;padding:6px 8px;border-radius:6px;z-index:9999;pointer-events:none;white-space:pre;';
+  el.textContent = 'chart: init';
+  document.body.appendChild(el);
+  setInterval(() => {
+    const e = document.getElementById('chart-debug');
+    if (!e) return;
+    if (!window._lastTickAt) { e.textContent = 'tick: none'; e.style.color = '#f80'; return; }
+    const age = Math.round((Date.now() - window._lastTickAt) / 1000);
+    const err = window._lastChartErr ? ('ERR: ' + window._lastChartErr.slice(0, 40)) : 'update OK';
+    e.textContent = 'tick ' + age + 's | ' + err + ' | bars ' + (state.candles ? state.candles.length : 0);
+    e.style.color = age < 5 ? '#0f0' : age < 30 ? '#ff0' : '#f44';
+  }, 1000);
+})();
 function requestCandles() {
   if (!state.wsConnected) return;
   const symbol = $('symbol-select')?.value || 'R_100';
