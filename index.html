@@ -1237,17 +1237,21 @@ function handleWSMessage(msg) {
   (function(){
   const el = document.createElement('div');
   el.id = 'chart-debug';
-  el.style.cssText = 'position:fixed;top:60px;left:8px;background:rgba(0,0,0,0.78);color:#0f0;font:11px monospace;padding:6px 8px;border-radius:6px;z-index:9999;pointer-events:none;white-space:pre;';
-  el.textContent = 'chart: init';
+  el.style.cssText = 'position:fixed;top:60px;left:8px;background:rgba(0,0,0,0.85);color:#0f0;font:11px monospace;padding:6px 8px;border-radius:6px;z-index:9999;pointer-events:none;white-space:pre;max-width:90vw;overflow:hidden;';
+  el.textContent = 'init...';
   document.body.appendChild(el);
   setInterval(() => {
     const e = document.getElementById('chart-debug');
     if (!e) return;
-    if (!window._lastTickAt) { e.textContent = 'tick: none'; e.style.color = '#f80'; return; }
-    const age = Math.round((Date.now() - window._lastTickAt) / 1000);
-    const err = window._lastChartErr ? ('ERR: ' + window._lastChartErr.slice(0, 40)) : 'update OK';
-    e.textContent = 'tick ' + age + 's | ' + err + ' | bars ' + (state.candles ? state.candles.length : 0);
-    e.style.color = age < 5 ? '#0f0' : age < 30 ? '#ff0' : '#f44';
+    const log = window._msgLog || {};
+    const types = Object.keys(log).slice(0, 6).map(k => k + ':' + log[k]).join(' ');
+    const age = window._lastTickAt ? Math.round((Date.now() - window._lastTickAt)/1000) + 's' : 'none';
+    const err = window._lastErr ? ('E:' + String(window._lastErr).slice(0, 30)) : '';
+    e.textContent = 'ws:' + (state.wsConnected ? '1' : '0') +
+      ' | tick:' + age +
+      ' | ' + (types || 'no msgs') +
+      (err ? '\n' + err : '');
+    e.style.color = (log.tick > 0) ? '#0f0' : '#f80';
   }, 1000);
 })();
 function requestCandles() {
