@@ -2923,5 +2923,78 @@ function toggleLegal(btn) {
   });
 })();
 </script>
+  <script>
+/* ============================================================
+   KANZER AUTO-CONNECT SYSTEM
+   - شريط حالة في الأعلى: أخضر=متصل، أصفر=إعادة اتصال، أحمر=بلا شبكة
+   - استرجاع جلسة Firebase تلقائياً عند فتح الصفحة
+   - إعادة اتصال فورية عند رجوع الشبكة
+   - ping كل 30 ثانية لإبقاء اتصال Deriv حياً
+   - مراقبة دورية وإصلاح تلقائي للاتصالات الساقطة
+   ============================================================ */
+(function(){
+  'use strict';
+
+  const bar = document.createElement('div');
+  bar.id = 'kanzer-conn-bar';
+  bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:3px;z-index:99999;background:#26a69a;opacity:0.6;transition:background 0.3s,opacity 0.3s;pointer-events:none;';
+  document.body.appendChild(bar);
+  const setBar = (color, opacity) => { bar.style.background = color; bar.style.opacity = String(opacity); };
+
+  window.addEventListener('online', () => {
+    setBar('#26a69a', '1');
+    try { connectWS(); } catch(e){}
+    if (state.derivLinked && !state.derivWS) {
+      const t = localStorage.getItem('deriv_token');
+      if (t) authorizeToken(t, null, true);
+    }
+  });
+  window.addEventListener('offline', () => setBar('#ef5350', '1'));
+
+  function restoreSession() {
+    if (!window.firebaseReady || !window.firebaseAuth || !window.firebaseOnAuthChange) return;
+    window.firebaseOnAuthChange(window.firebaseAuth, (user) => {
+      if (!user) return;
+      const app = document.getElementById('app');
+      if (app && app.classList.contains('active')) return;
+      const email = (user.email || '').toLowerCase();
+      const users = getUsers();
+      if (users[email]) {
+        saveSession(email);
+        loadUser(email);
+        showApp();
+      }
+    });
+  }
+
+  setInterval(() => {
+    if (state.derivWS && state.derivWS.readyState === 1) {
+      try { state.derivWS.send(JSON.stringify({ ping: 1 })); } catch(e){}
+    }
+  }, 30000);
+
+  setInterval(() => {
+    if (!navigator.onLine) { setBar('#ef5350', '1'); return; }
+
+    const marketOK = state.wsConnected;
+    const derivOK = !state.derivLinked || !!state.derivWS;
+
+    if (marketOK && derivOK) { setBar('#26a69a', '0.5'); return; }
+    setBar('#ffa726', '1');
+
+    if (!marketOK && (!state.ws || state.ws.readyState === 3)) {
+      try { connectWS(); } catch(e){}
+    }
+    if (!derivOK) {
+      const t = localStorage.getItem('deriv_token');
+      if (t) { try { authorizeToken(t, null, true); } catch(e){} }
+    }
+  }, 7000);
+
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(restoreSession, 800);
+  });
+})();
+</script>
 </body>
 </html>
