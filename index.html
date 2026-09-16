@@ -1357,8 +1357,19 @@ function runAnalysis() {
     else { score -= 1; reasons.push({ t: 'EMA 9 تحت EMA 21 — اتجاه هابط', c: 'bear' }); }
   }
   if (state.selectedIndicators.includes('macd')) {
-    if (lastMacd > lastSig) { score += 1; reasons.push({ t: 'MACD فوق الإشارة — زخم إيجابي', c: 'bull' }); }
-    else { score -= 1; reasons.push({ t: 'MACD تحت الإشارة — زخم سلبي', c: 'bear' }); }
+  const aboveSig = lastMacd > lastSig;
+  const positive = lastMacd > 0;
+  if (positive && aboveSig) {
+    score += 1;
+    reasons.push({ t: 'MACD إيجابي وفوق الإشارة — زخم صاعد', c: 'bull' });
+  } else if (!positive && !aboveSig) {
+    score -= 1;
+    reasons.push({ t: 'MACD سلبي وتحت الإشارة — زخم هابط', c: 'bear' });
+  } else if (positive && !aboveSig) {
+    reasons.push({ t: 'MACD إيجابي لكن تحت الإشارة — ضعف صاعد', c: 'neutral' });
+  } else {
+    reasons.push({ t: 'MACD سلبي لكن فوق الإشارة — تعافٍ مبكر ضعيف', c: 'neutral' });
+  }
   }
   if (state.selectedIndicators.includes('bb') && bb.upper.length) {
     const up = bb.upper[bb.upper.length - 1].value, lo = bb.lower[bb.lower.length - 1].value;
