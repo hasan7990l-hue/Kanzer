@@ -5129,69 +5129,7 @@ function toggleLegal(btn){
   });
   if (!isOpen) item.classList.add('open');
 }
-</script>
-<script>
-(function(){
-  const intro = document.getElementById('lux-intro');
-  if (!intro) return;
-
-  if (sessionStorage.getItem('kanzer_lux_intro')) {
-    intro.remove();
-    return;
-  }
-
-  function animateChart(canvasId, color, trend){
-    const c = document.getElementById(canvasId);
-    if (!c) return;
-    const ctx = c.getContext('2d');
-    function fit(){ c.width = c.clientWidth * 2; c.height = c.clientHeight * 2; ctx.scale(2,2); }
-    fit();
-    const w = c.clientWidth, h = c.clientHeight;
-    const candles = [];
-    const count = 30;
-    for (let i=0; i<count; i++){
-      const base = h/2 + Math.sin(i*0.4) * h*0.15 + (trend==='up' ? (count-i)*1.2 : i*1.2);
-      const o = base + (Math.random()-0.5)*8;
-      const cl = base + (trend==='up' ? -Math.random()*8 : Math.random()*8);
-      candles.push({o, cl, x: i*((w-10)/count)+5});
-    }
-    let tick = 0;
-    function draw(){
-      if (!document.body.contains(c)) return;
-      ctx.clearRect(0, 0, w, h);
-      candles.forEach((k, idx)=>{
-        const isUp = k.cl < k.o;
-        const offset = Math.sin(tick*0.05 + idx*0.3) * 1.2;
-        const col = isUp ? color.up : color.down;
-        const cw = 3;
-        ctx.strokeStyle = col;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(k.x+1.5, Math.min(k.o, k.cl)+offset-4);
-        ctx.lineTo(k.x+1.5, Math.max(k.o, k.cl)+offset+4);
-        ctx.stroke();
-        ctx.fillStyle = col;
-        ctx.fillRect(k.x, Math.min(k.o, k.cl)+offset, cw, Math.max(Math.abs(k.cl-k.o), 2));
-      });
-      tick++;
-      requestAnimationFrame(draw);
-    }
-    draw();
-  }
-
-  setTimeout(function(){
-    animateChart('luxcv1', {up:'#26a69a', down:'#ef5350'}, 'up');
-    animateChart('luxcv2', {up:'#26a69a', down:'#ef5350'}, 'up');
-    animateChart('luxcv3', {up:'#26a69a', down:'#ef5350'}, 'down');
-  }, 800);
-
-  setTimeout(function(){
-    intro.classList.add('fade-out');
-    sessionStorage.setItem('kanzer_lux_intro', '1');
-    setTimeout(function(){ intro.remove(); }, 1000);
-  }, 8000);
-})();
-</script>
+</script> 
 <script>
 /* ============ LIVE USERS COUNTER ============ */
 (function(){
