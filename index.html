@@ -1861,12 +1861,19 @@ console.log('Firebase Auth Ready');
 </style>
 </head>
 <body>
-<div id="lux-intro">
-
+<div class="live-stats" id="live-stats">
+  <div class="live-item">
+    <span class="live-dot"></span>
+    <span class="live-num" id="live-online">...</span>
+    <span class="live-label">متصل الآن</span>
+  </div>
+  <div class="live-divider"></div>
+  <div class="live-item">
+    <span class="live-icon">👥</span>
     <span class="live-num" id="live-total">...</span>
     <span class="live-label">إجمالي المسجلين</span>
   </div>
-</div>
+    </div>
 <!-- ============ INTRO SCREEN ============ -->
 <canvas id="intro-particles"></canvas>
 <div class="intro-screen active" id="intro-screen">
