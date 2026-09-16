@@ -1171,8 +1171,6 @@ function handleWSMessage(msg) {
     state.prevTick = state.currentPrice;
     state.currentPrice = parseFloat(msg.tick.quote);
     setText('signal-price', state.currentPrice.toFixed(4));
-    window._lastTickAt = Date.now();
-
     if (state.candles.length > 0 && state.candleSeries) {
       const tf = parseInt($('timeframe-select')?.value || '60');
       const barTime = Math.floor(Date.now() / 1000 / tf) * tf;
