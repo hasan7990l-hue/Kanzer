@@ -1937,6 +1937,7 @@ function saveSettings() {
   showToast('✅ تم الحفظ', 'green');
 }
 function updateUI() {
+  renderTradeStats();
   if (state.derivLinked && state.derivAccount) {
     const derivBal = parseFloat(state.derivAccount.balance) || 0;
     setText('stat-balance', '$' + derivBal.toFixed(2), state.derivAccount.isVirtual ? 'var(--cyan)' : 'var(--gold)');
