@@ -1520,7 +1520,7 @@ function executeSignalTrade(side) {
   sendProposal({ side, symbol, amount, duration, auto: false });
 }
 
-function sendProposal({ side, symbol, amount, duration, auto }) {
+function sendProposal({ side, symbol, amount, duration, auto, smart }) {
   if (!state.derivWS) return;
   const contractType = side === 'BUY' ? 'CALL' : 'PUT';
   const reqId = Date.now() + Math.floor(Math.random() * 1000);
