@@ -1775,7 +1775,7 @@ function addAutoLog(msg, color = 'var(--text)') {
           updateDerivUI(); updateUI();
         } else if (msg.msg_type === 'proposal_open_contract' && msg.proposal_open_contract) {
           const c = msg.proposal_open_contract;
-          if (c.is_sold) { settleTradeFromDeriv(c); try { state.derivWS.send(JSON.stringify({ forget: c.id })); } catch(e){} }
+          if (['won','lost','sold','cancelled'].includes(c.status)) { settleTradeFromDeriv(c); try { state.derivWS.send(JSON.stringify({ forget: c.id })); } catch(e){} }
         } else if (msg.error) { console.warn('Deriv WS error:', msg.error); }
       } catch(e){}
     };
