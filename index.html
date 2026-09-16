@@ -1698,18 +1698,16 @@ if (live) {
     return;
   }
 
-  const amount = parseFloat($('auto-amount').value);
   const balance = parseFloat(state.derivAccount?.balance);
-  if (!isFinite(balance) || balance <= 0) { addAutoLog('⏳ بانتظار الرصيد من Deriv...', 'var(--gold)'); return; }
-  const maxRisk = balance * 0.01;
-  if (amount > maxRisk) { addAutoLog('⚠️ المبلغ يتجاوز 1% من الرصيد ($' + maxRisk.toFixed(2) + ')', 'var(--gold)'); stopAuto(); return; }
+if (!isFinite(balance) || balance <= 0) { addAutoLog('⏳ بانتظار الرصيد من Deriv...', 'var(--gold)'); return; }
+const amount = computeKellyAmount(balance);
+if (amount < 0.35) { addAutoLog('⚠️ الحجم المحسوب أدنى من حد Deriv', 'var(--gold)'); stopAuto(); return; }
   const duration = parseInt($('auto-duration').value);
   const symbol = $('symbol-select').value;
   const profitTarget = parseFloat($('auto-profit-target').value);
   const lossLimit = parseFloat($('auto-loss-limit').value);
   if (state.autoStats.profit >= profitTarget) { addAutoLog('🎯 تحقق هدف الربح $' + profitTarget, 'var(--gold)'); stopAuto(); return; }
-  if (state.autoStats.loss >= lossLimit) { addAutoLog('🛑 حد الخسارة $' + lossLimit, 'var(--red)'); stopAuto(); return; }
-  if (amount <= 0) { addAutoLog('⚠️ المبلغ غير صالح', 'var(--red)'); stopAuto(); return; }
+  if (state.autoStats.loss >= lossLimit) { addAutoLog('🛑 حد الخسارة $' + lossLimit, 'var(--red)'); stopAuto(); return; 
 
   if (!state.derivWS) {
     const t = localStorage.getItem('deriv_token');
