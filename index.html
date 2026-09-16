@@ -1731,7 +1731,7 @@ if (amount < 0.35) { addAutoLog('⚠️ الحجم المحسوب أدنى من 
   const profitTarget = parseFloat($('auto-profit-target').value);
   const lossLimit = parseFloat($('auto-loss-limit').value);
   if (state.autoStats.profit >= profitTarget) { addAutoLog('🎯 تحقق هدف الربح $' + profitTarget, 'var(--gold)'); stopAuto(); return; }
-  if (state.autoStats.loss >= lossLimit) { addAutoLog('🛑 حد الخسارة $' + lossLimit, 'var(--red)'); stopAuto(); return; 
+  if (state.autoStats.loss >= lossLimit) { addAutoLog('🛑 حد الخسارة $' + lossLimit, 'var(--red)'); stopAuto(); return; } 
 
   if (!state.derivWS) {
     const t = localStorage.getItem('deriv_token');
