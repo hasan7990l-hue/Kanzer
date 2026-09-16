@@ -1505,24 +1505,34 @@ function sendProposal({ side, symbol, amount, duration, auto }) {
     else showToast('فشل الإرسال: ' + e.message, 'red');
   }
 }
-
 function settleTradeFromDeriv(contract) {
   const tradeId = state.contractMap[contract.contract_id];
   if (!tradeId) return;
   const idx = state.activeTrades.findIndex(t => t.id === tradeId);
   if (idx < 0) return;
+
+  const FINAL = ['won', 'lost', 'sold', 'cancelled'];
+  if (!FINAL.includes(contract.status)) return;
+
   const t = state.activeTrades[idx];
-  const profit = parseFloat(contract.profit);
-  const won = profit >= 0;
+  const profit = parseFloat(contract.profit) || 0;
+  const won = contract.status === 'won' || (contract.status === 'sold' && profit > 0);
+
   t.status = won ? 'win' : 'loss';
-  t.closePrice = parseFloat(contract.exit_tick) || state.currentPrice;
+  t.closePrice = parseFloat(contract.exit_spot) || state.currentPrice;
   t.pnl = profit;
-  if (won) { state.balance += (parseFloat(contract.payout) || t.amount + profit); state.profit += profit; state.wins += 1; }
-  else { state.loss += t.amount; }
+  t.derivStatus = contract.status;
+  t.sellPrice = contract.sell_price || null;
+  t.settledAt = Date.now();
+
+  state.balance += profit;
+  if (won) { state.profit += profit; state.wins += 1; }
+  else { state.loss += Math.abs(profit) || t.amount; }
+
   if (t.auto) {
     if (won) { state.autoStats.profit += profit; state.autoStats.consecutiveLosses = 0; }
     else {
-      state.autoStats.loss += t.amount;
+      state.autoStats.loss += Math.abs(profit) || t.amount;
       state.autoStats.consecutiveLosses = (state.autoStats.consecutiveLosses || 0) + 1;
       if (state.autoStats.consecutiveLosses >= 3) {
         addAutoLog('⏸️ 3 خسائر متتالية — إيقاف البوت', 'var(--gold)');
@@ -1532,21 +1542,26 @@ function settleTradeFromDeriv(contract) {
     }
     const bal = parseFloat(state.derivAccount?.balance) || 0;
     if (bal > (state.autoStats.peakBalance || 0)) state.autoStats.peakBalance = bal;
-    const drawdown = state.autoStats.peakBalance > 0 ? ((state.autoStats.peakBalance - bal) / state.autoStats.peakBalance) * 100 : 0;
-    if (drawdown >= 10) {
+    const dd = state.autoStats.peakBalance > 0
+      ? ((state.autoStats.peakBalance - bal) / state.autoStats.peakBalance) * 100 : 0;
+    if (dd >= 10) {
       addAutoLog('🛑 Drawdown 10% — إيقاف البوت', 'var(--red)');
       showToast('توقف: Drawdown تجاوز 10%', 'red');
       setTimeout(() => { if (state.autoRunning) stopAuto(); }, 1000);
     }
   }
+
   state.totalTrades += 1;
   state.history.unshift({ ...t });
   state.activeTrades.splice(idx, 1);
   delete state.contractMap[contract.contract_id];
-  renderActiveTrades(); renderHistory(); updateUI(); saveCurrentUser();
-  showToast(won ? `🟢 ربح! +$${profit.toFixed(2)}` : `🔴 خسارة -$${t.amount}`, won ? 'green' : 'red');
-}
 
+  renderActiveTrades(); renderHistory(); updateUI(); saveCurrentUser();
+  showToast(
+    won ? `🟢 ربح! +$${profit.toFixed(2)}` : `🔴 خسارة -$${Math.abs(profit).toFixed(2)}`,
+    won ? 'green' : 'red'
+  );
+    }
 function renderActiveTrades() {
   const el = $('active-trades'); if (!el) return;
   if (!state.activeTrades.length) { el.innerHTML = '<div style="color:var(--text-dim);font-size:14px;">لا صفقات نشطة.</div>'; return; }
