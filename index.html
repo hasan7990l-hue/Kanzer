@@ -3012,6 +3012,10 @@ function updateUserUI() {
   document.getElementById('profile-country').value = u.country || '';
   document.getElementById('profile-balance').value = u.balance ?? 10000;
 }
+function enterApp() {
+  document.getElementById('intro-screen').classList.remove('active');
+  document.getElementById('login-screen').classList.add('active');
+}
 
 // ============ AUTO LOGIN ============
   document.addEventListener('visibilitychange', () => {
