@@ -1149,7 +1149,15 @@ function connectWS() {
       requestCandles();
       if (state.derivToken) authorizeToken(state.derivToken, null, true);
     };
-    state.ws.onmessage = (ev) => handleWSMessage(JSON.parse(ev.data));
+    state.ws.onmessage = (ev) => {
+  let msg;
+  try { msg = JSON.parse(ev.data); } catch(e) { return; }
+  window._msgLog = window._msgLog || {};
+  const t = msg.msg_type || (msg.error ? 'error' : 'unknown');
+  window._msgLog[t] = (window._msgLog[t] || 0) + 1;
+  if (msg.error) window._lastErr = msg.error.message || JSON.stringify(msg.error);
+  handleWSMessage(msg);
+};
     state.ws.onerror = () => updateConn('offline');
     state.ws.onclose = () => {
       state.wsConnected = false;
