@@ -2034,6 +2034,13 @@ console.log('Firebase Auth Ready');
             <label>أدنى ثقة (%)</label>
             <input type="number" id="auto-min-conf" value="70" min="40" max="95">
           </div>
+          <div class="field">
+  <label>وضع التشغيل</label>
+  <select id="shadow-mode">
+    <option value="on" selected>👻 وضع الظلّ — لا تنفيذ</option>
+    <option value="off">⚡ تنفيذ حقيقي</option>
+  </select>
+          </div>
         </div>
         <div style="margin-top:14px;display:flex;gap:10px;">
           <button class="btn btn-gold" id="auto-start-btn" onclick="startAuto()">▶️ بدء</button>
