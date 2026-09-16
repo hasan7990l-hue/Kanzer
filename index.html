@@ -1583,7 +1583,10 @@ function settleTradeFromDeriv(contract) {
     }
 function renderActiveTrades() {
   const el = $('active-trades'); if (!el) return;
-  if (!state.activeTrades.length) { el.innerHTML = '<div style="color:var(--text-dim);font-size:14px;">لا صفقات نشطة.</div>'; return; }
+  if (!state.activeTrades.length) {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:14px;">لا صفقات نشطة.</div>';
+    return;
+  }
   const now = Date.now();
   el.innerHTML = state.activeTrades.map(t => {
     const total = (t.duration || 1) * 60 * 1000;
@@ -1596,6 +1599,13 @@ function renderActiveTrades() {
     const isBuy = t.side === 'BUY';
     const color = isBuy ? 'var(--green)' : 'var(--red)';
     const arrow = isBuy ? '▲' : '▼';
+
+    const liveP = typeof t.liveProfit === 'number' ? t.liveProfit : null;
+    const liveColor = liveP === null ? 'var(--text-dim)' : (liveP >= 0 ? 'var(--green)' : 'var(--red)');
+    const liveText = liveP === null ? '—' : ((liveP >= 0 ? '+' : '') + '$' + liveP.toFixed(2));
+    const openP = t.openPrice ? t.openPrice.toFixed(4) : '—';
+    const nowP = t.liveSpot ? t.liveSpot.toFixed(4) : (state.currentPrice ? state.currentPrice.toFixed(4) : '—');
+
     return `<div style="background:var(--bg-1);border:1px solid ${color};border-radius:12px;padding:14px;position:relative;overflow:hidden;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <div style="display:flex;align-items:center;gap:10px;">
@@ -1612,6 +1622,14 @@ function renderActiveTrades() {
       </div>
       <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text-dim);">
         <span>بدأ</span><span style="color:${color};font-weight:700;">${Math.floor(pct)}%</span><span>ينتهي</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
+        <div style="font-size:11px;color:var(--text-dim);">ربح/خسارة حي</div>
+        <div style="font-size:18px;font-weight:900;color:${liveColor};font-family:monospace;">${liveText}</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--text-dim);">
+        <span>دخول: ${openP}</span>
+        <span>الآن: ${nowP}</span>
       </div>
     </div>`;
   }).join('');
