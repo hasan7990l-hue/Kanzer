@@ -1320,7 +1320,37 @@ function calcSR(candles, lookback = 5) {
   };
   return { resistances: cluster(resistances).slice(0, 3), supports: cluster(supports).slice(0, 3) };
 }
+// كشف الدايفرجنس: قاع أدنى بسعر + قاع أعلى بـ RSI = انعكاس صاعد
+function detectDivergence(closes, rsi, lookback = 40) {
+  if (closes.length < lookback || rsi.length < lookback) return { type: 'none' };
+  const c = closes.slice(-lookback);
+  const r = rsi.slice(-lookback);
+  const lows = [], highs = [];
+  for (let i = 3; i < lookback - 3; i++) {
+    if (c[i] < c[i-1] && c[i] < c[i+1] && c[i] < c[i-2] && c[i] < c[i+2] && c[i] < c[i-3] && c[i] < c[i+3]) lows.push(i);
+    if (c[i] > c[i-1] && c[i] > c[i+1] && c[i] > c[i-2] && c[i] > c[i+2] && c[i] > c[i-3] && c[i] > c[i+3]) highs.push(i);
+  }
+  if (lows.length >= 2) {
+    const a = lows[lows.length-2], b = lows[lows.length-1];
+    if (c[b] < c[a] * 0.9995 && r[b] > r[a] + 2) return { type: 'bullish', at: b };
+  }
+  if (highs.length >= 2) {
+    const a = highs[highs.length-2], b = highs[highs.length-1];
+    if (c[b] > c[a] * 1.0005 && r[b] < r[a] - 2) return { type: 'bearish', at: b };
+  }
+  return { type: 'none' };
+}
 
+// كشف شمعة الانعكاس (Pin Bar): ذيل طويل في الاتجاه المعاكس
+function detectPinCandle(candle) {
+  const body = Math.abs(candle.close - candle.open);
+  const range = candle.high - candle.low || 0.0001;
+  const upperWick = candle.high - Math.max(candle.close, candle.open);
+  const lowerWick = Math.min(candle.close, candle.open) - candle.low;
+  const bullish = lowerWick > body * 2 && lowerWick > range * 0.5;
+  const bearish = upperWick > body * 2 && upperWick > range * 0.5;
+  return { bullish, bearish };
+}
 function runAnalysis() {
   if (state.candles.length < 30) return;
   const closes = state.candles.map(c => c.close);
