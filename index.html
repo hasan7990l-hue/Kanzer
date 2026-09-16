@@ -2549,7 +2549,7 @@ function proEnsureWS(force) {
   proTickSubscribed = false;
   proSymbolCache = $('pro-symbol').value;
   proTfCache = $('pro-timeframe').value;
-  proWs = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');
+  proWs = new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
   proWs.onopen = () => {
     proWs.send(JSON.stringify({ ticks_history: proSymbolCache, adjust_start_time: 1, count: 200, end: 'latest', start: 1, style: 'candles', granularity: parseInt(proTfCache) }));
     if (!proTickSubscribed) { proWs.send(JSON.stringify({ ticks: proSymbolCache, subscribe: 1 })); proTickSubscribed = true; }
