@@ -1764,20 +1764,6 @@ function computeKellyAmount(balance) {
   const f = kellyFraction(p, avgWin / avgLoss);
   return Math.max(0.35, balance * f);
 }
-function settleShadowTrade(id, duration) {
-  const t = state.shadowTrades.find(x => x.id === id);
-  if (!t || t.result !== 'pending') return;
-  const closePrice = state.currentPrice;
-  if (!closePrice || closePrice === 0) return;
-  const won = (t.signal === 'BUY' && closePrice > t.entryPrice) ||
-              (t.signal === 'SELL' && closePrice < t.entryPrice) ||
-              (Math.abs(closePrice - t.entryPrice) < 0.0001 && Math.random() > 0.5);
-  t.closePrice = closePrice;
-  t.result = won ? 'win' : 'loss';
-  t.pnl = won ? t.amount * 0.85 : -t.amount;
-  addAutoLog('👻 نتيجة: ' + (won ? '🟢 ربح' : '🔴 خسارة') + ' (' + (won ? '+' : '') + '$' + t.pnl.toFixed(2) + ')', won ? 'var(--green)' : 'var(--red)');
-  saveShadowStats(); renderShadowStats();
-}
 function saveShadowStats() {
   try { localStorage.setItem('kanzer_shadow', JSON.stringify({ trades: state.shadowTrades.slice(-500), accepted: state.shadowAccepted, rejected: state.shadowRejected })); } catch(e) {}
 }
