@@ -1764,66 +1764,6 @@ function computeKellyAmount(balance) {
   const f = kellyFraction(p, avgWin / avgLoss);
   return Math.max(0.35, balance * f);
 }
-
-async function executeAutoTrade(signal, conf) {
-  if (state.activeTrades.some(t => t.auto)) return;
-  const live = state.candles[state.candles.length - 1];
-if (live) {
-  if (signal === 'BUY' && live.close < live.open) {
-    addAutoLog('⏸️ تأجيل شراء — الشمعة الجارية حمراء', 'var(--gold)');
-    return;
-  }
-  if (signal === 'SELL' && live.close > live.open) {
-    addAutoLog('⏸️ تأجيل بيع — الشمعة الجارية خضراء', 'var(--gold)');
-    return;
-  }
-      }
-  if (state.autoPending) return;
-  state.autoPending = true;
-  setTimeout(() => { state.autoPending = false; }, 5000);
-
-  const shadowMode = ($('shadow-mode')?.value || 'on') === 'on';
-  if (shadowMode) {
-    if (state.shadowTrades.some(t => t.result === 'pending')) return;
-    const _sym = $('symbol-select').value;
-    const _dur = parseInt($('auto-duration').value) || 1;
-    const _amt = parseFloat($('auto-amount').value) || 1;
-    const _id = 'sh_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-    state.shadowTrades.push({
-      id: _id, ts: Date.now(), time: new Date().toLocaleTimeString('ar-EG'),
-      symbol: _sym, signal, confidence: conf,
-      entryPrice: state.currentPrice, amount: _amt, duration: _dur,
-      result: 'pending', closePrice: null, pnl: 0,
-    });
-    state.shadowAccepted = (state.shadowAccepted || 0) + 1;
-    addAutoLog('👻 [ظلّ] ' + signal + ' @ ' + state.currentPrice.toFixed(4) + ' (ثقة ' + conf.toFixed(0) + '%)', 'var(--cyan)');
-    setTimeout(() => settleShadowTrade(_id, _dur), _dur * 60 * 1000);
-    return;
-  }
-
-  const balance = parseFloat(state.derivAccount?.balance);
-if (!isFinite(balance) || balance <= 0) { addAutoLog('⏳ بانتظار الرصيد من Deriv...', 'var(--gold)'); return; }
-const amount = computeKellyAmount(balance);
-if (amount < 0.35) { addAutoLog('⚠️ الحجم المحسوب أدنى من حد Deriv', 'var(--gold)'); stopAuto(); return; }
-  const duration = parseInt($('auto-duration').value);
-  const symbol = $('symbol-select').value;
-  const profitTarget = parseFloat($('auto-profit-target').value);
-  const lossLimit = parseFloat($('auto-loss-limit').value);
-  if (state.autoStats.profit >= profitTarget) { addAutoLog('🎯 تحقق هدف الربح $' + profitTarget, 'var(--gold)'); stopAuto(); return; }
-  if (state.autoStats.loss >= lossLimit) { addAutoLog('🛑 حد الخسارة $' + lossLimit, 'var(--red)'); stopAuto(); return; } 
-
-  if (!state.derivWS) {
-    const t = localStorage.getItem('deriv_token');
-    if (!t) { addAutoLog('⚠️ لا يوجد توكن', 'var(--red)'); stopAuto(); return; }
-    addAutoLog('جاري إعادة الاتصال بـ Deriv...', 'var(--gold)');
-    try { await authorizeToken(t, null, true); } catch(e) {}
-    if (!state.derivWS) { await new Promise(r => setTimeout(r, 2000)); try { await authorizeToken(t, null, true); } catch(e) {} }
-    if (!state.derivWS) { addAutoLog('❌ توكن Deriv منتهي — أعد الربط يدوياً', 'var(--red)'); showToast('توكن Deriv منتهي', 'red'); stopAuto(); return; }
-    await new Promise(r => setTimeout(r, 500));
-  }
-  sendProposal({ side: signal, symbol, amount, duration, auto: true });
-}
-
 function settleShadowTrade(id, duration) {
   const t = state.shadowTrades.find(x => x.id === id);
   if (!t || t.result !== 'pending') return;
