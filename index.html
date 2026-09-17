@@ -1737,30 +1737,6 @@ function renderActiveTrades() {
     </div>`;
   }).join('');
 }
-
-function startAuto() {
-  if (!state.derivLinked) {
-    showToast('⚠️ اربط حساب Deriv أولاً', 'red');
-    setTimeout(() => document.querySelector('[data-page="deriv"]').click(), 800);
-    return;
-  }
-  state.autoRunning = true;
-  state.autoStats = { count: 0, profit: 0, loss: 0, consecutiveLosses: 0, peakBalance: parseFloat(state.derivAccount?.balance) || 0 };
-  $('auto-start-btn').style.display = 'none';
-  $('auto-stop-btn').style.display = 'inline-flex';
-  setText('auto-status', 'يعمل', 'var(--green)');
-  $('auto-log').innerHTML = '';
-  addAutoLog('🟢 بدأ التداول التلقائي', 'var(--green)');
-  state.autoTimer = setInterval(() => runAnalysis(), 15000);
-}
-function stopAuto() {
-  state.autoRunning = false;
-  clearInterval(state.autoTimer);
-  $('auto-start-btn').style.display = 'inline-flex';
-  $('auto-stop-btn').style.display = 'none';
-  setText('auto-status', 'متوقف', 'var(--text-dim)');
-  addAutoLog('⏹️ إيقاف التداول التلقائي', 'var(--red)');
-}
 // Kelly fraction — ربع Kelly، بحد أقصى 2% من الرصيد
 function kellyFraction(p, b) {
   if (b <= 0 || p <= 0 || p >= 1) return 0;
