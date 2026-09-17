@@ -5958,5 +5958,222 @@ console.log('[HUNTER v3] part 3/3 — engine + UI active');
 })();
 </script>
 <!-- ====== END PART 3 ====== -->
+  <!-- ====== KANZER RISK SUITE v1 — RESTORED ====== -->
+<style>
+#kz-cb-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:99998;padding:10px 16px;background:linear-gradient(135deg,#c62828,#8b0000);color:#fff;font-size:13px;font-weight:700;text-align:center;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.5);}
+#kz-cb-banner.show{display:block;}
+#kz-cb-banner button{margin-inline-start:12px;padding:4px 12px;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:700;}
+#kz-payout-badge{position:fixed;bottom:16px;right:16px;z-index:99997;background:rgba(15,18,24,0.92);border:1px solid rgba(0,212,255,0.35);border-radius:10px;padding:8px 14px;font-family:'Courier New',monospace;font-size:12px;color:#e8eaf0;box-shadow:0 4px 20px rgba(0,0,0,0.5);transition:border-color 0.3s,opacity 0.3s;}
+</style>
+
+<script>
+(function(){
+'use strict';
+if (window._kzRiskSuite) return;
+window._kzRiskSuite = true;
+
+let _reqSeq = 900000;
+const KZReq = { next: () => ++_reqSeq };
+
+const CBC = {
+  dailyLossPct: 0.05, weeklyLossPct: 0.12, monthlyLossPct: 0.20,
+  streakLosses: 4,
+  dailyCooldownMs: 24*60*60*1000, weeklyCooldownMs: 7*24*60*60*1000,
+  monthlyCooldownMs: 30*24*60*60*1000, streakCooldownMs: 2*60*60*1000,
+  storageKey: 'kanzer_cb_v1'
+};
+
+const CBS = {
+  dayKey:'', weekKey:'', monthKey:'',
+  dayStart:0, weekStart:0, monthStart:0,
+  dayPnl:0, weekPnl:0, monthPnl:0, streak:0,
+  pausedUntil:0, pauseReason:'', pauseScope:'none',
+  history:[], settledIds:new Set()
+};
+
+function dkey(){ const d=new Date(); return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0'); }
+function wkey(){ const d=new Date(); const t=new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); const day=t.getUTCDay()||7; t.setUTCDate(t.getUTCDate()+4-day); const y=t.getUTCFullYear(); const w=Math.ceil((((t - new Date(Date.UTC(y,0,1)))/86400000)+1)/7); return y+'-W'+String(w).padStart(2,'0'); }
+function mkey(){ const d=new Date(); return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0'); }
+
+function loadCB(){ try { const raw = localStorage.getItem(CBC.storageKey); if (!raw) return; const p = JSON.parse(raw); const sIds = p.settledIds || []; delete p.settledIds; Object.assign(CBS, p); CBS.settledIds = new Set(sIds); } catch(e){} }
+function saveCB(){ try { localStorage.setItem(CBC.storageKey, JSON.stringify({ dayKey:CBS.dayKey, weekKey:CBS.weekKey, monthKey:CBS.monthKey, dayStart:CBS.dayStart, weekStart:CBS.weekStart, monthStart:CBS.monthStart, dayPnl:CBS.dayPnl, weekPnl:CBS.weekPnl, monthPnl:CBS.monthPnl, streak:CBS.streak, pausedUntil:CBS.pausedUntil, pauseReason:CBS.pauseReason, pauseScope:CBS.pauseScope, history:CBS.history.slice(-100), settledIds: Array.from(CBS.settledIds).slice(-500) })); } catch(e){} }
+
+function rollover(){
+  const dk=dkey(), wk=wkey(), mk=mkey(); let changed=false;
+  if (CBS.dayKey !== dk)   { CBS.dayKey=dk;   CBS.dayPnl=0;   CBS.dayStart=0;   changed=true; }
+  if (CBS.weekKey !== wk)  { CBS.weekKey=wk;  CBS.weekPnl=0;  CBS.weekStart=0;  changed=true; }
+  if (CBS.monthKey !== mk) { CBS.monthKey=mk; CBS.monthPnl=0; CBS.monthStart=0; changed=true; }
+  if (changed) { if (CBS.pauseScope==='daily'||CBS.pauseScope==='weekly'||CBS.pauseScope==='monthly'){ CBS.pausedUntil=0; CBS.pauseReason=''; CBS.pauseScope='none'; } saveCB(); renderBanner(); }
+}
+
+function currentBalance(){ try { return parseFloat(state.derivAccount && state.derivAccount.balance) || 0; } catch(e){ return 0; } }
+
+function recordResult(won, profit){
+  rollover();
+  const bal = currentBalance();
+  const pre = bal - profit;
+  if (CBS.dayStart === 0)   CBS.dayStart   = pre > 0 ? pre : 100;
+  if (CBS.weekStart === 0)  CBS.weekStart  = pre > 0 ? pre : 100;
+  if (CBS.monthStart === 0) CBS.monthStart = pre > 0 ? pre : 100;
+  CBS.dayPnl += profit; CBS.weekPnl += profit; CBS.monthPnl += profit;
+  if (won) CBS.streak = 0; else CBS.streak += 1;
+  CBS.history.push({ ts:Date.now(), won, profit, dayPnl:CBS.dayPnl });
+  if (CBS.history.length > 200) CBS.history.shift();
+  let breach = null;
+  if (CBS.dayStart>0 && CBS.dayPnl <= -CBS.dayStart*CBC.dailyLossPct) breach = { scope:'daily', reason:'خسارة يومية '+((CBS.dayPnl/CBS.dayStart)*100).toFixed(1)+'%', ms:CBC.dailyCooldownMs };
+  else if (CBS.weekStart>0 && CBS.weekPnl <= -CBS.weekStart*CBC.weeklyLossPct) breach = { scope:'weekly', reason:'خسارة أسبوعية '+((CBS.weekPnl/CBS.weekStart)*100).toFixed(1)+'%', ms:CBC.weeklyCooldownMs };
+  else if (CBS.monthStart>0 && CBS.monthPnl <= -CBS.monthStart*CBC.monthlyLossPct) breach = { scope:'monthly', reason:'خسارة شهرية '+((CBS.monthPnl/CBS.monthStart)*100).toFixed(1)+'%', ms:CBC.monthlyCooldownMs };
+  else if (CBS.streak >= CBC.streakLosses) breach = { scope:'streak', reason: CBS.streak+' خسارات متتالية', ms:CBC.streakCooldownMs };
+  if (breach) {
+    CBS.pausedUntil = Date.now() + breach.ms;
+    CBS.pauseReason = breach.reason; CBS.pauseScope = breach.scope;
+    if (breach.scope !== 'streak') CBS.streak = 0;
+    console.warn('[CB] BREACH', breach);
+    try { if (typeof window.showToast === 'function') window.showToast('⛔ '+breach.reason, 'red'); } catch(e){}
+  }
+  saveCB(); renderBanner();
+}
+
+function cbCheck(){
+  rollover();
+  if (CBS.pausedUntil > Date.now()) {
+    const mins = Math.ceil((CBS.pausedUntil - Date.now())/60000);
+    return { ok: false, scope: CBS.pauseScope, resumeAt: CBS.pausedUntil, reason: CBS.pauseReason + ' — بعد ' + mins + 'د' };
+  }
+  if (CBS.pausedUntil > 0 && CBS.pausedUntil <= Date.now()) { CBS.pausedUntil=0; CBS.pauseReason=''; CBS.pauseScope='none'; saveCB(); renderBanner(); }
+  return { ok: true };
+}
+
+window.kzCB = {
+  check: cbCheck, record: recordResult, state: CBS, config: CBC,
+  stats(){ return { dayPnl:CBS.dayPnl, weekPnl:CBS.weekPnl, monthPnl:CBS.monthPnl, streak:CBS.streak, paused:CBS.pausedUntil > Date.now(), scope:CBS.pauseScope, reason:CBS.pauseReason }; },
+  forceResume(){ CBS.pausedUntil=0; CBS.pauseReason=''; CBS.pauseScope='none'; CBS.streak=0; saveCB(); renderBanner(); try { if (typeof window.showToast==='function') window.showToast('✅ استُؤنف','green'); } catch(e){} },
+  reset(){ CBS.dayPnl=CBS.weekPnl=CBS.monthPnl=0; CBS.streak=0; CBS.pausedUntil=0; CBS.pauseReason=''; CBS.pauseScope='none'; CBS.dayStart=CBS.weekStart=CBS.monthStart=0; saveCB(); renderBanner(); }
+};
+
+const PGC = { minRoi: 0.86, blacklistAfterSkips: 3, blacklistDurationMs: 10*60*1000 };
+const PGS = { blacklist:{}, skips:{}, stats:{ fires:0, skips:0, totalRoi:0, samples:0 } };
+
+window.kzPayout = {
+  config: PGC, state: PGS,
+  evaluate(roi, symbol){
+    const bl = PGS.blacklist[symbol];
+    if (bl && Date.now() < bl.until) return { mode:'SKIP', reason:'الرمز محظور مؤقتاً' };
+    if (roi < PGC.minRoi) {
+      PGS.skips[symbol] = (PGS.skips[symbol]||0) + 1;
+      if (PGS.skips[symbol] >= PGC.blacklistAfterSkips) { PGS.blacklist[symbol] = { until: Date.now()+PGC.blacklistDurationMs, reason:'payout منخفض' }; PGS.skips[symbol] = 0; }
+      return { mode:'SKIP', reason:'ROI '+(roi*100).toFixed(1)+'%' };
+    }
+    PGS.skips[symbol] = 0;
+    return { mode:'FIRE', reason:'ROI مقبول' };
+  },
+  log(symbol, roi, decision){ PGS.stats.samples++; PGS.stats.totalRoi += roi; if (decision.mode==='SKIP') PGS.stats.skips++; else PGS.stats.fires++; updatePayoutBadge(roi, decision.mode); },
+  stats(){ return { ...PGS.stats, avgRoi: PGS.stats.samples > 0 ? PGS.stats.totalRoi/PGS.stats.samples : 0, fireRate: PGS.stats.samples > 0 ? PGS.stats.fires/PGS.stats.samples : 0 }; }
+};
+
+function updatePayoutBadge(roi, mode){
+  let el = document.getElementById('kz-payout-badge');
+  if (!el) { el = document.createElement('div'); el.id = 'kz-payout-badge'; document.body.appendChild(el); }
+  const color = mode === 'SKIP' ? '#ef5350' : (roi >= 0.90 ? '#26a69a' : '#d4af37');
+  el.style.borderColor = color + '88';
+  el.innerHTML = '<span style="color:#8a90a3;">ROI</span> <span style="color:'+color+';font-weight:900;font-size:14px;">'+(roi*100).toFixed(2)+'%</span>';
+  el.style.opacity = '1';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.opacity = '0.55'; }, 4000);
+}
+
+function renderBanner(){
+  let el = document.getElementById('kz-cb-banner');
+  if (!el) { el = document.createElement('div'); el.id = 'kz-cb-banner'; document.body.appendChild(el); }
+  if (CBS.pausedUntil > Date.now()) {
+    const mins = Math.ceil((CBS.pausedUntil - Date.now())/60000);
+    const resumeAt = new Date(CBS.pausedUntil).toLocaleString('ar-EG');
+    el.innerHTML = '⛔ <b>Circuit Breaker — التداول موقوف</b> <span style="opacity:0.9;">('+CBS.pauseReason+')</span> • يستأنف بعد '+mins+'د ('+resumeAt+')<button onclick="window.kzCB.forceResume()">استئناف</button>';
+    el.classList.add('show');
+  } else { el.classList.remove('show'); }
+}
+
+/* Settle hook (idempotent) */
+const _origSettle = window.settleTradeFromDeriv;
+if (typeof _origSettle === 'function') {
+  window.settleTradeFromDeriv = function(contract){
+    try {
+      const FINAL = ['won','lost','sold','cancelled'];
+      if (contract && FINAL.includes(contract.status)) {
+        const cid = contract.contract_id;
+        if (!CBS.settledIds.has(cid)) {
+          CBS.settledIds.add(cid);
+          if (CBS.settledIds.size > 800) { const arr = Array.from(CBS.settledIds); CBS.settledIds = new Set(arr.slice(-500)); }
+          const profit = parseFloat(contract.profit) || 0;
+          const won = contract.status === 'won' || (contract.status === 'sold' && profit > 0);
+          recordResult(won, profit);
+        }
+      }
+    } catch(e){}
+    return _origSettle.apply(this, arguments);
+  };
+}
+
+/* sendProposal replacement */
+window.sendProposal = function(opts){
+  const { side, symbol, duration, auto, smart, hunter } = opts || {};
+  let amount = Number(Number(opts && opts.amount).toFixed(2));
+  if (!(amount >= 0.35)) amount = 0.35;
+  if (!state.derivWS) { if (auto) { try { window.addAutoLog('Deriv WS غير متصل','var(--red)'); } catch(e){} } else { try { window.showToast('Deriv WS غير متصل','red'); } catch(e){} } return; }
+  const cb = cbCheck();
+  if (!cb.ok) { if (auto) { try { window.addAutoLog('CB: '+cb.reason,'var(--gold)'); } catch(e){} } else { try { window.showToast('⛔ '+cb.reason,'red'); } catch(e){} } return; }
+  const contractType = side === 'BUY' ? 'CALL' : 'PUT';
+  const probeId = KZReq.next(), buyId = KZReq.next(), subId = KZReq.next();
+  const currency = (typeof window.currentCurrency === 'function') ? window.currentCurrency() : 'USD';
+  let finished = false;
+  const finish = () => { if (finished) return; finished = true; try { clearTimeout(probeTimeout); } catch(e){} try { state.derivWS.removeEventListener('message', onProbe); } catch(e){} };
+  const probeTimeout = setTimeout(() => { finish(); const label = '⏱ Probe timeout'; if (auto) { try { window.addAutoLog(label,'var(--gold)'); } catch(e){} } else { try { window.showToast(label,'gold'); } catch(e){} } }, 6000);
+  const onProbe = (ev) => {
+    let msg; try { msg = JSON.parse(ev.data); } catch(e) { return; }
+    if (msg.req_id !== probeId) return;
+    finish();
+    if (msg.error) { if (auto) { try { window.addAutoLog('رفض probe: '+(msg.error.message||''),'var(--red)'); } catch(e){} } else { try { window.showToast('رفض probe','red'); } catch(e){} } return; }
+    if (msg.msg_type !== 'proposal' || !msg.proposal || !msg.proposal.id) return;
+    const askPrice = parseFloat(msg.proposal.ask_price) || amount;
+    const payout = parseFloat(msg.proposal.payout) || 0;
+    const roi = askPrice > 0 ? (payout - askPrice) / askPrice : 0;
+    const decision = window.kzPayout.evaluate(roi, symbol);
+    window.kzPayout.log(symbol, roi, decision);
+    if (decision.mode === 'SKIP') { if (auto) { try { window.addAutoLog('⛔ تخطي '+symbol+' — '+decision.reason,'var(--gold)'); } catch(e){} } else { try { window.showToast('⛔ تخطي '+symbol,'gold'); } catch(e){} } return; }
+    const onBuy = (ev2) => {
+      let m2; try { m2 = JSON.parse(ev2.data); } catch(e) { return; }
+      if (m2.req_id !== buyId) return;
+      try { state.derivWS.removeEventListener('message', onBuy); } catch(e){}
+      if (m2.error) { if (auto) { try { window.addAutoLog('رفض buy: '+m2.error.message,'var(--red)'); } catch(e){} } else { try { window.showToast('رفض buy','red'); } catch(e){} } return; }
+      if (m2.msg_type !== 'buy' || !m2.buy) return;
+      const contractId = m2.buy.contract_id;
+      const tradeId = KZReq.next();
+      const trade = { id:tradeId, contractId, reqId:probeId, time:new Date().toLocaleTimeString('ar-EG'), symbol, side, amount, duration, openPrice:state.currentPrice, buyPrice:parseFloat(m2.buy.buy_price)||amount, status:'pending', auto:!!auto, smart:!!smart, hunter:!!hunter, closeTime:Date.now()+duration*60*1000, payoutRoi:roi };
+      state.activeTrades.push(trade);
+      state.contractMap[contractId] = trade.id;
+      try { window.renderActiveTrades(); } catch(e){}
+      try { state.derivWS.send(JSON.stringify({ proposal_open_contract:1, contract_id:contractId, subscribe:1, req_id:subId })); } catch(e){}
+      const logMsg = (side === 'BUY' ? '▲ ' : '▼ ') + side + ' — $' + amount + ' @ ROI ' + (roi*100).toFixed(1) + '%';
+      if (auto) { try { window.addAutoLog(logMsg,'var(--green)'); } catch(e){} } else { try { window.showToast('تم — $'+amount+' @ '+(roi*100).toFixed(1)+'%','green'); } catch(e){} }
+    };
+    state.derivWS.addEventListener('message', onBuy);
+    setTimeout(() => { try { state.derivWS.removeEventListener('message', onBuy); } catch(e){} }, 20000);
+    try { state.derivWS.send(JSON.stringify({ buy: msg.proposal.id, price: msg.proposal.ask_price, req_id: buyId })); } catch(e){}
+  };
+  state.derivWS.addEventListener('message', onProbe);
+  try { state.derivWS.send(JSON.stringify({ proposal:1, amount, basis:'stake', contract_type:contractType, currency, duration, duration_unit:'m', underlying_symbol:symbol, req_id:probeId })); }
+  catch(e) { finish(); }
+};
+
+/* Init */
+loadCB(); rollover(); renderBanner();
+setInterval(renderBanner, 30000);
+window.addEventListener('DOMContentLoaded', renderBanner);
+setTimeout(renderBanner, 1200);
+
+console.log('[KZ RISK SUITE] RESTORED — CB + Payout active');
+})();
+</script>
+<!-- ====== END RISK SUITE ====== -->
 </body> 
 </html>
