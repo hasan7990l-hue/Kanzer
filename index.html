@@ -2262,7 +2262,7 @@ function getLiveContext() {
     const balance = state.derivAccount ? state.derivAccount.balance : state.balance;
     const account = state.derivAccount ? state.derivAccount.loginid : 'غير مربوط';
     const linked = state.derivLinked ? 'نعم' : 'لا';
-    const autoRunning = state.autoRunning ? 'يعمل' : 'متوقف';
+    const autoRunning = (window._ap && window._ap.running) ? 'يعمل' : 'متوقف';
     const trades = state.totalTrades || 0;
     const wins = state.wins || 0;
     const rate = trades > 0 ? ((wins / trades) * 100).toFixed(0) : '0';
