@@ -954,28 +954,57 @@ a { color:var(--gold); text-decoration:none; }
       </div>
       <div class="panel"><button class="btn btn-sell btn-full" onclick="clearHistory()">🗑️ مسح السجل</button></div>
     </section>
-
     <section class="page" id="page-deriv">
       <div class="panel">
-        <div class="panel-title">🔗 ربط حساب Deriv</div>
-        <div id="deriv-not-linked">
-          <div class="deriv-link-box">
-            <div class="icon">🔗</div>
-            <h3>اربط حساب Deriv</h3>
-            <p>اربط حسابك في Deriv بنقرة واحدة. لا نحتاج كلمة سر — نستخدم نظام OAuth الآمن.<br>سيتم تنفيذ صفقاتك مباشرة على حسابك الحقيقي أو التجريبي في Deriv.</p>
-            <button class="btn btn-gold btn-full" onclick="startLogin()">🚀 ربط حساب Deriv (نقرة واحدة)</button>
-          </div>
-        </div>
-        <div id="deriv-linked" style="display:none;">
-          <div class="deriv-link-box" style="border-color:var(--green);">
-            <div class="icon">✅</div>
-            <h3>الحساب مربوط</h3>
-            <p>الحساب: <strong id="deriv-account-id">—</strong><br>النوع: <strong id="deriv-account-type">—</strong><br>الرصيد: <strong id="deriv-account-balance">—</strong></p>
-            <button class="btn btn-sell" onclick="unlinkDeriv()">❌ فصل الحساب</button>
-            <button class="btn btn-gold" onclick="switchDerivAccount()" style="margin-bottom:10px;">🔄 تبديل بين الحقيقي والتجريبي</button>
-          </div>
-        </div>
-      </div>
+       <div class="deriv-stage" id="deriv-stage">
+  <div class="deriv-head">
+    <div class="deriv-emblem" id="deriv-emblem">🔗</div>
+    <div class="deriv-head-txt">
+      <div class="deriv-head-title" id="deriv-head-title">Deriv Trading API</div>
+      <div class="deriv-head-sub" id="deriv-head-sub">OAuth 2.0 · PKCE</div>
+    </div>
+    <div class="deriv-pulse" id="deriv-pulse"></div>
+  </div>
+
+  <!-- حالة غير مربوط -->
+  <div class="deriv-body" id="deriv-not-linked">
+    <h3>اربط حسابك في Deriv</h3>
+    <p>
+      ربط آمن بنقرة واحدة. لا نحتاج كلمة سر — نستخدم بروتوكول OAuth الرسمي.<br>
+      سيُنفّذ النظام صفقاتك مباشرة على حسابك التجريبي أو الحقيقي.
+    </p>
+    <button class="deriv-cta" onclick="startLogin()">
+      <span class="deriv-ico">🚀</span>
+      <span>ربط حساب Deriv الآن</span>
+    </button>
+    <div class="deriv-trust">
+      <div class="deriv-trust-item"><span class="ti-ico">✓</span><span>اتصال مشفّر</span></div>
+      <div class="deriv-trust-item"><span class="ti-ico">✓</span><span>لا نُخزّن كلمة السر</span></div>
+      <div class="deriv-trust-item"><span class="ti-ico">✓</span><span>إلغاء الربط بضغطة</span></div>
+    </div>
+  </div>
+  <!-- حالة مربوط -->
+  <div class="deriv-account" id="deriv-linked">
+    <div class="deriv-hero">
+      <div class="deriv-hero-id" id="deriv-account-id">—</div>
+      <div class="deriv-hero-type" id="deriv-account-type">—</div>
+      <div class="deriv-hero-pulse"><span class="hp-dot"></span><span>الاتصال نشط</span></div>
+    </div>
+    <div class="deriv-balance">
+      <div class="deriv-balance-lbl">الرصيد الحالي</div>
+      <div class="deriv-balance-val" id="deriv-account-balance">— <small>USD</small></div>
+    </div>
+    <div class="deriv-actions">
+      <button class="deriv-act switch" onclick="switchDerivAccount()">
+        <span>🔄</span><span>تبديل الحساب</span>
+      </button>
+      <button class="deriv-act unlink" onclick="unlinkDeriv()">
+        <span>✕</span><span>فصل الحساب</span>
+      </button>
+    </div>
+  </div>
+       </div> 
+        <div class="panel-title">🔗 ربط حساب Deriv</div>      
       <div class="panel">
         <div class="panel-title">ℹ️ كيف يعمل الربط؟</div>
         <ol class="modal-steps">
@@ -987,7 +1016,6 @@ a { color:var(--gold); text-decoration:none; }
         </ol>
       </div>
     </section>
-
     <section class="page" id="page-pricing">
       <div class="panel" style="text-align:center;">
         <div class="panel-title" style="justify-content:center;">🚀 ترقية المؤشر الاحترافي</div>
