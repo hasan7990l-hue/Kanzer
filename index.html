@@ -1536,10 +1536,6 @@ function runAnalysis() {
 
   const reasonsList = $('reasons-list');
   if (reasonsList) reasonsList.innerHTML = reasons.map(r => `<div style="color:${r.c === 'bull' ? 'var(--green)' : r.c === 'bear' ? 'var(--red)' : 'var(--text-dim)'}">${r.c === 'bull' ? '🟢' : r.c === 'bear' ? '🔴' : '⚪'} ${r.t}</div>`).join('');
-
-  if (state.autoRunning && signal !== 'NEUTRAL' && conf >= parseInt($('auto-min-conf').value)) {
-    executeAutoTrade(signal, conf);
-  }
 }
   function currentCurrency() { return (state.derivAccount && state.derivAccount.currency) || 'USD'; }
 
