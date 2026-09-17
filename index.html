@@ -1144,6 +1144,38 @@ html, body {
       </div>
     </div>
     <section class="page active" id="page-auto">
+      <div class="hunter-panel" id="hunter-panel">
+  <div class="hunter-glow"></div>
+  <div class="hunter-head">
+    <div class="hunter-title">HUNTER</div>
+    <div class="hunter-state" id="hunter-state">
+      <span class="hunter-dot"></span>
+      <span class="hunter-state-txt">جاهز</span>
+    </div>
+  </div>
+  <div class="hunter-stats">
+    <div class="hunter-stat">
+      <div class="hunter-stat-lbl">SCANNED</div>
+      <div class="hunter-stat-val" id="hunter-scanned">0/12</div>
+    </div>
+    <div class="hunter-stat">
+      <div class="hunter-stat-lbl">ACTIVE</div>
+      <div class="hunter-stat-val" id="hunter-active">0/3</div>
+    </div>
+    <div class="hunter-stat">
+      <div class="hunter-stat-lbl">LAST</div>
+      <div class="hunter-stat-val" id="hunter-last">—</div>
+    </div>
+  </div>
+  <div class="hunter-chips" id="hunter-chips"></div>
+  <div class="hunter-log" id="hunter-log">
+    <div class="hunter-log-empty">في الانتظار...</div>
+  </div>
+  <button class="hunter-btn" id="hunter-toggle" onclick="hunterToggle()">
+    <span class="hunter-btn-ico">◆</span>
+    <span class="hunter-btn-txt" id="hunter-btn-txt">تشغيل HUNTER</span>
+  </button>
+      </div>
       <div class="autopilot-shell" id="autopilot-shell">
   <div class="ap-glow"></div>
   <div class="ap-top">
