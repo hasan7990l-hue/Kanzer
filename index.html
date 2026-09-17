@@ -1764,9 +1764,6 @@ function computeKellyAmount(balance) {
   const f = kellyFraction(p, avgWin / avgLoss);
   return Math.max(0.35, balance * f);
 }
-function saveShadowStats() {
-  try { localStorage.setItem('kanzer_shadow', JSON.stringify({ trades: state.shadowTrades.slice(-500), accepted: state.shadowAccepted, rejected: state.shadowRejected })); } catch(e) {}
-}
 function loadShadowStats() {
   try {
     const d = JSON.parse(localStorage.getItem('kanzer_shadow') || '{}');
