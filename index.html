@@ -1041,6 +1041,139 @@ html, body {
   background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.4));
 }
   </style>
+  <style>
+/* ============ HUNTER ============ */
+.hunter-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  padding: 20px 20px 18px;
+  margin-bottom: 16px;
+  background:
+    radial-gradient(ellipse at top right, rgba(155,109,255,0.15), transparent 55%),
+    linear-gradient(145deg, rgba(24,27,36,0.95), rgba(10,11,15,0.95));
+  border: 1px solid rgba(155,109,255,0.28);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06);
+  transition: border-color 0.4s, box-shadow 0.4s;
+}
+.hunter-panel.on {
+  border-color: rgba(155,109,255,0.65);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.55), 0 0 50px rgba(155,109,255,0.18), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.hunter-glow {
+  position: absolute; top: -40%; left: -10%; width: 60%; height: 180%;
+  background: radial-gradient(ellipse, rgba(155,109,255,0.25), transparent 70%);
+  filter: blur(50px); pointer-events: none;
+}
+.hunter-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px; position: relative; z-index: 2;
+}
+.hunter-title {
+  font-size: 14px; letter-spacing: 6px; font-weight: 900;
+  background: linear-gradient(135deg, var(--purple), var(--gold));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.hunter-state {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; padding: 5px 12px;
+  background: rgba(0,0,0,0.35); border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.06); color: var(--text-dim);
+}
+.hunter-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #6b7280;
+  transition: all 0.3s;
+}
+.hunter-panel.on .hunter-state { color: var(--purple); }
+.hunter-panel.on .hunter-dot {
+  background: var(--purple);
+  box-shadow: 0 0 14px var(--purple);
+  animation: hunterPulse 1.6s infinite;
+}
+@keyframes hunterPulse {
+  0%,100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.5; }
+}
+.hunter-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  margin-bottom: 12px; position: relative; z-index: 2;
+}
+.hunter-stat {
+  background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 10px; padding: 10px 8px; text-align: center;
+}
+.hunter-stat-lbl {
+  font-size: 9px; letter-spacing: 2px; color: var(--text-dim);
+  margin-bottom: 4px; text-transform: uppercase;
+}
+.hunter-stat-val {
+  font-family: 'Courier New', monospace; font-size: 15px;
+  font-weight: 900; color: var(--text); direction: ltr;
+}
+.hunter-chips {
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  gap: 4px; margin-bottom: 12px; position: relative; z-index: 2;
+}
+.hunter-chip {
+  padding: 6px 2px; border-radius: 6px;
+  background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05);
+  font-size: 8px; font-family: 'Courier New', monospace;
+  color: rgba(138,144,163,0.5); text-align: center;
+  letter-spacing: 0.5px; transition: all 0.3s; direction: ltr;
+}
+.hunter-chip.ready {
+  color: rgba(0,212,255,0.85); border-color: rgba(0,212,255,0.35);
+  background: rgba(0,212,255,0.08);
+}
+.hunter-chip.buy {
+  color: var(--green); border-color: rgba(38,166,154,0.6);
+  background: rgba(38,166,154,0.15);
+  box-shadow: 0 0 10px rgba(38,166,154,0.4);
+}
+.hunter-chip.sell {
+  color: var(--red); border-color: rgba(239,83,80,0.6);
+  background: rgba(239,83,80,0.15);
+  box-shadow: 0 0 10px rgba(239,83,80,0.4);
+}
+.hunter-log {
+  font-size: 11px; line-height: 1.85; max-height: 100px;
+  overflow-y: auto; margin-bottom: 12px;
+  padding: 10px 12px; border-radius: 8px;
+  background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.04);
+  position: relative; z-index: 2;
+}
+.hunter-log-empty {
+  color: var(--text-dim); text-align: center; padding: 8px;
+}
+.hunter-log-line {
+  font-family: 'Courier New', monospace; direction: rtl;
+  border-bottom: 1px dashed rgba(255,255,255,0.05); padding: 2px 0;
+}
+.hunter-log-line:last-child { border-bottom: none; }
+.hunter-btn {
+  width: 100%; padding: 14px; border: none; border-radius: 12px;
+  cursor: pointer; font-size: 14px; font-weight: 900;
+  letter-spacing: 1.5px; position: relative; z-index: 2;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-family: inherit; color: #fff;
+  background: linear-gradient(135deg, var(--purple), #6a3fd4);
+  box-shadow: 0 8px 24px rgba(155,109,255,0.4);
+  transition: all 0.3s;
+}
+.hunter-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(155,109,255,0.6);
+}
+.hunter-panel.on .hunter-btn {
+  background: linear-gradient(135deg, #ef5350, #c62828);
+  box-shadow: 0 8px 24px rgba(239,83,80,0.35);
+}
+.hunter-btn-ico { font-size: 12px; }
+@media (max-width: 500px) {
+  .hunter-chips { grid-template-columns: repeat(4, 1fr); }
+  .hunter-stats { grid-template-columns: repeat(3, 1fr); }
+}
+  </style>
 </head>
 <body>
 <div class="live-stats" id="live-stats">
