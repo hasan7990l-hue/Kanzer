@@ -610,73 +610,16 @@ a { color:var(--gold); text-decoration:none; }
         </div>
         <div class="ind-grid" id="ind-grid"></div>
       </div>
-
       <div class="panel">
         <div class="panel-title">💡 أسباب الإشارة</div>
         <div id="reasons-list" style="font-size:13px;line-height:2;"></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">🤖 إعدادات التداول التلقائي</div>
-        <div class="form-grid">
-          <div class="field"><label>مبلغ كل صفقة ($)</label><input type="number" id="auto-amount" value="1" min="0.35" step="0.01"></div>
-          <div class="field">
-            <label>المدة (دقيقة)</label>
-            <select id="auto-duration">
-              <option value="1" selected>1 دقيقة</option>
-              <option value="2">2 دقيقة</option>
-              <option value="5">5 دقائق</option>
-            </select>
-          </div>
-          <div class="field"><label>هدف الربح ($)</label><input type="number" id="auto-profit-target" value="50" min="1"></div>
-          <div class="field"><label>حد الخسارة ($)</label><input type="number" id="auto-loss-limit" value="20" min="1"></div>
-          <div class="field"><label>أدنى ثقة (%)</label><input type="number" id="auto-min-conf" value="70" min="40" max="95"></div>
-          <div class="field">
-            <label>وضع التشغيل</label>
-            <select id="shadow-mode">
-              <option value="on" selected>👻 وضع الظلّ — لا تنفيذ</option>
-              <option value="off">⚡ تنفيذ حقيقي</option>
-            </select>
-          </div>
-        </div>
-        <div style="margin-top:14px;display:flex;gap:10px;">
-          <button class="btn btn-gold" id="auto-start-btn" onclick="startAuto()">▶️ بدء</button>
-          <button class="btn btn-sell" id="auto-stop-btn" onclick="stopAuto()" style="display:none;">⏹️ إيقاف</button>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">📊 حالة التشغيل</div>
-        <div class="stats-grid">
-          <div class="stat-card"><div class="label">الحالة</div><div class="value" id="auto-status" style="font-size:16px;">متوقف</div></div>
-          <div class="stat-card green"><div class="label">صفقات</div><div class="value" id="auto-count">0</div></div>
-          <div class="stat-card gold"><div class="label">ربح الجلسة</div><div class="value" id="auto-profit">$0.00</div></div>
-          <div class="stat-card red"><div class="label">خسارة الجلسة</div><div class="value" id="auto-loss">$0.00</div></div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">📋 السجل الحي</div>
-        <div id="auto-log" style="font-size:13px;line-height:2;max-height:300px;overflow-y:auto;">
-          <div style="color:var(--text-dim);">في الانتظار...</div>
-        </div>
-      </div>
-
+      </div> 
       <div class="panel">
         <div class="panel-title">📌 الصفقات النشطة</div>
         <div id="active-trades" style="display:flex;flex-direction:column;gap:10px;">
           <div style="color:var(--text-dim);font-size:14px;">لا صفقات نشطة.</div>
         </div>
       </div>
-
-      <div class="panel">
-        <div class="panel-title">👻 إحصائيات وضع الظلّ</div>
-        <div id="shadow-stats">
-          <div style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px;">في الانتظار... (يبدأ بعد أول إشارة)</div>
-        </div>
-      </div>
-    </section>
-
     <section class="page" id="page-history">
       <div class="panel">
         <div class="panel-title">📜 سجل الصفقات</div>
