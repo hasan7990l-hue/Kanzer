@@ -1642,28 +1642,6 @@ function settleTradeFromDeriv(contract) {
   if (t.smart && typeof window._apOnSettle === 'function') {
   window._apOnSettle(t, won, profit);
   }
-  if (t.auto) {
-    if (won) { state.autoStats.profit += profit; state.autoStats.consecutiveLosses = 0; }
-    else {
-      state.autoStats.loss += Math.abs(profit) || t.amount;
-      state.autoStats.consecutiveLosses = (state.autoStats.consecutiveLosses || 0) + 1;
-      if (state.autoStats.consecutiveLosses >= 3) {
-        addAutoLog('⏸️ 3 خسائر متتالية — إيقاف البوت', 'var(--gold)');
-        showToast('توقف البوت: 3 خسائر متتالية', 'red');
-        setTimeout(() => { if (state.autoRunning) stopAuto(); }, 1000);
-      }
-    }
-    const bal = parseFloat(state.derivAccount?.balance) || 0;
-    if (bal > (state.autoStats.peakBalance || 0)) state.autoStats.peakBalance = bal;
-    const dd = state.autoStats.peakBalance > 0
-      ? ((state.autoStats.peakBalance - bal) / state.autoStats.peakBalance) * 100 : 0;
-    if (dd >= 10) {
-      addAutoLog('🛑 Drawdown 10% — إيقاف البوت', 'var(--red)');
-      showToast('توقف: Drawdown تجاوز 10%', 'red');
-      setTimeout(() => { if (state.autoRunning) stopAuto(); }, 1000);
-    }
-  }
-
   state.totalTrades += 1;
   state.history.unshift({ ...t });
   state.activeTrades.splice(idx, 1);
