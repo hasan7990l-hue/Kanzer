@@ -4820,6 +4820,502 @@ setTimeout(() => {
 
   setInterval(updateStats, 2000);
 })();
-</script> 
+</script>
+  <!-- ====== HUNTER v2 — PART 1 / CORE ====== -->
+<script>
+(function(){
+'use strict';
+if (window.__hz2_core) return;
+window.__hz2_core = { loaded:true, at:Date.now() };
+
+const CFG = {
+  maxConcurrent: 3,
+  maxPerFamily: 2,
+  maxSameSide: 2,
+  riskPerTrade: 0.003,
+  portfolioCap: 0.02,
+  regimeConfirmBars: 3,
+  symbolCooldownMs: 90000,
+  lossStreakPause: 2,
+  lossStreakPauseMs: 15*60*1000,
+  dailyTradeCap: 40,
+  minBars: 80,
+  scanMs: 15000,
+};
+
+const SYMBOLS = [
+  'R_10','R_25','R_50','R_75','R_100',
+  '1HZ10V','1HZ25V','1HZ50V','1HZ75V','1HZ100V',
+  '1HZ150V','1HZ250V'
+];
+const FAMILY = s => s.startsWith('1HZ') ? 'HZ' : 'R';
+
+function ema(a,p){ return calcEMA(a,p); }
+function atrOf(c,p){
+  return calcATR(c.map(x=>x.close), c.map(x=>x.high), c.map(x=>x.low), p||14);
+}
+
+function adxOf(candles, period){
+  period = period || 14;
+  if(candles.length < period*2) return null;
+  const H_=candles.map(c=>c.high), L_=candles.map(c=>c.low), C_=candles.map(c=>c.close);
+  const tr=[], pdm=[], ndm=[];
+  for(let i=1;i<candles.length;i++){
+    const up=H_[i]-H_[i-1], dn=L_[i-1]-L_[i];
+    pdm.push(up>dn&&up>0?up:0); ndm.push(dn>up&&dn>0?dn:0);
+    tr.push(Math.max(H_[i]-L_[i], Math.abs(H_[i]-C_[i-1]), Math.abs(L_[i]-C_[i-1])));
+  }
+  const w=(a,p)=>{
+    const r=[a.slice(0,p).reduce((x,y)=>x+y,0)];
+    for(let i=p;i<a.length;i++) r.push(r[r.length-1]-r[r.length-1]/p+a[i]);
+    return r;
+  };
+  const trS=w(tr,period), pdS=w(pdm,period), ndS=w(ndm,period);
+  const pdi=pdS.map((v,i)=>100*v/(trS[i]||1));
+  const ndi=ndS.map((v,i)=>100*v/(trS[i]||1));
+  const dx=pdi.map((v,i)=>100*Math.abs(v-ndi[i])/((v+ndi[i])||1));
+  if(dx.length<period) return null;
+  let A=dx.slice(0,period).reduce((a,b)=>a+b,0)/period;
+  for(let i=period;i<dx.length;i++) A=(A*(period-1)+dx[i])/period;
+  return { adx:A, pdi:pdi[pdi.length-1], ndi:ndi[ndi.length-1] };
+}
+
+function bbWidthRank(candles, p, lookback){
+  p=p||20; lookback=lookback||100;
+  if(candles.length < p+lookback) return null;
+  const closes=candles.map(c=>c.close);
+  const widths=[];
+  for(let i=p-1;i<closes.length;i++){
+    const sl=closes.slice(i-p+1,i+1);
+    const m=sl.reduce((a,b)=>a+b,0)/p;
+    const sd=Math.sqrt(sl.reduce((a,b)=>a+(b-m)*(b-m),0)/p);
+    widths.push((4*sd)/m);
+  }
+  const cur=widths[widths.length-1];
+  const win=widths.slice(-lookback);
+  return win.filter(x=>x<=cur).length/win.length;
+}
+
+const regimeHist = {};
+
+function classifyRegime(d, sym){
+  if(!d.r5 || d.m5.length < CFG.minBars) return null;
+  const m5=d.m5, closes=m5.map(c=>c.close);
+  const e50=ema(closes,50);
+  const a=atrOf(m5,14), aV=a[a.length-1] || 1e-9;
+  const slope=(e50[e50.length-1]-e50[e50.length-11])/(aV*10);
+  const ax=adxOf(m5,14); const adxV=ax?ax.adx:0;
+  const bwp=bbWidthRank(m5,20,100);
+
+  const trending = adxV > 22 && Math.abs(slope) > 0.12;
+  const squeezing = bwp!==null && bwp < 0.20;
+  const expanding = bwp!==null && bwp > 0.85;
+  const ranging = adxV < 20 && bwp!==null && bwp < 0.5;
+
+  let raw;
+  if(squeezing) raw='SQUEEZE';
+  else if(expanding && adxV>25) raw = slope>0?'TREND_UP':'TREND_DOWN';
+  else if(expanding) raw='EXPANSION';
+  else if(trending) raw = slope>0?'TREND_UP':'TREND_DOWN';
+  else if(ranging) raw='RANGE';
+  else raw='CHOP';
+
+  const h = regimeHist[sym] || (regimeHist[sym]={cur:raw, count:0, last:raw});
+  if(raw===h.last) h.count++; else { h.last=raw; h.count=1; }
+  if(h.count>=CFG.regimeConfirmBars && raw!==h.cur) h.cur=raw;
+
+  return { regime:h.cur, raw, adx:adxV, slope, bbRank:bwp, atr:aV, price:closes[closes.length-1] };
+}
+
+function stratTrendPullback(d, sym, R){
+  const m1=d.m1;
+  if(!d.r1 || m1.length<60) return null;
+  const closes=m1.map(c=>c.close);
+  const e20=ema(closes,20);
+  const a=atrOf(m1,14), aV=a[a.length-1];
+  const price=closes[closes.length-1];
+  const dir = R.regime==='TREND_UP' ? 'BUY' : 'SELL';
+  const dist=Math.abs(price-e20[e20.length-1]);
+  if(dist > 1.2*aV) return null;
+  const r14=calcRSI(closes,14); const r=r14[r14.length-1], rPrev=r14[r14.length-2];
+  const mac=calcMACD(closes);
+  const M=mac.macd[mac.macd.length-1], S=mac.signal[mac.signal.length-1];
+  const momOK = dir==='BUY'
+    ? (M>S && r>40 && r<65 && r>rPrev)
+    : (M<S && r<60 && r>35 && r<rPrev);
+  if(!momOK) return null;
+  if(d.r15 && d.m15.length>50){
+    const c15=d.m15.map(c=>c.close), e50_15=ema(c15,50);
+    const last15 = c15[c15.length-1] > e50_15[e50_15.length-1];
+    if(dir==='BUY' && !last15) return null;
+    if(dir==='SELL' && last15) return null;
+  }
+  return { side:dir, symbol:sym, strategy:'TREND_PULLBACK', entry:price, atr:aV,
+    stop: dir==='BUY' ? price-2*aV : price+2*aV,
+    target: dir==='BUY' ? price+3*aV : price-3*aV,
+    confidence: 0.5 + Math.min(0.3, Math.abs(R.slope)*1.5),
+    regime:R.regime, reasons:['Trend aligned','Pullback EMA20','Momentum turn'] };
+}
+
+function stratRangeFade(d, sym, R){
+  const m1=d.m1;
+  if(!d.r1 || m1.length<80) return null;
+  const closes=m1.map(c=>c.close);
+  const a=atrOf(m1,14), aV=a[a.length-1];
+  const price=closes[closes.length-1];
+  const bb=calcBB(closes,20,2);
+  if(!bb.upper.length) return null;
+  const up=bb.upper[bb.upper.length-1].value, lo=bb.lower[bb.lower.length-1].value;
+  const r14=calcRSI(closes,14), r=r14[r14.length-1];
+  if(d.r15 && d.m15.length>50){
+    const c15=d.m15.map(c=>c.close);
+    const e20=ema(c15,20), e50=ema(c15,50);
+    const spread=Math.abs(e20[e20.length-1]-e50[e50.length-1])/c15[c15.length-1];
+    if(spread > 0.0025) return null;
+  }
+  const touchLo = price <= lo + 0.3*aV && r < 35;
+  const touchUp = price >= up - 0.3*aV && r > 65;
+  if(!touchLo && !touchUp) return null;
+  const c=m1[m1.length-1];
+  const body=Math.abs(c.close-c.open), range=(c.high-c.low)||1e-6;
+  const lw=Math.min(c.close,c.open)-c.low, uw=c.high-Math.max(c.close,c.open);
+  const pinUp = lw > body*1.8 && lw > range*0.5;
+  const pinDn = uw > body*1.8 && uw > range*0.5;
+  if(touchLo && pinUp){
+    return { side:'BUY', symbol:sym, strategy:'RANGE_FADE', entry:price, atr:aV,
+      stop:price-1.8*aV, target:(up+lo)/2,
+      confidence:0.55+Math.min(0.25,(35-r)/100), regime:R.regime,
+      reasons:['Range regime','Lower BB','RSI '+r.toFixed(1),'Pin'] };
+  }
+  if(touchUp && pinDn){
+    return { side:'SELL', symbol:sym, strategy:'RANGE_FADE', entry:price, atr:aV,
+      stop:price+1.8*aV, target:(up+lo)/2,
+      confidence:0.55+Math.min(0.25,(r-65)/100), regime:R.regime,
+      reasons:['Range regime','Upper BB','RSI '+r.toFixed(1),'Pin'] };
+  }
+  return null;
+}
+
+function stratBreakout(d, sym, R){
+  const m1=d.m1;
+  if(!d.r1 || m1.length<60) return null;
+  const closes=m1.map(c=>c.close);
+  const a=atrOf(m1,14), aV=a[a.length-1], aPrev=a[a.length-6]||aV;
+  const bb=calcBB(closes,20,2);
+  if(!bb.upper.length) return null;
+  const up=bb.upper[bb.upper.length-1].value, lo=bb.lower[bb.lower.length-1].value;
+  const c=m1[m1.length-1], price=c.close;
+  if(aV < aPrev*1.15) return null;
+  const mac=calcMACD(closes);
+  const M=mac.macd[mac.macd.length-1], S=mac.signal[mac.signal.length-1];
+  const mPrev=mac.macd[mac.macd.length-2];
+  if(price > up && M>S && M>mPrev){
+    return { side:'BUY', symbol:sym, strategy:'BREAKOUT', entry:price, atr:aV,
+      stop:price-2*aV, target:price+4*aV, confidence:0.6, regime:R.regime,
+      reasons:['Squeeze expand','Close gt BB','MACD expanding'] };
+  }
+  if(price < lo && M<S && M<mPrev){
+    return { side:'SELL', symbol:sym, strategy:'BREAKOUT', entry:price, atr:aV,
+      stop:price+2*aV, target:price-4*aV, confidence:0.6, regime:R.regime,
+      reasons:['Squeeze expand','Close lt BB','MACD expanding'] };
+  }
+  return null;
+}
+
+function stratExhaustion(d, sym, R){
+  const m1=d.m1;
+  if(!d.r1 || m1.length<60) return null;
+  const closes=m1.map(c=>c.close);
+  const a=atrOf(m1,14), aV=a[a.length-1];
+  const r14=calcRSI(closes,14), r=r14[r14.length-1];
+  const c=m1[m1.length-1], price=c.close;
+  let run=0, dir=0;
+  for(let i=m1.length-1;i>m1.length-5;i--){
+    const s=Math.sign(m1[i].close-m1[i].open);
+    if(dir===0){ dir=s; run=1; }
+    else if(s===dir) run++; else break;
+  }
+  if(run<3) return null;
+  const totalMove = Math.abs(price - m1[m1.length-4].open);
+  if(totalMove < 3*aV) return null;
+  const div = (typeof detectDivergence==='function') ? detectDivergence(closes, r14, 40) : {type:'none'};
+  const body=Math.abs(c.close-c.open), range=(c.high-c.low)||1e-6;
+  const lw=Math.min(c.close,c.open)-c.low, uw=c.high-Math.max(c.close,c.open);
+  if(dir<0 && r<25 && (div.type==='bullish'||lw>body*2)){
+    return { side:'BUY', symbol:sym, strategy:'EXHAUSTION', entry:price, atr:aV,
+      stop:price-2.5*aV, target:price+2*aV, confidence:0.5, regime:R.regime,
+      reasons:['Sell exhaustion','RSI '+r.toFixed(1), div.type==='bullish'?'Divergence':'Long wick'] };
+  }
+  if(dir>0 && r>75 && (div.type==='bearish'||uw>body*2)){
+    return { side:'SELL', symbol:sym, strategy:'EXHAUSTION', entry:price, atr:aV,
+      stop:price+2.5*aV, target:price-2*aV, confidence:0.5, regime:R.regime,
+      reasons:['Buy exhaustion','RSI '+r.toFixed(1), div.type==='bearish'?'Divergence':'Long wick'] };
+  }
+  return null;
+}
+
+function route(d, sym, R){
+  switch(R.regime){
+    case 'TREND_UP':
+    case 'TREND_DOWN': return stratTrendPullback(d, sym, R);
+    case 'RANGE':      return stratRangeFade(d, sym, R);
+    case 'SQUEEZE':    return stratBreakout(d, sym, R);
+    case 'EXPANSION':  return stratBreakout(d, sym, R) || stratExhaustion(d, sym, R);
+    case 'CHOP':       return null;
+  }
+  return null;
+}
+
+window.__hz2_core.api = {
+  CFG, SYMBOLS, FAMILY,
+  ema, atrOf, adxOf, bbWidthRank,
+  classifyRegime, route,
+};
+
+console.log('[HUNTER v2] part 1/2 — core loaded');
+})();
+</script>
+  <!-- ====== HUNTER v2 — PART 2 / LOOP ====== -->
+<script>
+(function(){
+'use strict';
+if (window._hunterV2) return;
+const C = window.__hz2_core;
+if (!C) { console.error('[HUNTER v2] part 1 missing'); return; }
+window._hunterV2 = { loaded:true, at:Date.now() };
+
+const { CFG, SYMBOLS, FAMILY, classifyRegime, route } = C.api;
+const $id = id => document.getElementById(id);
+
+const H = {
+  running:false, ws:null, timer:null,
+  data:{}, cooldown:{}, lossStreak:{},
+  pausedUntil:0, dailyTrades:0, dayKey:dk(), scans:0,
+};
+SYMBOLS.forEach(s => H.data[s] = { m1:[], m5:[], m15:[], r1:false, r5:false, r15:false });
+
+function dk(){ const d=new Date(); return d.getUTCFullYear()+'-'+(d.getUTCMonth()+1)+'-'+d.getUTCDate(); }
+
+function setState(t,c){
+  const e=$id('hunter-state'); if(!e) return;
+  e.className='hunter-state'+(c?' '+c:'');
+  const x=e.querySelector('.hunter-state-txt'); if(x) x.textContent=t;
+}
+function logLine(m,c){
+  const l=$id('hunter-log'); if(!l) return;
+  const e=l.querySelector('.hunter-log-empty'); if(e) e.remove();
+  const d=document.createElement('div');
+  d.className='hunter-log-line'; d.style.color=c||'var(--text)';
+  const t=new Date().toLocaleTimeString('ar-EG');
+  d.textContent='['+t+'] '+m;
+  l.prepend(d);
+  while(l.children.length>25) l.removeChild(l.lastChild);
+}
+function chip(s,st){
+  const c=document.querySelector('.hunter-chip[data-sym="'+s+'"]');
+  if(c) c.className='hunter-chip '+(st||'');
+}
+function stats(){
+  const ready=SYMBOLS.filter(s=>H.data[s].r1&&H.data[s].r5&&H.data[s].r15).length;
+  if($id('hunter-scanned')) $id('hunter-scanned').textContent=ready+'/'+SYMBOLS.length;
+  const a=(state.activeTrades||[]).filter(t=>t.hunter).length;
+  if($id('hunter-active')) $id('hunter-active').textContent=a+'/'+CFG.maxConcurrent;
+}
+
+function activeHunter(){ return (state.activeTrades||[]).filter(t=>t.hunter); }
+function bal(){ return parseFloat(state.derivAccount && state.derivAccount.balance)||0; }
+
+function riskCheck(c){
+  const b=bal(); if(b<=0) return {ok:false,why:'no bal'};
+  const act=activeHunter();
+  if(act.length>=CFG.maxConcurrent) return {ok:false,why:'max conc'};
+  const fam=FAMILY(c.symbol);
+  if(act.filter(t=>FAMILY(t.symbol)===fam).length>=CFG.maxPerFamily) return {ok:false,why:'family'};
+  if(act.filter(t=>t.side===c.side).length>=CFG.maxSameSide) return {ok:false,why:'side'};
+  if(act.some(t=>t.symbol===c.symbol)) return {ok:false,why:'busy'};
+  if(H.cooldown[c.symbol] && Date.now()-H.cooldown[c.symbol]<CFG.symbolCooldownMs) return {ok:false,why:'cooldown'};
+  if(Date.now()<H.pausedUntil) return {ok:false,why:'paused'};
+  const agg=act.reduce((s,t)=>s+(t.amount||0),0);
+  if(agg>=b*CFG.portfolioCap) return {ok:false,why:'portfolio'};
+  if(H.dailyTrades>=CFG.dailyTradeCap) return {ok:false,why:'daily'};
+  return {ok:true};
+}
+
+function sizePos(c){
+  const b=bal();
+  const mult={TREND_PULLBACK:1.0,RANGE_FADE:0.8,BREAKOUT:1.2,EXHAUSTION:0.5}[c.strategy]||0.7;
+  let base=b*CFG.riskPerTrade*mult*(0.8+c.confidence*0.4);
+  const act=activeHunter();
+  const agg=act.reduce((s,t)=>s+(t.amount||0),0);
+  const room=Math.max(0, b*CFG.portfolioCap-agg);
+  const amt=Math.min(base, room, b*0.01);
+  return Math.max(0.35, Number(amt.toFixed(2)));
+}
+
+function fire(c){
+  const r=riskCheck(c);
+  if(!r.ok){ chip(c.symbol,'ready'); return false; }
+  const amount=sizePos(c);
+  if(!amount||amount<0.35) return false;
+  const atrPct=c.atr/c.entry;
+  const duration = atrPct<0.0008?3 : atrPct<0.0015?2 : 1;
+  logLine((c.side==='BUY'?'▲ ':'▼ ')+c.side+' '+c.symbol+' ['+c.strategy+'] $'+amount+' '+duration+'m',
+    c.side==='BUY'?'var(--green)':'var(--red)');
+  chip(c.symbol, c.side==='BUY'?'buy':'sell');
+  try{
+    sendProposal({ side:c.side, symbol:c.symbol, amount, duration, auto:false, smart:false, hunter:true });
+  }catch(e){ logLine('send fail: '+e.message,'var(--red)'); return false; }
+  H.cooldown[c.symbol]=Date.now();
+  H.dailyTrades++;
+  if($id('hunter-last')) $id('hunter-last').textContent=c.symbol;
+  return true;
+}
+
+function tick(){
+  if(!H.running) return;
+  if(dk()!==H.dayKey){ H.dayKey=dk(); H.dailyTrades=0; H.lossStreak={}; }
+  if(Date.now()<H.pausedUntil){
+    const m=Math.ceil((H.pausedUntil-Date.now())/60000);
+    setState('Paused '+m+'m','err'); return;
+  }
+  if(!state.derivLinked || !state.derivWS){ setState('Deriv not linked','err'); return; }
+  H.scans++;
+  const cands=[];
+  for(const s of SYMBOLS){
+    const R=classifyRegime(H.data[s], s);
+    if(!R || R.regime==='CHOP'){ chip(s,''); continue; }
+    chip(s,'ready');
+    const c=route(H.data[s], s, R);
+    if(c) cands.push(c);
+  }
+  if(!cands.length){ setState('scan#'+H.scans+' no setup',''); stats(); return; }
+  cands.sort((a,b)=>{
+    const ra=a.confidence*Math.abs(a.target-a.entry)/Math.abs(a.stop-a.entry);
+    const rb=b.confidence*Math.abs(b.target-b.entry)/Math.abs(b.stop-b.entry);
+    return rb-ra;
+  });
+  let fired=0;
+  for(const c of cands){
+    if(fire(c)) fired++;
+    if(fired>=2) break;
+  }
+  setState(fired?'fired '+fired:'setups gated', fired?'on':'');
+  stats();
+}
+
+function pushCandle(arr, tfSec, price){
+  if(!isFinite(price)||price<=0) return;
+  const bt=Math.floor(Date.now()/1000/tfSec)*tfSec;
+  if(!arr.length){ arr.push({time:bt,open:price,high:price,low:price,close:price}); return; }
+  const last=arr[arr.length-1];
+  if(last.time===bt){
+    last.close=price;
+    last.high=Math.max(last.high,price);
+    last.low=Math.min(last.low,price);
+  } else if(last.time<bt){
+    arr.push({time:bt,open:last.close,high:price,low:price,close:price});
+    if(arr.length>400) arr.shift();
+  }
+}
+
+function openWS(){
+  if(H.ws && H.ws.readyState===1) return;
+  if(H.ws){ try{H.ws.close();}catch(e){} }
+  H.ws=new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
+  H.ws.onopen=()=>{
+    logLine('WS up — '+SYMBOLS.length+' symbols','var(--cyan)');
+    SYMBOLS.forEach((s,i)=>{
+      try{
+        H.ws.send(JSON.stringify({ticks_history:s,adjust_start_time:1,count:300,end:'latest',start:1,style:'candles',granularity:60,req_id:10000+i*10}));
+        H.ws.send(JSON.stringify({ticks_history:s,adjust_start_time:1,count:300,end:'latest',start:1,style:'candles',granularity:300,req_id:11000+i*10}));
+        H.ws.send(JSON.stringify({ticks_history:s,adjust_start_time:1,count:200,end:'latest',start:1,style:'candles',granularity:900,req_id:12000+i*10}));
+        H.ws.send(JSON.stringify({ticks:s,subscribe:1,req_id:13000+i}));
+      }catch(e){}
+    });
+  };
+  H.ws.onmessage=ev=>{
+    let m; try{m=JSON.parse(ev.data);}catch(e){return;}
+    if(m.error) return;
+    if(m.msg_type==='candles' && m.echo_req){
+      const s=m.echo_req.ticks_history, g=m.echo_req.granularity;
+      if(!H.data[s]) return;
+      const arr=(m.candles||[]).map(c=>({time:c.epoch,open:+c.open,high:+c.high,low:+c.low,close:+c.close}));
+      if(g===60){ H.data[s].m1=arr; H.data[s].r1=arr.length>=CFG.minBars; }
+      else if(g===300){ H.data[s].m5=arr; H.data[s].r5=arr.length>=CFG.minBars; }
+      else if(g===900){ H.data[s].m15=arr; H.data[s].r15=arr.length>=60; }
+      stats();
+    } else if(m.msg_type==='tick' && m.tick){
+      const s=m.tick.symbol, p=+m.tick.quote;
+      if(!H.data[s]) return;
+      pushCandle(H.data[s].m1, 60, p);
+      pushCandle(H.data[s].m5, 300, p);
+      pushCandle(H.data[s].m15, 900, p);
+    }
+  };
+  H.ws.onclose=()=>{ if(H.running) setTimeout(openWS, 5000); };
+}
+
+function start(){
+  if(H.running) return;
+  if(!state.derivLinked){ alert('اربط حساب Deriv أولاً'); return; }
+  H.running=true; H.scans=0; H.pausedUntil=0;
+  openWS();
+  H.timer=setInterval(tick, CFG.scanMs);
+  const p=$id('hunter-panel'); if(p) p.classList.add('on');
+  if($id('hunter-btn-txt')) $id('hunter-btn-txt').textContent='إيقاف HUNTER';
+  setState('يعمل','on');
+  logLine('HUNTER v2 started — regime-adaptive','var(--purple)');
+  setTimeout(tick, 4000);
+}
+function stop(){
+  H.running=false;
+  if(H.timer){ clearInterval(H.timer); H.timer=null; }
+  if(H.ws){ try{H.ws.close();}catch(e){} H.ws=null; }
+  const p=$id('hunter-panel'); if(p) p.classList.remove('on');
+  if($id('hunter-btn-txt')) $id('hunter-btn-txt').textContent='تشغيل HUNTER';
+  setState('متوقف','');
+  logLine('HUNTER v2 stopped','var(--text-dim)');
+}
+
+window.hunterToggle = () => H.running ? stop() : start();
+
+window._hunterOnSettle = function(trade, won, profit){
+  const fam=FAMILY(trade.symbol);
+  if(won){ H.lossStreak[fam]=0; }
+  else {
+    H.lossStreak[fam]=(H.lossStreak[fam]||0)+1;
+    if(H.lossStreak[fam]>=CFG.lossStreakPause){
+      H.pausedUntil=Date.now()+CFG.lossStreakPauseMs;
+      logLine('Pause 15m — '+fam+' streak','var(--gold)');
+      setState('paused','err');
+    }
+  }
+  logLine((won?'WIN ':'LOSS ')+trade.symbol+' '+(profit>=0?'+':'')+'$'+profit.toFixed(2),
+    won?'var(--green)':'var(--red)');
+  stats();
+};
+
+function buildChips(){
+  const el=$id('hunter-chips'); if(!el) return;
+  el.innerHTML='';
+  SYMBOLS.forEach(s=>{
+    const c=document.createElement('div');
+    c.className='hunter-chip'; c.dataset.sym=s;
+    c.textContent=s.replace('_','').replace('1HZ','1s');
+    el.appendChild(c);
+  });
+}
+setTimeout(buildChips, 1500);
+setInterval(stats, 2500);
+
+window._hunterV2.api = {
+  start, stop, state:H, config:CFG,
+  status(){ return { running:H.running, scans:H.scans, active:activeHunter().length, paused:H.pausedUntil>Date.now(), daily:H.dailyTrades }; }
+};
+
+console.log('[HUNTER v2] part 2/2 — loop active');
+})();
+</script>
+<!-- ====== END PART 2 ====== -->
 </body> 
 </html>
