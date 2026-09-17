@@ -3424,5 +3424,321 @@ function toggleLegal(btn) {
   }, 500);
 })();
 </script> 
+  <script>
+/* ============================================================
+   KANZER AUTOPILOT — محرك مستقل
+   ============================================================ */
+(function(){
+  'use strict';
+
+  const AP = {
+    running: false,
+    timer: null,
+    lastFireAt: 0,
+    minGapMs: 240000,
+    lastSignal: 'NEUTRAL',
+    scanCount: 0,
+    tfSwitchCooldown: 0,
+  };
+
+  window._ap = AP;
+
+  // ============ أدوات الواجهة ============
+  function ui(id) { return document.getElementById(id); }
+
+  function setState(txt, cls) {
+    const s = ui('ap-state');
+    if (!s) return;
+    s.className = 'ap-state' + (cls ? ' ' + cls : '');
+    const t = s.querySelector('.ap-state-txt');
+    if (t) t.textContent = txt;
+  }
+
+  function setScan(txt, cls) {
+    const s = ui('ap-scan');
+    if (!s) return;
+    s.className = 'ap-scan' + (cls ? ' ' + cls : '');
+    const t = s.querySelector('.ap-scan-txt');
+    if (t) t.textContent = txt;
+  }
+
+  function setMeta(key, val) {
+    const el = ui('ap-' + key);
+    if (el) el.textContent = val;
+  }
+
+  function addFeedCard(html, cls) {
+    const feed = ui('ap-feed');
+    if (!feed) return;
+    const empty = feed.querySelector('.ap-feed-empty');
+    if (empty) empty.remove();
+    const card = document.createElement('div');
+    card.className = 'ap-card ' + (cls || '');
+    card.innerHTML = html;
+    feed.prepend(card);
+    while (feed.children.length > 15) feed.removeChild(feed.lastChild);
+  }
+
+  // ============ اختيار الفريم ============
+  function pickTimeframe() {
+    if (!state.candles || state.candles.length < 50) return 60;
+    const closes = state.candles.map(c => c.close);
+    const ema20 = calcEMA(closes, 20);
+    const ema50 = calcEMA(closes, 50);
+    const e20 = ema20[ema20.length - 1];
+    const e50 = ema50[ema50.length - 1];
+    const ratio = e20 / e50;
+
+    // فرق كبير = ترند واضح → الفريم الأقصر آمن
+    if (ratio > 1.004 || ratio < 0.996) return 300;   // 5m
+    // سوق متذبذب → الفريم الأطول
+    return 900; // 15m
+  }
+
+  // ============ اختيار المدة ============
+  function pickDuration(candles) {
+    if (!candles || candles.length < 20) return 1;
+    const closes = candles.map(c => c.close);
+    const highs = candles.map(c => c.high);
+    const lows = candles.map(c => c.low);
+    const atr = calcATR(closes, highs, lows, 14);
+    if (!atr || !atr.length) return 1;
+    const atrVal = atr[atr.length - 1];
+    const price = closes[closes.length - 1];
+    const r = atrVal / price;
+    if (r < 0.0006) return 5;
+    if (r < 0.0010) return 3;
+    if (r < 0.0018) return 2;
+    return 1;
+  }
+
+  // ============ اختيار الحجم (Kelly) ============
+  function pickAmount(balance) {
+    try {
+      if (typeof computeKellyAmount === 'function') {
+        const k = computeKellyAmount(balance);
+        return Math.max(0.35, Math.min(k, balance * 0.02));
+      }
+    } catch(e) {}
+    return Math.max(0.35, balance * 0.01);
+  }
+
+  // ============ المحرك ============
+  function analyze() {
+    if (!state.candles || state.candles.length < 60) {
+      return { signal: 'NEUTRAL', reason: 'بيانات غير كافية (' + (state.candles ? state.candles.length : 0) + '/60)' };
+    }
+    const c = state.candles;
+    const closes = c.map(x => x.close);
+    const highs = c.map(x => x.high);
+    const lows = c.map(x => x.low);
+    const price = closes[closes.length - 1];
+
+    const e9 = calcEMA(closes, 9);
+    const e21 = calcEMA(closes, 21);
+    const e50 = calcEMA(closes, 50);
+    const rsi = calcRSI(closes, 14);
+    const macd = calcMACD(closes);
+    const bb = calcBB(closes);
+    const stoch = calcStoch(closes, highs, lows);
+
+    const E9 = e9[e9.length - 1];
+    const E21 = e21[e21.length - 1];
+    const E50 = e50[e50.length - 1];
+    const R = rsi[rsi.length - 1];
+    const M = macd.macd[macd.macd.length - 1];
+    const MS = macd.signal[macd.signal.length - 1];
+    const UP = bb.upper.length ? bb.upper[bb.upper.length - 1].value : null;
+    const LO = bb.lower.length ? bb.lower[bb.lower.length - 1].value : null;
+    const ST = stoch[stoch.length - 1];
+    const STP = stoch[stoch.length - 2];
+
+    const cur = c[c.length - 1];
+    const prv = c[c.length - 2];
+    const body = Math.abs(cur.close - cur.open);
+    const range = (cur.high - cur.low) || 0.0001;
+    const bodyRatio = body / range;
+
+    // شراء
+    const buyChecks = {
+      'اتجاه صاعد': E9 > E21 && E21 > E50,
+      'MACD إيجابي': M > 0 && M > MS,
+      'RSI متوازن': R >= 42 && R <= 68,
+      'قرب دعم BB': LO !== null && price <= LO * 1.004,
+      'شمعة خضراء': cur.close > cur.open && bodyRatio > 0.45 && cur.close > prv.close,
+      'Stoch صاعد': ST < 70 && ST > STP,
+    };
+
+    // بيع
+    const sellChecks = {
+      'اتجاه هابط': E9 < E21 && E21 < E50,
+      'MACD سلبي': M < 0 && M < MS,
+      'RSI متوازن': R >= 32 && R <= 58,
+      'قرب مقاومة BB': UP !== null && price >= UP * 0.996,
+      'شمعة حمراء': cur.close < cur.open && bodyRatio > 0.45 && cur.close < prv.close,
+      'Stoch هابط': ST > 30 && ST < STP,
+    };
+
+    const buyScore = Object.values(buyChecks).filter(Boolean).length;
+    const sellScore = Object.values(sellChecks).filter(Boolean).length;
+
+    // قرار
+    if (buyScore === 6 && buyScore > sellScore) {
+      return { signal: 'BUY', checks: buyChecks, score: buyScore, price, rsi: R, bbUp: UP, bbLo: LO, e9: E9, e21: E21 };
+    }
+    if (sellScore === 6 && sellScore > buyScore) {
+      return { signal: 'SELL', checks: sellChecks, score: sellScore, price, rsi: R, bbUp: UP, bbLo: LO, e9: E9, e21: E21 };
+    }
+    return {
+      signal: 'NEUTRAL',
+      checks: buyScore > sellScore ? buyChecks : sellChecks,
+      buyScore, sellScore,
+      price, rsi: R, bbUp: UP, bbLo: LO, e9: E9, e21: E21,
+      reason: 'شراء ' + buyScore + '/6 — بيع ' + sellScore + '/6'
+    };
+  }
+
+  // ============ التنفيذ ============
+  function fire(signal, analysis) {
+    const balance = parseFloat(state.derivAccount && state.derivAccount.balance) || 0;
+    if (balance <= 0) { setScan('انتظار الرصيد من Deriv...', ''); return; }
+    if (!state.derivLinked || !state.derivWS) { setScan('Deriv غير مربوط', 'sell'); return; }
+    if (state.activeTrades.length > 0) { setScan('صفقة نشطة — انتظار الإغلاق', 'trade'); return; }
+
+    const tf = pickTimeframe();
+    const tfText = tf === 60 ? '1m' : tf === 300 ? '5m' : '15m';
+    const duration = pickDuration(state.candles);
+    const amount = pickAmount(balance);
+    const symbol = document.getElementById('symbol-select').value;
+
+    setMeta('tf', tfText);
+    setMeta('dur', duration + 'm');
+    setMeta('amt', '$' + amount.toFixed(2));
+    setMeta('last', signal === 'BUY' ? 'شراء' : 'بيع');
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('ar-EG');
+
+    // بطاقة السبب
+    const rows = Object.keys(analysis.checks).map(function(k){
+      const on = analysis.checks[k];
+      return '<div class="ap-card-row"><span>' + (on ? '✓' : '○') + ' ' + k + '</span><span>' + (on ? 'مطابق' : '—') + '</span></div>';
+    }).join('');
+
+    const card =
+      '<div class="ap-card-head">' +
+        '<div class="ap-card-title ' + signal.toLowerCase() + '">' + (signal === 'BUY' ? '▲ صفقة شراء' : '▼ صفقة بيع') + ' — ' + symbol + '</div>' +
+        '<div class="ap-card-time">' + timeStr + '</div>' +
+      '</div>' +
+      '<div class="ap-card-rows">' +
+        '<div class="ap-card-row"><span>سعر الدخول</span><span>' + analysis.price.toFixed(4) + '</span></div>' +
+        '<div class="ap-card-row"><span>المدة</span><span>' + duration + ' دقيقة</span></div>' +
+        '<div class="ap-card-row"><span>الحجم</span><span>$' + amount.toFixed(2) + '</span></div>' +
+        '<div class="ap-card-row"><span>الفريم</span><span>' + tfText + '</span></div>' +
+        '<div class="ap-card-row"><span>RSI</span><span>' + analysis.rsi.toFixed(1) + '</span></div>' +
+        '<div class="ap-card-row"><span>EMA9 / EMA21</span><span>' + analysis.e9.toFixed(2) + ' / ' + analysis.e21.toFixed(2) + '</span></div>' +
+      '</div>' +
+      '<div class="ap-reasons"><b>أسباب الدخول (6/6):</b><br>' + rows + '</div>';
+
+    addFeedCard(card, signal === 'BUY' ? 'buy' : 'sell');
+
+    AP.lastFireAt = Date.now();
+    AP.lastSignal = signal;
+
+    setScan('تنفيذ ' + (signal === 'BUY' ? 'شراء' : 'بيع') + ' — ' + duration + 'm', signal === 'BUY' ? 'buy' : 'sell');
+
+    // إرسال الطلب
+    if (typeof sendProposal === 'function') {
+      sendProposal({ side: signal, symbol: symbol, amount: amount, duration: duration, auto: false, smart: true });
+    }
+  }
+
+  // ============ الحلقة ============
+  function tick() {
+    if (!AP.running) return;
+    try {
+      AP.scanCount++;
+      const r = analyze();
+
+      if (r.signal === 'NEUTRAL') {
+        setScan(r.reason || 'لا إشارة', 'trade');
+        return;
+      }
+
+      const gap = Date.now() - AP.lastFireAt;
+      if (gap < AP.minGapMs) {
+        setScan(r.signal === 'BUY' ? 'شراء محتمل — فاصل زمني' : 'بيع محتمل — فاصل زمني', 'trade');
+        return;
+      }
+
+      fire(r.signal, r);
+    } catch(e) {
+      console.warn('Autopilot error:', e);
+      setScan('خطأ: ' + e.message, 'sell');
+    }
+  }
+
+  // ============ التشغيل/الإيقاف ============
+  window.toggleAutopilot = function() {
+    if (AP.running) return window.stopAutopilot();
+
+    if (!state.derivLinked) { alert('اربط حساب Deriv أولاً'); return; }
+
+    // ضبط الفريم تلقائياً
+    const tf = pickTimeframe();
+    const tfSel = document.getElementById('timeframe-select');
+    if (tfSel && tfSel.value !== String(tf)) {
+      tfSel.value = String(tf);
+      tfSel.dispatchEvent(new Event('change'));
+    }
+
+    AP.running = true;
+    AP.lastFireAt = 0;
+    AP.scanCount = 0;
+    AP.timer = setInterval(tick, 20000);
+
+    const shell = ui('autopilot-shell');
+    if (shell) shell.classList.add('on');
+    const btn = ui('ap-btn-txt');
+    if (btn) btn.textContent = 'إيقاف النظام';
+    setState('يعمل', 'on');
+    setScan('النظام بدأ — فحص كل 20 ثانية', 'trade');
+    tick();
+  };
+
+  window.stopAutopilot = function() {
+    AP.running = false;
+    if (AP.timer) clearInterval(AP.timer);
+    AP.timer = null;
+    const shell = ui('autopilot-shell');
+    if (shell) shell.classList.remove('on');
+    const btn = ui('ap-btn-txt');
+    if (btn) btn.textContent = 'تشغيل النظام';
+    setState('متوقف', '');
+    setScan('النظام متوقف', '');
+  };
+
+  // ============ تسوية الصفقات (بطاقات الفوز/الخسارة) ============
+  window._apOnSettle = function(trade, won, profit) {
+    const timeStr = new Date().toLocaleTimeString('ar-EG');
+    const cls = won ? 'win' : 'loss';
+    const title = won ? '✅ ربح +$' + profit.toFixed(2) : '❌ خسارة $' + Math.abs(profit).toFixed(2);
+    const card =
+      '<div class="ap-card-head">' +
+        '<div class="ap-card-title ' + cls + '">' + title + '</div>' +
+        '<div class="ap-card-time">' + timeStr + '</div>' +
+      '</div>' +
+      '<div class="ap-card-rows">' +
+        '<div class="ap-card-row"><span>النوع</span><span>' + (trade.side === 'BUY' ? 'شراء' : 'بيع') + '</span></div>' +
+        '<div class="ap-card-row"><span>الأصل</span><span>' + (trade.symbol || '—') + '</span></div>' +
+        '<div class="ap-card-row"><span>المدة</span><span>' + (trade.duration || '—') + ' دقيقة</span></div>' +
+        '<div class="ap-card-row"><span>الحجم</span><span>$' + (trade.amount || 0).toFixed(2) + '</span></div>' +
+      '</div>';
+    addFeedCard(card, cls);
+    setScan(won ? 'صفقة رابحة ✓' : 'صفقة خاسرة', won ? 'buy' : 'sell');
+  };
+
+})();
+</script>
 </body>
 </html>
