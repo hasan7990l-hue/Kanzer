@@ -3445,9 +3445,10 @@ function toggleLegal(btn) {
     const sellScore = Object.values(sell).filter(Boolean).length;
 
     let signal = 'NEUTRAL';
-    if (buyScore === 6) signal = 'BUY';
-    else if (sellScore === 6) signal = 'SELL';
-
+    const strictEl = document.getElementById('smart-strictness');
+const need = strictEl ? parseInt(strictEl.value) : 5;
+if (buyScore >= need && buyScore > sellScore) signal = 'BUY';
+else if (sellScore >= need && sellScore > buyScore) signal = 'SELL';
     return {
       signal,
       checks: signal === 'BUY' ? buy : signal === 'SELL' ? sell : (buyScore > sellScore ? buy : sell),
