@@ -3455,7 +3455,7 @@ else if (sellScore >= need && sellScore > buyScore) signal = 'SELL';
       buyScore, sellScore,
       reason: signal !== 'NEUTRAL'
         ? 'جميع المعايير متفقة — إشارة قوية'
-        : 'شراء ' + buyScore + '/6 | بيع ' + sellScore + '/6',
+        '[' + need + '/6] شراء ' + buyScore + ' | بيع ' + sellScore
     };
   }
 
