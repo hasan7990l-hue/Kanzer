@@ -2096,9 +2096,24 @@ async function switchDerivAccount() {
 }
 function unlinkDeriv() {
   if (!confirm('هل تريد فصل الحساب؟')) return;
-  state.derivLinked = false; state.derivToken = null; state.derivAccount = null;
-  localStorage.removeItem('deriv_token');
+
+  // 1) أغلق الاتصال أولاً
+  if (state.derivWS) {
+    try { state.derivWS.close(); } catch(e){}
+    state.derivWS = null;
+  }
   stopDerivKeepAlive();
+
+  // 2) امسح الحالة كاملة
+  state.derivLinked = false;
+  state.derivToken = null;
+  state.derivAccount = null;
+  state.derivAccounts = null;
+  localStorage.removeItem('deriv_token');
+  localStorage.removeItem('deriv_refresh');
+  localStorage.removeItem('deriv_token_time');
+
+  // 3) امسح من Firebase (خلفية)
   (async () => {
     try {
       const u = state.currentUser;
@@ -2106,9 +2121,30 @@ function unlinkDeriv() {
         const t = await window.firebaseAuth.currentUser.getIdToken();
         await fetch('https://kanzer-chat-default-rtdb.firebaseio.com/users/' + u.firebaseUid + '/deriv_token.json?auth=' + t, { method: 'DELETE' });
       }
-    } catch(e) { console.warn(e); }
+    } catch(e) { console.warn('Firebase delete failed:', e); }
   })();
-  saveCurrentUser(); updateDerivUI();
+
+  // 4) احفظ في localStorage — بلا كسر
+  try { saveCurrentUser(); } catch(e) { console.warn('saveCurrentUser failed:', e); }
+
+  // 5) حدّث الواجهة الآن
+  try { updateDerivUI(); } catch(e) { console.warn('updateDerivUI failed:', e); }
+
+  // 6) تأكيد بعد 500ms — فرض صريح للـ DOM
+  setTimeout(() => {
+    const notLinked = document.getElementById('deriv-not-linked');
+    const linked = document.getElementById('deriv-linked');
+    const badge = document.getElementById('deriv-badge');
+    const badgeText = document.getElementById('deriv-badge-text');
+
+    if (!state.derivLinked) {
+      if (notLinked) notLinked.style.display = 'block';
+      if (linked) linked.style.display = 'none';
+      if (badge) badge.className = 'deriv-badge';
+      if (badgeText) badgeText.textContent = 'غير مربوط';
+    }
+  }, 500);
+
   showToast('تم فصل الحساب', 'green');
 }
 function saveProfile() {
