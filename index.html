@@ -465,6 +465,14 @@ a { color:var(--gold); text-decoration:none; }
     <button class="btn btn-cyan" id="smart-start-btn" onclick="startSmartAuto()">🧠 تشغيل الوضع الذكي</button>
     <button class="btn btn-sell" id="smart-stop-btn" onclick="stopSmartAuto()" style="display:none;">⏹️ إيقاف</button>
   </div>
+    <div class="field" style="margin-bottom:12px;">
+  <label style="font-size:11px;color:var(--text-dim);">حدة الفلتر</label>
+  <select id="smart-strictness" style="width:100%;padding:8px;background:var(--bg-1);color:var(--text);border:1px solid var(--border);border-radius:8px;">
+    <option value="6">🛡️ متشدد — 6/6 (نادر جداً، جودة عالية)</option>
+    <option value="5" selected>⚖️ متوازن — 5/6 (موصى به)</option>
+    <option value="4">⚡ نشط — 4/6 (إشارات أكثر)</option>
+  </select>
+  </div>
   <div id="smart-status" style="font-size:13px;color:var(--text-dim);text-align:center;padding:8px;background:var(--bg-1);border-radius:8px;">في الانتظار...</div>
   <div id="smart-checks" style="margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:11px;"></div>
   <div id="smart-log" style="margin-top:10px;font-size:12px;line-height:1.9;max-height:180px;overflow-y:auto;"></div>
