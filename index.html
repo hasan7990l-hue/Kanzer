@@ -4185,18 +4185,16 @@ function toggleLegal(btn) {
 
   // ============ اختيار الفريم ============
   function pickTimeframe() {
-    if (!state.candles || state.candles.length < 50) return 60;
-    const closes = state.candles.map(c => c.close);
-    const ema20 = calcEMA(closes, 20);
-    const ema50 = calcEMA(closes, 50);
-    const e20 = ema20[ema20.length - 1];
-    const e50 = ema50[ema50.length - 1];
-    const ratio = e20 / e50;
+  if (!state.candles || state.candles.length < 50) return 60;
+  const closes = state.candles.map(c => c.close);
+  const ema20 = calcEMA(closes, 20);
+  const ema50 = calcEMA(closes, 50);
+  const e20 = ema20[ema20.length - 1];
+  const e50 = ema50[ema50.length - 1];
+  const ratio = e20 / e50;
 
-    // فرق كبير = ترند واضح → الفريم الأقصر آمن
-    if (ratio > 1.004 || ratio < 0.996) return 300;   // 5m
-    // سوق متذبذب → الفريم الأطول
-    return 900; // 15m
+  if (ratio > 1.003 || ratio < 0.997) return 300;
+  return 60;
   }
 
   // ============ اختيار المدة ============
