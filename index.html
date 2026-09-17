@@ -4460,1505 +4460,30 @@ setTimeout(() => {
 
 })();
 </script>
-<script>
-/* ============================================================
-   KANZER HUNTER — opportunity scanner
-   12 symbols × 2 timeframes (1m + 5m)
-   3 criteria + S/R support/resistance
-   Max 3 concurrent trades
-   ============================================================ */
-(function(){
-  'use strict';
-
-  const HUNTER_SYMBOLS = [
-    'R_10','R_25','R_50','R_75','R_100',
-    '1HZ10V','1HZ25V','1HZ50V','1HZ75V','1HZ100V',
-    '1HZ150V','1HZ250V'
-  ];
-
-  const H = {
-    running: false,
-    ws: null,
-    timer: null,
-    pauseUntil: 0,
-    data: {},
-    scanCount: 0,
-    lastFireAt: 0,
-    minGapMs: 60000,
-    recentSettlements: []
-  };
-
-  HUNTER_SYMBOLS.forEach(s => {
-    H.data[s] = { m1: [], m5: [], ready1: false, ready5: false };
-  });
-
-  window._hunter = H;
-
-  function ui(id) { return document.getElementById(id); }
-
-  function setState(txt, cls) {
-    const el = ui('hunter-state');
-    if (!el) return;
-    el.className = 'hunter-state' + (cls ? ' ' + cls : '');
-    const t = el.querySelector('.hunter-state-txt');
-    if (t) t.textContent = txt;
-  }
-
-  function logLine(msg, color) {
-    const log = ui('hunter-log');
-    if (!log) return;
-    const empty = log.querySelector('.hunter-log-empty');
-    if (empty) empty.remove();
-    const line = document.createElement('div');
-    line.className = 'hunter-log-line';
-    line.style.color = color || 'var(--text)';
-    const t = new Date().toLocaleTimeString('ar-EG');
-    line.textContent = '[' + t + '] ' + msg;
-    log.prepend(line);
-    while (log.children.length > 20) log.removeChild(log.lastChild);
-  }
-
-  function buildChips() {
-    const el = ui('hunter-chips');
-    if (!el || el.children.length) return;
-    HUNTER_SYMBOLS.forEach(s => {
-      const c = document.createElement('div');
-      c.className = 'hunter-chip';
-      c.dataset.sym = s;
-      c.textContent = s.replace('_', '').replace('1HZ', '1s');
-      el.appendChild(c);
-    });
-  }
-
-  function setChip(sym, st) {
-    const c = document.querySelector('.hunter-chip[data-sym="' + sym + '"]');
-    if (c) c.className = 'hunter-chip ' + (st || '');
-  }
-
-  function updateStats() {
-    const ready = HUNTER_SYMBOLS.filter(s => H.data[s].ready1 && H.data[s].ready5).length;
-    if (ui('hunter-scanned')) ui('hunter-scanned').textContent = ready + '/' + HUNTER_SYMBOLS.length;
-    const active = (state.activeTrades || []).filter(t => t.hunter).length;
-    if (ui('hunter-active')) ui('hunter-active').textContent = active + '/3';
-  }
-
-  function openWS() {
-    if (H.ws && H.ws.readyState === 1) return;
-    if (H.ws) { try { H.ws.close(); } catch(e){} }
-    H.ws = new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
-
-    H.ws.onopen = () => {
-      logLine('WS متصل — ' + HUNTER_SYMBOLS.length + ' رمزاً', 'var(--cyan)');
-      HUNTER_SYMBOLS.forEach((sym, idx) => {
-        try {
-          H.ws.send(JSON.stringify({
-            ticks_history: sym, adjust_start_time: 1, count: 250, end: 'latest',
-            start: 1, style: 'candles', granularity: 60, req_id: 10000 + idx * 10
-          }));
-          H.ws.send(JSON.stringify({
-            ticks_history: sym, adjust_start_time: 1, count: 250, end: 'latest',
-            start: 1, style: 'candles', granularity: 300, req_id: 11000 + idx * 10
-          }));
-          H.ws.send(JSON.stringify({ ticks: sym, subscribe: 1, req_id: 12000 + idx }));
-        } catch(e){}
-      });
-    };
-
-    H.ws.onmessage = (ev) => {
-      let msg; try { msg = JSON.parse(ev.data); } catch(e){ return; }
-      if (msg.error) return;
-
-      if (msg.msg_type === 'candles' && msg.echo_req) {
-        const sym = msg.echo_req.ticks_history;
-        const gran = msg.echo_req.granularity;
-        if (!H.data[sym]) return;
-        const arr = (msg.candles || []).map(c => ({
-          time: c.epoch, open: +c.open, high: +c.high, low: +c.low, close: +c.close
-        }));
-        if (gran === 60) {
-          H.data[sym].m1 = arr;
-          if (arr.length >= 60) H.data[sym].ready1 = true;
-        } else if (gran === 300) {
-          H.data[sym].m5 = arr;
-          if (arr.length >= 60) H.data[sym].ready5 = true;
-        }
-        updateStats();
-      }
-      else if (msg.msg_type === 'tick' && msg.tick) {
-        const sym = msg.tick.symbol;
-        if (!H.data[sym]) return;
-        const price = +msg.tick.quote;
-        const now = Math.floor(Date.now()/1000);
-        const d = H.data[sym];
-        if (d.m1.length) {
-          const bt = Math.floor(now/60)*60;
-          const last = d.m1[d.m1.length-1];
-          if (last.time === bt) {
-            last.close = price;
-            last.high = Math.max(last.high, price);
-            last.low = Math.min(last.low, price);
-          } else if (last.time < bt) {
-            d.m1.push({ time: bt, open: last.close, high: price, low: price, close: price });
-            if (d.m1.length > 300) d.m1.shift();
-          }
-        }
-        if (d.m5.length) {
-          const bt = Math.floor(now/300)*300;
-          const last = d.m5[d.m5.length-1];
-          if (last.time === bt) {
-            last.close = price;
-            last.high = Math.max(last.high, price);
-            last.low = Math.min(last.low, price);
-          } else if (last.time < bt) {
-            d.m5.push({ time: bt, open: last.close, high: price, low: price, close: price });
-            if (d.m5.length > 200) d.m5.shift();
-          }
-        }
-      }
-    };
-
-    H.ws.onclose = () => { if (H.running) setTimeout(openWS, 5000); };
-  }
-
-  function trend5m(candles) {
-    if (!candles || candles.length < 50) return 'NEUTRAL';
-    const closes = candles.map(c => c.close);
-    const e9 = calcEMA(closes, 9);
-    const e21 = calcEMA(closes, 21);
-    const e50 = calcEMA(closes, 50);
-    const E9 = e9[e9.length-1], E21 = e21[e21.length-1], E50 = e50[e50.length-1];
-    if (E9 > E21 && E21 > E50) return 'BULL';
-    if (E9 < E21 && E21 < E50) return 'BEAR';
-    return 'NEUTRAL';
-  }
-
-  function momentum1m(candles) {
-    if (!candles || candles.length < 40) return 'NEUTRAL';
-    const closes = candles.map(c => c.close);
-    const { macd, signal } = calcMACD(closes);
-    const M = macd[macd.length-1];
-    const S = signal[signal.length-1];
-    if (M > 0 && M > S) return 'BULL';
-    if (M < 0 && M < S) return 'BEAR';
-    return 'NEUTRAL';
-  }
-
-  function nearSR(candles, side) {
-    if (!candles || candles.length < 30) return null;
-    const sr = calcSR(candles, 5);
-    const price = candles[candles.length-1].close;
-    if (side === 'BUY') {
-      const sup = sr.supports.find(s => s.tests >= 2) || sr.supports[0];
-      if (!sup) return null;
-      const dist = (price - sup.price) / price;
-      if (Math.abs(dist) < 0.0025 && dist >= -0.001) return { level: sup.price, tests: sup.tests };
-    } else {
-      const res = sr.resistances.find(r => r.tests >= 2) || sr.resistances[0];
-      if (!res) return null;
-      const dist = (res.price - price) / price;
-      if (Math.abs(dist) < 0.0025 && dist >= -0.001) return { level: res.price, tests: res.tests };
-    }
-    return null;
-  }
-
-  function analyzeSymbol(sym) {
-    const d = H.data[sym];
-    if (!d.ready1 || !d.ready5) return null;
-    const trend = trend5m(d.m5);
-    const mom = momentum1m(d.m1);
-    if (trend === 'NEUTRAL' || mom === 'NEUTRAL') return null;
-    if (trend !== mom) return null;
-    if (trend === 'BULL') {
-      const sr = nearSR(d.m1, 'BUY');
-      if (!sr) return null;
-      return { side: 'BUY', symbol: sym, sr, trend, mom };
-    } else {
-      const sr = nearSR(d.m1, 'SELL');
-      if (!sr) return null;
-      return { side: 'SELL', symbol: sym, sr, trend, mom };
-    }
-  }
-
-  // Placeholder — يُستكمل في الرد 2ب
-  window._hunterPart1Ready = { analyzeSymbol: analyzeSymbol, logLine: logLine, setState: setState, setChip: setChip, updateStats: updateStats, openWS: openWS, ui: ui, H: H, HUNTER_SYMBOLS: HUNTER_SYMBOLS };
-
-})();
-</script>
- <script>
-/* ============================================================
-   KANZER HUNTER — part 2: execution + control
-   ============================================================ */
-(function(){
-  'use strict';
-  const P = window._hunterPart1Ready;
-  if (!P) { console.warn('HUNTER part 1 not ready'); return; }
-  const { analyzeSymbol, logLine, setState, setChip, updateStats, openWS, ui, H, HUNTER_SYMBOLS } = P;
-
-  const MAX_CONCURRENT = 3;
-
-  function activeHunterTrades() {
-    return (state.activeTrades || []).filter(t => t.hunter);
-  }
-
-  function pickAmount() {
-    const balance = parseFloat(state.derivAccount && state.derivAccount.balance) || 0;
-    if (balance <= 0) return null;
-    const active = activeHunterTrades();
-    const activeAmt = active.reduce((s, t) => s + (t.amount || 0), 0);
-    const cap = balance * 0.02;
-    if (activeAmt >= cap) return null;
-    const perTrade = Math.min(balance * 0.003, cap - activeAmt);
-    const amt = Number(perTrade.toFixed(2));
-    return amt >= 0.35 ? amt : 0.35;
-  }
-
-  function canFire(c) {
-    const active = activeHunterTrades();
-    if (active.length >= MAX_CONCURRENT) return false;
-    if (active.some(t => t.symbol === c.symbol)) return false;
-    const sameSide = active.filter(t => t.side === c.side).length;
-    if (sameSide >= 1) return false;
-    const bal = parseFloat(state.derivAccount && state.derivAccount.balance) || 0;
-    const activeAmt = active.reduce((s, t) => s + (t.amount || 0), 0);
-    if (activeAmt >= bal * 0.02) return false;
-    return true;
-  }
-
-  function fire(c) {
-    const amount = pickAmount();
-    if (!amount) return false;
-    logLine(c.side + ' ' + c.symbol + ' @ ' + c.sr.level.toFixed(4) + ' (×' + c.sr.tests + ')',
-      c.side === 'BUY' ? 'var(--green)' : 'var(--red)');
-    setChip(c.symbol, c.side === 'BUY' ? 'buy' : 'sell');
-    try {
-      sendProposal({
-        side: c.side, symbol: c.symbol, amount: amount,
-        duration: 1, auto: false, smart: false, hunter: true
-      });
-    } catch(e) { logLine('فشل الإرسال: ' + e.message, 'var(--red)'); return false; }
-    H.lastFireAt = Date.now();
-    if (ui('hunter-last')) ui('hunter-last').textContent = c.symbol;
-    return true;
-  }
-
-  function tick() {
-    if (!H.running) return;
-    if (Date.now() < H.pauseUntil) {
-      const rem = Math.ceil((H.pauseUntil - Date.now()) / 60000);
-      setState('إيقاف مؤقت — ' + rem + 'د', 'err');
-      return;
-    }
-    if (!state.derivLinked || !state.derivWS) {
-      setState('Deriv غير مربوط', 'err'); return;
-    }
-    H.scanCount++;
-    const candidates = [];
-    HUNTER_SYMBOLS.forEach(s => {
-      const c = analyzeSymbol(s);
-      if (!c) return;
-      setChip(s, c.side === 'BUY' ? 'buy' : 'sell');
-      candidates.push(c);
-    });
-    if (!candidates.length) { setState('يمسح #' + H.scanCount, ''); return; }
-    candidates.sort((a, b) => b.sr.tests - a.sr.tests);
-    let fired = 0;
-    for (const c of candidates) {
-      if (!canFire(c)) continue;
-      if (fire(c)) fired++;
-      if (fired >= 2) break;
-    }
-    if (fired) setState('أطلق ' + fired + ' صفقة', 'on');
-    else setState('فرص متاحة، لكن مقيّدة', '');
-    updateStats();
-  }
-
-  function start() {
-    if (H.running) return;
-    if (!state.derivLinked) { alert('اربط حساب Deriv أولاً'); return; }
-    H.running = true;
-    H.scanCount = 0;
-    H.pauseUntil = 0;
-    H.recentSettlements = [];
-    openWS();
-    H.timer = setInterval(tick, 20000);
-    const p = ui('hunter-panel'); if (p) p.classList.add('on');
-    if (ui('hunter-btn-txt')) ui('hunter-btn-txt').textContent = 'إيقاف HUNTER';
-    setState('يعمل', 'on');
-    logLine('HUNTER بدأ — ' + HUNTER_SYMBOLS.length + ' رمز × فريمين', 'var(--purple)');
-    updateStats();
-    setTimeout(tick, 3000);
-  }
-
-  function stop() {
-    H.running = false;
-    if (H.timer) clearInterval(H.timer);
-    H.timer = null;
-    if (H.ws) { try { H.ws.close(); } catch(e){} H.ws = null; }
-    const p = ui('hunter-panel'); if (p) p.classList.remove('on');
-    if (ui('hunter-btn-txt')) ui('hunter-btn-txt').textContent = 'تشغيل HUNTER';
-    setState('متوقف', '');
-    logLine('HUNTER توقف', 'var(--text-dim)');
-  }
-
-  window.hunterToggle = function() { H.running ? stop() : start(); };
-
-  window._hunterOnSettle = function(trade, won, profit) {
-    H.recentSettlements = H.recentSettlements || [];
-    H.recentSettlements.push({ ts: Date.now(), won });
-    if (H.recentSettlements.length > 6) H.recentSettlements.shift();
-    const recent = H.recentSettlements.filter(x => Date.now() - x.ts < 20 * 60 * 1000);
-    if (recent.filter(x => !x.won).length >= 2) {
-      H.pauseUntil = Date.now() + 15 * 60 * 1000;
-      logLine('⏸️ إيقاف مؤقت 15د — خسارتان', 'var(--gold)');
-      setState('إيقاف مؤقت', 'err');
-    }
-    logLine((won ? '✅ ربح' : '❌ خسارة') + ' ' + trade.symbol + ' ' +
-      (profit >= 0 ? '+' : '') + '$' + profit.toFixed(2),
-      won ? 'var(--green)' : 'var(--red)');
-    updateStats();
-  };
-
-  setInterval(updateStats, 2000);
-})();
-</script>
-  <!-- ====== HUNTER v2 — PART 1 / CORE ====== -->
+  <!-- ====== A: calcBB Patch + Risk Suite ====== -->
 <script>
 (function(){
-'use strict';
-if (window.__hz2_core) return;
-window.__hz2_core = { loaded:true, at:Date.now() };
-
-const CFG = {
-  maxConcurrent: 3,
-  maxPerFamily: 2,
-  maxSameSide: 2,
-  riskPerTrade: 0.003,
-  portfolioCap: 0.02,
-  regimeConfirmBars: 3,
-  symbolCooldownMs: 90000,
-  lossStreakPause: 2,
-  lossStreakPauseMs: 15*60*1000,
-  dailyTradeCap: 40,
-  minBars: 80,
-  scanMs: 15000,
-};
-
-const SYMBOLS = [
-  'R_10','R_25','R_50','R_75','R_100',
-  '1HZ10V','1HZ25V','1HZ50V','1HZ75V','1HZ100V',
-  '1HZ150V','1HZ250V'
-];
-const FAMILY = s => s.startsWith('1HZ') ? 'HZ' : 'R';
-
-function ema(a,p){ return calcEMA(a,p); }
-function atrOf(c,p){
-  return calcATR(c.map(x=>x.close), c.map(x=>x.high), c.map(x=>x.low), p||14);
-}
-
-function adxOf(candles, period){
-  period = period || 14;
-  if(candles.length < period*2) return null;
-  const H_=candles.map(c=>c.high), L_=candles.map(c=>c.low), C_=candles.map(c=>c.close);
-  const tr=[], pdm=[], ndm=[];
-  for(let i=1;i<candles.length;i++){
-    const up=H_[i]-H_[i-1], dn=L_[i-1]-L_[i];
-    pdm.push(up>dn&&up>0?up:0); ndm.push(dn>up&&dn>0?dn:0);
-    tr.push(Math.max(H_[i]-L_[i], Math.abs(H_[i]-C_[i-1]), Math.abs(L_[i]-C_[i-1])));
-  }
-  const w=(a,p)=>{
-    const r=[a.slice(0,p).reduce((x,y)=>x+y,0)];
-    for(let i=p;i<a.length;i++) r.push(r[r.length-1]-r[r.length-1]/p+a[i]);
-    return r;
-  };
-  const trS=w(tr,period), pdS=w(pdm,period), ndS=w(ndm,period);
-  const pdi=pdS.map((v,i)=>100*v/(trS[i]||1));
-  const ndi=ndS.map((v,i)=>100*v/(trS[i]||1));
-  const dx=pdi.map((v,i)=>100*Math.abs(v-ndi[i])/((v+ndi[i])||1));
-  if(dx.length<period) return null;
-  let A=dx.slice(0,period).reduce((a,b)=>a+b,0)/period;
-  for(let i=period;i<dx.length;i++) A=(A*(period-1)+dx[i])/period;
-  return { adx:A, pdi:pdi[pdi.length-1], ndi:ndi[ndi.length-1] };
-}
-
-function bbWidthRank(candles, p, lookback){
-  p=p||20; lookback=lookback||100;
-  if(candles.length < p+lookback) return null;
-  const closes=candles.map(c=>c.close);
-  const widths=[];
+if(window._kzBBFix) return; window._kzBBFix=true;
+window.calcBB = function(closes, p, m){
+  p=p||20; m=m||2;
+  if(!Array.isArray(closes)||closes.length<p) return {upper:[],lower:[]};
+  const src=(typeof state!=='undefined'&&state.candles)?state.candles:[];
+  const up=[],lo=[];
   for(let i=p-1;i<closes.length;i++){
-    const sl=closes.slice(i-p+1,i+1);
-    const m=sl.reduce((a,b)=>a+b,0)/p;
-    const sd=Math.sqrt(sl.reduce((a,b)=>a+(b-m)*(b-m),0)/p);
-    widths.push((4*sd)/m);
+    const s=closes.slice(i-p+1,i+1);
+    const mean=s.reduce((a,b)=>a+b,0)/p;
+    const v=s.reduce((a,b)=>a+(b-mean)**2,0)/p;
+    const sd=Math.sqrt(v);
+    const t=(src.length>i&&src[i]&&typeof src[i].time==='number')?src[i].time:i;
+    up.push({time:t,value:mean+m*sd});
+    lo.push({time:t,value:mean-m*sd});
   }
-  const cur=widths[widths.length-1];
-  const win=widths.slice(-lookback);
-  return win.filter(x=>x<=cur).length/win.length;
-}
-
-const regimeHist = {};
-
-function classifyRegime(d, sym){
-  if(!d.r5 || d.m5.length < CFG.minBars) return null;
-  const m5=d.m5, closes=m5.map(c=>c.close);
-  const e50=ema(closes,50);
-  const a=atrOf(m5,14), aV=a[a.length-1] || 1e-9;
-  const slope=(e50[e50.length-1]-e50[e50.length-11])/(aV*10);
-  const ax=adxOf(m5,14); const adxV=ax?ax.adx:0;
-  const bwp=bbWidthRank(m5,20,100);
-
-  const trending = adxV > 22 && Math.abs(slope) > 0.12;
-  const squeezing = bwp!==null && bwp < 0.20;
-  const expanding = bwp!==null && bwp > 0.85;
-  const ranging = adxV < 20 && bwp!==null && bwp < 0.5;
-
-  let raw;
-  if(squeezing) raw='SQUEEZE';
-  else if(expanding && adxV>25) raw = slope>0?'TREND_UP':'TREND_DOWN';
-  else if(expanding) raw='EXPANSION';
-  else if(trending) raw = slope>0?'TREND_UP':'TREND_DOWN';
-  else if(ranging) raw='RANGE';
-  else raw='CHOP';
-
-  const h = regimeHist[sym] || (regimeHist[sym]={cur:raw, count:0, last:raw});
-  if(raw===h.last) h.count++; else { h.last=raw; h.count=1; }
-  if(h.count>=CFG.regimeConfirmBars && raw!==h.cur) h.cur=raw;
-
-  return { regime:h.cur, raw, adx:adxV, slope, bbRank:bwp, atr:aV, price:closes[closes.length-1] };
-}
-
-function stratTrendPullback(d, sym, R){
-  const m1=d.m1;
-  if(!d.r1 || m1.length<60) return null;
-  const closes=m1.map(c=>c.close);
-  const e20=ema(closes,20);
-  const a=atrOf(m1,14), aV=a[a.length-1];
-  const price=closes[closes.length-1];
-  const dir = R.regime==='TREND_UP' ? 'BUY' : 'SELL';
-  const dist=Math.abs(price-e20[e20.length-1]);
-  if(dist > 1.2*aV) return null;
-  const r14=calcRSI(closes,14); const r=r14[r14.length-1], rPrev=r14[r14.length-2];
-  const mac=calcMACD(closes);
-  const M=mac.macd[mac.macd.length-1], S=mac.signal[mac.signal.length-1];
-  const momOK = dir==='BUY'
-    ? (M>S && r>40 && r<65 && r>rPrev)
-    : (M<S && r<60 && r>35 && r<rPrev);
-  if(!momOK) return null;
-  if(d.r15 && d.m15.length>50){
-    const c15=d.m15.map(c=>c.close), e50_15=ema(c15,50);
-    const last15 = c15[c15.length-1] > e50_15[e50_15.length-1];
-    if(dir==='BUY' && !last15) return null;
-    if(dir==='SELL' && last15) return null;
-  }
-  return { side:dir, symbol:sym, strategy:'TREND_PULLBACK', entry:price, atr:aV,
-    stop: dir==='BUY' ? price-2*aV : price+2*aV,
-    target: dir==='BUY' ? price+3*aV : price-3*aV,
-    confidence: 0.5 + Math.min(0.3, Math.abs(R.slope)*1.5),
-    regime:R.regime, reasons:['Trend aligned','Pullback EMA20','Momentum turn'] };
-}
-
-function stratRangeFade(d, sym, R){
-  const m1=d.m1;
-  if(!d.r1 || m1.length<80) return null;
-  const closes=m1.map(c=>c.close);
-  const a=atrOf(m1,14), aV=a[a.length-1];
-  const price=closes[closes.length-1];
-  const bb=calcBB(closes,20,2);
-  if(!bb.upper.length) return null;
-  const up=bb.upper[bb.upper.length-1].value, lo=bb.lower[bb.lower.length-1].value;
-  const r14=calcRSI(closes,14), r=r14[r14.length-1];
-  if(d.r15 && d.m15.length>50){
-    const c15=d.m15.map(c=>c.close);
-    const e20=ema(c15,20), e50=ema(c15,50);
-    const spread=Math.abs(e20[e20.length-1]-e50[e50.length-1])/c15[c15.length-1];
-    if(spread > 0.0025) return null;
-  }
-  const touchLo = price <= lo + 0.3*aV && r < 35;
-  const touchUp = price >= up - 0.3*aV && r > 65;
-  if(!touchLo && !touchUp) return null;
-  const c=m1[m1.length-1];
-  const body=Math.abs(c.close-c.open), range=(c.high-c.low)||1e-6;
-  const lw=Math.min(c.close,c.open)-c.low, uw=c.high-Math.max(c.close,c.open);
-  const pinUp = lw > body*1.8 && lw > range*0.5;
-  const pinDn = uw > body*1.8 && uw > range*0.5;
-  if(touchLo && pinUp){
-    return { side:'BUY', symbol:sym, strategy:'RANGE_FADE', entry:price, atr:aV,
-      stop:price-1.8*aV, target:(up+lo)/2,
-      confidence:0.55+Math.min(0.25,(35-r)/100), regime:R.regime,
-      reasons:['Range regime','Lower BB','RSI '+r.toFixed(1),'Pin'] };
-  }
-  if(touchUp && pinDn){
-    return { side:'SELL', symbol:sym, strategy:'RANGE_FADE', entry:price, atr:aV,
-      stop:price+1.8*aV, target:(up+lo)/2,
-      confidence:0.55+Math.min(0.25,(r-65)/100), regime:R.regime,
-      reasons:['Range regime','Upper BB','RSI '+r.toFixed(1),'Pin'] };
-  }
-  return null;
-}
-
-function stratBreakout(d, sym, R){
-  const m1=d.m1;
-  if(!d.r1 || m1.length<60) return null;
-  const closes=m1.map(c=>c.close);
-  const a=atrOf(m1,14), aV=a[a.length-1], aPrev=a[a.length-6]||aV;
-  const bb=calcBB(closes,20,2);
-  if(!bb.upper.length) return null;
-  const up=bb.upper[bb.upper.length-1].value, lo=bb.lower[bb.lower.length-1].value;
-  const c=m1[m1.length-1], price=c.close;
-  if(aV < aPrev*1.15) return null;
-  const mac=calcMACD(closes);
-  const M=mac.macd[mac.macd.length-1], S=mac.signal[mac.signal.length-1];
-  const mPrev=mac.macd[mac.macd.length-2];
-  if(price > up && M>S && M>mPrev){
-    return { side:'BUY', symbol:sym, strategy:'BREAKOUT', entry:price, atr:aV,
-      stop:price-2*aV, target:price+4*aV, confidence:0.6, regime:R.regime,
-      reasons:['Squeeze expand','Close gt BB','MACD expanding'] };
-  }
-  if(price < lo && M<S && M<mPrev){
-    return { side:'SELL', symbol:sym, strategy:'BREAKOUT', entry:price, atr:aV,
-      stop:price+2*aV, target:price-4*aV, confidence:0.6, regime:R.regime,
-      reasons:['Squeeze expand','Close lt BB','MACD expanding'] };
-  }
-  return null;
-}
-
-function stratExhaustion(d, sym, R){
-  const m1=d.m1;
-  if(!d.r1 || m1.length<60) return null;
-  const closes=m1.map(c=>c.close);
-  const a=atrOf(m1,14), aV=a[a.length-1];
-  const r14=calcRSI(closes,14), r=r14[r14.length-1];
-  const c=m1[m1.length-1], price=c.close;
-  let run=0, dir=0;
-  for(let i=m1.length-1;i>m1.length-5;i--){
-    const s=Math.sign(m1[i].close-m1[i].open);
-    if(dir===0){ dir=s; run=1; }
-    else if(s===dir) run++; else break;
-  }
-  if(run<3) return null;
-  const totalMove = Math.abs(price - m1[m1.length-4].open);
-  if(totalMove < 3*aV) return null;
-  const div = (typeof detectDivergence==='function') ? detectDivergence(closes, r14, 40) : {type:'none'};
-  const body=Math.abs(c.close-c.open), range=(c.high-c.low)||1e-6;
-  const lw=Math.min(c.close,c.open)-c.low, uw=c.high-Math.max(c.close,c.open);
-  if(dir<0 && r<25 && (div.type==='bullish'||lw>body*2)){
-    return { side:'BUY', symbol:sym, strategy:'EXHAUSTION', entry:price, atr:aV,
-      stop:price-2.5*aV, target:price+2*aV, confidence:0.5, regime:R.regime,
-      reasons:['Sell exhaustion','RSI '+r.toFixed(1), div.type==='bullish'?'Divergence':'Long wick'] };
-  }
-  if(dir>0 && r>75 && (div.type==='bearish'||uw>body*2)){
-    return { side:'SELL', symbol:sym, strategy:'EXHAUSTION', entry:price, atr:aV,
-      stop:price+2.5*aV, target:price-2*aV, confidence:0.5, regime:R.regime,
-      reasons:['Buy exhaustion','RSI '+r.toFixed(1), div.type==='bearish'?'Divergence':'Long wick'] };
-  }
-  return null;
-}
-
-function route(d, sym, R){
-  switch(R.regime){
-    case 'TREND_UP':
-    case 'TREND_DOWN': return stratTrendPullback(d, sym, R);
-    case 'RANGE':      return stratRangeFade(d, sym, R);
-    case 'SQUEEZE':    return stratBreakout(d, sym, R);
-    case 'EXPANSION':  return stratBreakout(d, sym, R) || stratExhaustion(d, sym, R);
-    case 'CHOP':       return null;
-  }
-  return null;
-}
-
-window.__hz2_core.api = {
-  CFG, SYMBOLS, FAMILY,
-  ema, atrOf, adxOf, bbWidthRank,
-  classifyRegime, route,
+  return {upper:up,lower:lo};
 };
-
-console.log('[HUNTER v2] part 1/2 — core loaded');
+console.log('[A1] calcBB patched');
 })();
 </script>
-  <!-- ====== HUNTER v2 — PART 2 / LOOP ====== -->
-<script>
-(function(){
-'use strict';
-if (window._hunterV2) return;
-const C = window.__hz2_core;
-if (!C) { console.error('[HUNTER v2] part 1 missing'); return; }
-window._hunterV2 = { loaded:true, at:Date.now() };
 
-const { CFG, SYMBOLS, FAMILY, classifyRegime, route } = C.api;
-const $id = id => document.getElementById(id);
-
-const H = {
-  running:false, ws:null, timer:null,
-  data:{}, cooldown:{}, lossStreak:{},
-  pausedUntil:0, dailyTrades:0, dayKey:dk(), scans:0,
-};
-SYMBOLS.forEach(s => H.data[s] = { m1:[], m5:[], m15:[], r1:false, r5:false, r15:false });
-
-function dk(){ const d=new Date(); return d.getUTCFullYear()+'-'+(d.getUTCMonth()+1)+'-'+d.getUTCDate(); }
-
-function setState(t,c){
-  const e=$id('hunter-state'); if(!e) return;
-  e.className='hunter-state'+(c?' '+c:'');
-  const x=e.querySelector('.hunter-state-txt'); if(x) x.textContent=t;
-}
-function logLine(m,c){
-  const l=$id('hunter-log'); if(!l) return;
-  const e=l.querySelector('.hunter-log-empty'); if(e) e.remove();
-  const d=document.createElement('div');
-  d.className='hunter-log-line'; d.style.color=c||'var(--text)';
-  const t=new Date().toLocaleTimeString('ar-EG');
-  d.textContent='['+t+'] '+m;
-  l.prepend(d);
-  while(l.children.length>25) l.removeChild(l.lastChild);
-}
-function chip(s,st){
-  const c=document.querySelector('.hunter-chip[data-sym="'+s+'"]');
-  if(c) c.className='hunter-chip '+(st||'');
-}
-function stats(){
-  const ready=SYMBOLS.filter(s=>H.data[s].r1&&H.data[s].r5&&H.data[s].r15).length;
-  if($id('hunter-scanned')) $id('hunter-scanned').textContent=ready+'/'+SYMBOLS.length;
-  const a=(state.activeTrades||[]).filter(t=>t.hunter).length;
-  if($id('hunter-active')) $id('hunter-active').textContent=a+'/'+CFG.maxConcurrent;
-}
-
-function activeHunter(){ return (state.activeTrades||[]).filter(t=>t.hunter); }
-function bal(){ return parseFloat(state.derivAccount && state.derivAccount.balance)||0; }
-
-function riskCheck(c){
-  const b=bal(); if(b<=0) return {ok:false,why:'no bal'};
-  const act=activeHunter();
-  if(act.length>=CFG.maxConcurrent) return {ok:false,why:'max conc'};
-  const fam=FAMILY(c.symbol);
-  if(act.filter(t=>FAMILY(t.symbol)===fam).length>=CFG.maxPerFamily) return {ok:false,why:'family'};
-  if(act.filter(t=>t.side===c.side).length>=CFG.maxSameSide) return {ok:false,why:'side'};
-  if(act.some(t=>t.symbol===c.symbol)) return {ok:false,why:'busy'};
-  if(H.cooldown[c.symbol] && Date.now()-H.cooldown[c.symbol]<CFG.symbolCooldownMs) return {ok:false,why:'cooldown'};
-  if(Date.now()<H.pausedUntil) return {ok:false,why:'paused'};
-  const agg=act.reduce((s,t)=>s+(t.amount||0),0);
-  if(agg>=b*CFG.portfolioCap) return {ok:false,why:'portfolio'};
-  if(H.dailyTrades>=CFG.dailyTradeCap) return {ok:false,why:'daily'};
-  return {ok:true};
-}
-
-function sizePos(c){
-  const b=bal();
-  const mult={TREND_PULLBACK:1.0,RANGE_FADE:0.8,BREAKOUT:1.2,EXHAUSTION:0.5}[c.strategy]||0.7;
-  let base=b*CFG.riskPerTrade*mult*(0.8+c.confidence*0.4);
-  const act=activeHunter();
-  const agg=act.reduce((s,t)=>s+(t.amount||0),0);
-  const room=Math.max(0, b*CFG.portfolioCap-agg);
-  const amt=Math.min(base, room, b*0.01);
-  return Math.max(0.35, Number(amt.toFixed(2)));
-}
-
-function fire(c){
-  const r=riskCheck(c);
-  if(!r.ok){ chip(c.symbol,'ready'); return false; }
-  const amount=sizePos(c);
-  if(!amount||amount<0.35) return false;
-  const atrPct=c.atr/c.entry;
-  const duration = atrPct<0.0008?3 : atrPct<0.0015?2 : 1;
-  logLine((c.side==='BUY'?'▲ ':'▼ ')+c.side+' '+c.symbol+' ['+c.strategy+'] $'+amount+' '+duration+'m',
-    c.side==='BUY'?'var(--green)':'var(--red)');
-  chip(c.symbol, c.side==='BUY'?'buy':'sell');
-  try{
-    sendProposal({ side:c.side, symbol:c.symbol, amount, duration, auto:false, smart:false, hunter:true });
-  }catch(e){ logLine('send fail: '+e.message,'var(--red)'); return false; }
-  H.cooldown[c.symbol]=Date.now();
-  H.dailyTrades++;
-  if($id('hunter-last')) $id('hunter-last').textContent=c.symbol;
-  return true;
-}
-
-function tick(){
-  if(!H.running) return;
-  if(dk()!==H.dayKey){ H.dayKey=dk(); H.dailyTrades=0; H.lossStreak={}; }
-  if(Date.now()<H.pausedUntil){
-    const m=Math.ceil((H.pausedUntil-Date.now())/60000);
-    setState('Paused '+m+'m','err'); return;
-  }
-  if(!state.derivLinked || !state.derivWS){ setState('Deriv not linked','err'); return; }
-  H.scans++;
-  const cands=[];
-  for(const s of SYMBOLS){
-    const R=classifyRegime(H.data[s], s);
-    if(!R || R.regime==='CHOP'){ chip(s,''); continue; }
-    chip(s,'ready');
-    const c=route(H.data[s], s, R);
-    if(c) cands.push(c);
-  }
-  if(!cands.length){ setState('scan#'+H.scans+' no setup',''); stats(); return; }
-  cands.sort((a,b)=>{
-    const ra=a.confidence*Math.abs(a.target-a.entry)/Math.abs(a.stop-a.entry);
-    const rb=b.confidence*Math.abs(b.target-b.entry)/Math.abs(b.stop-b.entry);
-    return rb-ra;
-  });
-  let fired=0;
-  for(const c of cands){
-    if(fire(c)) fired++;
-    if(fired>=2) break;
-  }
-  setState(fired?'fired '+fired:'setups gated', fired?'on':'');
-  stats();
-}
-
-function pushCandle(arr, tfSec, price){
-  if(!isFinite(price)||price<=0) return;
-  const bt=Math.floor(Date.now()/1000/tfSec)*tfSec;
-  if(!arr.length){ arr.push({time:bt,open:price,high:price,low:price,close:price}); return; }
-  const last=arr[arr.length-1];
-  if(last.time===bt){
-    last.close=price;
-    last.high=Math.max(last.high,price);
-    last.low=Math.min(last.low,price);
-  } else if(last.time<bt){
-    arr.push({time:bt,open:last.close,high:price,low:price,close:price});
-    if(arr.length>400) arr.shift();
-  }
-}
-
-function openWS(){
-  if(H.ws && H.ws.readyState===1) return;
-  if(H.ws){ try{H.ws.close();}catch(e){} }
-  H.ws=new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
-  H.ws.onopen=()=>{
-    logLine('WS up — '+SYMBOLS.length+' symbols','var(--cyan)');
-    SYMBOLS.forEach((s,i)=>{
-      try{
-        H.ws.send(JSON.stringify({ticks_history:s,adjust_start_time:1,count:300,end:'latest',start:1,style:'candles',granularity:60,req_id:10000+i*10}));
-        H.ws.send(JSON.stringify({ticks_history:s,adjust_start_time:1,count:300,end:'latest',start:1,style:'candles',granularity:300,req_id:11000+i*10}));
-        H.ws.send(JSON.stringify({ticks_history:s,adjust_start_time:1,count:200,end:'latest',start:1,style:'candles',granularity:900,req_id:12000+i*10}));
-        H.ws.send(JSON.stringify({ticks:s,subscribe:1,req_id:13000+i}));
-      }catch(e){}
-    });
-  };
-  H.ws.onmessage=ev=>{
-    let m; try{m=JSON.parse(ev.data);}catch(e){return;}
-    if(m.error) return;
-    if(m.msg_type==='candles' && m.echo_req){
-      const s=m.echo_req.ticks_history, g=m.echo_req.granularity;
-      if(!H.data[s]) return;
-      const arr=(m.candles||[]).map(c=>({time:c.epoch,open:+c.open,high:+c.high,low:+c.low,close:+c.close}));
-      if(g===60){ H.data[s].m1=arr; H.data[s].r1=arr.length>=CFG.minBars; }
-      else if(g===300){ H.data[s].m5=arr; H.data[s].r5=arr.length>=CFG.minBars; }
-      else if(g===900){ H.data[s].m15=arr; H.data[s].r15=arr.length>=60; }
-      stats();
-    } else if(m.msg_type==='tick' && m.tick){
-      const s=m.tick.symbol, p=+m.tick.quote;
-      if(!H.data[s]) return;
-      pushCandle(H.data[s].m1, 60, p);
-      pushCandle(H.data[s].m5, 300, p);
-      pushCandle(H.data[s].m15, 900, p);
-    }
-  };
-  H.ws.onclose=()=>{ if(H.running) setTimeout(openWS, 5000); };
-}
-
-function start(){
-  if(H.running) return;
-  if(!state.derivLinked){ alert('اربط حساب Deriv أولاً'); return; }
-  H.running=true; H.scans=0; H.pausedUntil=0;
-  openWS();
-  H.timer=setInterval(tick, CFG.scanMs);
-  const p=$id('hunter-panel'); if(p) p.classList.add('on');
-  if($id('hunter-btn-txt')) $id('hunter-btn-txt').textContent='إيقاف HUNTER';
-  setState('يعمل','on');
-  logLine('HUNTER v2 started — regime-adaptive','var(--purple)');
-  setTimeout(tick, 4000);
-}
-function stop(){
-  H.running=false;
-  if(H.timer){ clearInterval(H.timer); H.timer=null; }
-  if(H.ws){ try{H.ws.close();}catch(e){} H.ws=null; }
-  const p=$id('hunter-panel'); if(p) p.classList.remove('on');
-  if($id('hunter-btn-txt')) $id('hunter-btn-txt').textContent='تشغيل HUNTER';
-  setState('متوقف','');
-  logLine('HUNTER v2 stopped','var(--text-dim)');
-}
-
-window.hunterToggle = () => H.running ? stop() : start();
-
-window._hunterOnSettle = function(trade, won, profit){
-  const fam=FAMILY(trade.symbol);
-  if(won){ H.lossStreak[fam]=0; }
-  else {
-    H.lossStreak[fam]=(H.lossStreak[fam]||0)+1;
-    if(H.lossStreak[fam]>=CFG.lossStreakPause){
-      H.pausedUntil=Date.now()+CFG.lossStreakPauseMs;
-      logLine('Pause 15m — '+fam+' streak','var(--gold)');
-      setState('paused','err');
-    }
-  }
-  logLine((won?'WIN ':'LOSS ')+trade.symbol+' '+(profit>=0?'+':'')+'$'+profit.toFixed(2),
-    won?'var(--green)':'var(--red)');
-  stats();
-};
-
-function buildChips(){
-  const el=$id('hunter-chips'); if(!el) return;
-  el.innerHTML='';
-  SYMBOLS.forEach(s=>{
-    const c=document.createElement('div');
-    c.className='hunter-chip'; c.dataset.sym=s;
-    c.textContent=s.replace('_','').replace('1HZ','1s');
-    el.appendChild(c);
-  });
-}
-setTimeout(buildChips, 1500);
-setInterval(stats, 2500);
-
-window._hunterV2.api = {
-  start, stop, state:H, config:CFG,
-  status(){ return { running:H.running, scans:H.scans, active:activeHunter().length, paused:H.pausedUntil>Date.now(), daily:H.dailyTrades }; }
-};
-
-console.log('[HUNTER v2] part 2/2 — loop active');
-})();
-</script>
-<!-- ====== END PART 2 ====== -->
- <!-- ====== KZ KEEPER — anti-throttle ====== -->
-<script>
-(function(){
-'use strict';
-if (window._kzKeeper) return;
-window._kzKeeper = true;
-
-const K = { audioCtx:null, osc:null, enabled:false, drift:0, samples:[], lastVisible:Date.now() };
-
-function initAudio(){
-  if (K.audioCtx) return true;
-  try {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return false;
-    K.audioCtx = new AC();
-    K.osc = K.audioCtx.createOscillator();
-    const g = K.audioCtx.createGain();
-    K.osc.type='sine'; K.osc.frequency.value=20000; g.gain.value=0.0001;
-    K.osc.connect(g); g.connect(K.audioCtx.destination); K.osc.start();
-    return true;
-  } catch(e){ return false; }
-}
-function resumeAudio(){
-  if (!K.audioCtx) initAudio();
-  if (!K.audioCtx) return;
-  if (K.audioCtx.state === 'suspended') {
-    K.audioCtx.resume().then(()=>{ K.enabled=true; badge(); }).catch(()=>{});
-  } else { K.enabled=true; badge(); }
-}
-
-function watchdog(){
-  let last = performance.now();
-  setInterval(()=>{
-    const now = performance.now();
-    const drift = (now - last) - 1000;
-    last = now;
-    K.samples.push(drift);
-    if (K.samples.length > 20) K.samples.shift();
-    K.drift = K.samples.reduce((a,b)=>a+b,0) / K.samples.length;
-    badge();
-  }, 1000);
-}
-
-setInterval(()=>{
-  try { if (state.derivWS && state.derivWS.readyState === 1) state.derivWS.send(JSON.stringify({ping:1})); } catch(e){}
-  try { if (state.ws && state.ws.readyState === 1) state.ws.send(JSON.stringify({ping:1})); } catch(e){}
-}, 25000);
-
-document.addEventListener('visibilitychange', ()=>{
-  if (document.visibilityState === 'visible') {
-    if (window._hunterV2 && _hunterV2.api && _hunterV2.api.state) {
-      const H = _hunterV2.api.state;
-      if (H.running && (!H.ws || H.ws.readyState !== 1)) {
-        try { _hunterV2.api.stop(); _hunterV2.api.start(); } catch(e){}
-      }
-    }
-    if (state.derivLinked && !state.derivWS) {
-      const t = localStorage.getItem('deriv_token');
-      if (t && typeof authorizeToken === 'function') { try { authorizeToken(t, null, true); } catch(e){} }
-    }
-    if (!state.wsConnected && typeof connectWS === 'function') { try { connectWS(); } catch(e){} }
-    badge();
-  } else {
-    K.lastVisible = Date.now();
-    if (K.audioCtx && K.audioCtx.state === 'suspended') K.audioCtx.resume().catch(()=>{});
-    badge();
-  }
-});
-
-function badge(){
-  let el = document.getElementById('kz-keeper-badge');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'kz-keeper-badge';
-    el.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:99996;background:rgba(15,18,24,0.92);border:1px solid rgba(155,109,255,0.35);border-radius:10px;padding:8px 14px;font-family:Courier New,monospace;font-size:11px;color:#e8eaf0;box-shadow:0 4px 20px rgba(0,0,0,0.5);display:flex;align-items:center;gap:8px;';
-    document.body.appendChild(el);
-  }
-  const hidden = document.visibilityState === 'hidden';
-  const throttled = K.drift > 3000;
-  let color, label;
-  if (!K.enabled)     { color='#ef5350'; label='KEEPER OFF'; }
-  else if (throttled) { color='#ffa726'; label='THROTTLED'; }
-  else if (hidden)    { color='#26a69a'; label='BG ACTIVE'; }
-  else                { color='#9b6dff'; label='KEEPER ON'; }
-  el.style.borderColor = color + '88';
-  el.innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:'+color+';box-shadow:0 0 8px '+color+';"></span><span style="color:'+color+';font-weight:700;">'+label+'</span><span style="color:#8a90a3;">drift '+K.drift.toFixed(0)+'ms</span>';
-}
-
-function init(){
-  document.addEventListener('click', function once(){ resumeAudio(); document.removeEventListener('click', once); }, { once:true });
-  watchdog();
-  setInterval(badge, 2000);
-  badge();
-}
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-else init();
-
-console.log('[KZ KEEPER] loaded');
-})();
-</script>
-  <!-- ====== HUNTER v2 — calcBB safety patch ====== -->
-<script>
-(function(){
-'use strict';
-if (window._kzBBFix) return;
-window._kzBBFix = true;
-
-window.calcBB = function(closes, p, m) {
-  p = p || 20;
-  m = m || 2;
-  if (!Array.isArray(closes) || closes.length < p) return { upper: [], lower: [] };
-  const src = (typeof state !== 'undefined' && state.candles) ? state.candles : [];
-  const up = [], lo = [];
-  for (let i = p - 1; i < closes.length; i++) {
-    const slice = closes.slice(i - p + 1, i + 1);
-    const mean = slice.reduce((a, b) => a + b, 0) / p;
-    const v = slice.reduce((a, b) => a + (b - mean) ** 2, 0) / p;
-    const std = Math.sqrt(v);
-    const t = (src.length > i && src[i] && typeof src[i].time === 'number')
-      ? src[i].time
-      : i;
-    up.push({ time: t, value: mean + m * std });
-    lo.push({ time: t, value: mean - m * std });
-  }
-  return { upper: up, lower: lo };
-};
-
-console.log('[KZ] calcBB safety patch installed');
-})();
-</script>
-<!-- ====== END calcBB patch ====== -->
-  <!-- ====== HUNTER v3 — PART 1 / CONFIG + PATTERNS ====== -->
-<script>
-(function(){
-'use strict';
-if (window.__hz3_config) return;
-window.__hz3_config = { loaded:true, at:Date.now() };
-
-const SYMBOLS = ['R_10','R_25','R_50','R_75','R_100'];
-
-const CFG = {
-  minConfidence: 65,
-  minFamilies: 3,
-  riskPerTrade: 0.0015,
-  portfolioCap: 0.01,
-  maxConcurrent: 2,
-  maxSameSide: 2,
-  scanMs: 15000,
-  symbolCooldownMs: 300000,
-  lossStreakPauseMs: 15*60*1000,
-  dailyTradeCap: 15,
-  minBars: 80,
-};
-
-const PATTERN_AR = {
-  'Bullish Engulfing':'ابتلاع صاعد','Bearish Engulfing':'ابتلاع هابط',
-  'Hammer':'المطرقة','Shooting Star':'الشهاب','Doji':'الدوجي',
-  'Morning Star':'نجمة الصباح','Evening Star':'نجمة المساء',
-  'Three White Soldiers':'الجنود الثلاثة البيض','Three Black Crows':'الغربان الثلاثة السود',
-  'Inside Bar':'الشمعة الداخلية','Outside Bar':'الشمعة الخارجية',
-  'Bullish Harami':'هارامي صاعد','Bearish Harami':'هارامي هابط',
-  'Bullish Marubozu':'ماروبوزو صاعد','Bearish Marubozu':'ماروبوزو هابط',
-  'Tweezer Bottom':'قاع الملقط','Tweezer Top':'قمة الملقط',
-  'Bullish Pin Bar':'بن بار صاعد','Bearish Pin Bar':'بن بار هابط',
-};
-
-const bodyOf = c => Math.abs(c.close - c.open);
-const rangeOf = c => Math.max(0.0001, c.high - c.low);
-const upperW = c => c.high - Math.max(c.close, c.open);
-const lowerW = c => Math.min(c.close, c.open) - c.low;
-const isBull = c => c.close > c.open;
-const isBear = c => c.close < c.open;
-const isDoji = c => bodyOf(c) < rangeOf(c) * 0.1;
-const isMarubozu = c => bodyOf(c) > rangeOf(c) * 0.9;
-
-function detectPatterns(candles){
-  if (!candles || candles.length < 3) return [];
-  const c3 = candles[candles.length-3];
-  const c2 = candles[candles.length-2];
-  const c1 = candles[candles.length-1];
-  const out = [];
-
-  if (isBear(c2) && isBull(c1) && c1.close > c2.open && c1.open < c2.close && bodyOf(c1) > bodyOf(c2)*1.2)
-    out.push({ name:'Bullish Engulfing', ar:PATTERN_AR['Bullish Engulfing'], side:'BUY', weight:25 });
-  if (isBull(c2) && isBear(c1) && c1.close < c2.open && c1.open > c2.close && bodyOf(c1) > bodyOf(c2)*1.2)
-    out.push({ name:'Bearish Engulfing', ar:PATTERN_AR['Bearish Engulfing'], side:'SELL', weight:25 });
-  if (lowerW(c1) > bodyOf(c1)*2 && lowerW(c1) > rangeOf(c1)*0.6 && upperW(c1) < bodyOf(c1)*0.5)
-    out.push({ name:'Hammer', ar:PATTERN_AR['Hammer'], side:'BUY', weight:20 });
-  if (upperW(c1) > bodyOf(c1)*2 && upperW(c1) > rangeOf(c1)*0.6 && lowerW(c1) < bodyOf(c1)*0.5)
-    out.push({ name:'Shooting Star', ar:PATTERN_AR['Shooting Star'], side:'SELL', weight:20 });
-  if (isDoji(c1))
-    out.push({ name:'Doji', ar:PATTERN_AR['Doji'], side:'NEUTRAL', weight:5 });
-  if (isBear(c3) && isDoji(c2) && isBull(c1) && c1.close > (c3.open+c3.close)/2)
-    out.push({ name:'Morning Star', ar:PATTERN_AR['Morning Star'], side:'BUY', weight:30 });
-  if (isBull(c3) && isDoji(c2) && isBear(c1) && c1.close < (c3.open+c3.close)/2)
-    out.push({ name:'Evening Star', ar:PATTERN_AR['Evening Star'], side:'SELL', weight:30 });
-  if (isBull(c3) && isBull(c2) && isBull(c1) && c2.close > c3.close && c1.close > c2.close && bodyOf(c2) > rangeOf(c2)*0.6 && bodyOf(c1) > rangeOf(c1)*0.6)
-    out.push({ name:'Three White Soldiers', ar:PATTERN_AR['Three White Soldiers'], side:'BUY', weight:35 });
-  if (isBear(c3) && isBear(c2) && isBear(c1) && c2.close < c3.close && c1.close < c2.close && bodyOf(c2) > rangeOf(c2)*0.6 && bodyOf(c1) > rangeOf(c1)*0.6)
-    out.push({ name:'Three Black Crows', ar:PATTERN_AR['Three Black Crows'], side:'SELL', weight:35 });
-  if (c1.high < c2.high && c1.low > c2.low)
-    out.push({ name:'Inside Bar', ar:PATTERN_AR['Inside Bar'], side:'NEUTRAL', weight:8 });
-  if (c1.high > c2.high && c1.low < c2.low)
-    out.push({ name:'Outside Bar', ar:PATTERN_AR['Outside Bar'], side:isBull(c1)?'BUY':'SELL', weight:15 });
-  if (isBear(c2) && isBull(c1) && c1.open > c2.close && c1.close < c2.open && bodyOf(c1) < bodyOf(c2)*0.6)
-    out.push({ name:'Bullish Harami', ar:PATTERN_AR['Bullish Harami'], side:'BUY', weight:18 });
-  if (isBull(c2) && isBear(c1) && c1.open < c2.close && c1.close > c2.open && bodyOf(c1) < bodyOf(c2)*0.6)
-    out.push({ name:'Bearish Harami', ar:PATTERN_AR['Bearish Harami'], side:'SELL', weight:18 });
-  if (isMarubozu(c1))
-    out.push({ name: isBull(c1)?'Bullish Marubozu':'Bearish Marubozu', ar:PATTERN_AR[isBull(c1)?'Bullish Marubozu':'Bearish Marubozu'], side: isBull(c1)?'BUY':'SELL', weight:15 });
-  if (Math.abs(c2.low - c1.low)/c1.low < 0.0005 && isBull(c1))
-    out.push({ name:'Tweezer Bottom', ar:PATTERN_AR['Tweezer Bottom'], side:'BUY', weight:20 });
-  if (Math.abs(c2.high - c1.high)/c1.high < 0.0005 && isBear(c1))
-    out.push({ name:'Tweezer Top', ar:PATTERN_AR['Tweezer Top'], side:'SELL', weight:20 });
-  if (lowerW(c1) > rangeOf(c1)*0.66)
-    out.push({ name:'Bullish Pin Bar', ar:PATTERN_AR['Bullish Pin Bar'], side:'BUY', weight:22 });
-  if (upperW(c1) > rangeOf(c1)*0.66)
-    out.push({ name:'Bearish Pin Bar', ar:PATTERN_AR['Bearish Pin Bar'], side:'SELL', weight:22 });
-  return out;
-}
-
-window.__hz3_config.api = { SYMBOLS, CFG, PATTERN_AR, detectPatterns };
-console.log('[HUNTER v3] part 1/5 — config + 19 patterns loaded');
-})();
-</script>
-<!-- ====== END PART 1 ====== -->
-  <!-- ====== HUNTER v3 — PART 2 / 4 FAMILIES ====== -->
-<script>
-(function(){
-'use strict';
-if (window.__hz3_strategies) return;
-const P = window.__hz3_config;
-if (!P) { console.error('[v3] part 1 missing'); return; }
-window.__hz3_strategies = { loaded:true };
-
-const Clamp = (v,lo,hi) => Math.max(lo, Math.min(hi, v));
-const ema = (a,p) => calcEMA(a,p);
-const atrArr = (c,p) => calcATR(c.map(x=>x.close), c.map(x=>x.high), c.map(x=>x.low), p||14);
-
-/* FAMILY 1 — TREND_FOLLOW (EMA only) */
-function s_trendFollow(d, sym, R){
-  if(!d.r1 || d.m1.length<60) return null;
-  const m1 = d.m1, closes = m1.map(c=>c.close);
-  const e20 = ema(closes,20), e50 = ema(closes,50);
-  const a = atrArr(m1,14), aV = a[a.length-1];
-  const price = closes[closes.length-1];
-  const e20v = e20[e20.length-1], e50v = e50[e50.length-1];
-  const e20prev = e20[e20.length-5];
-  const slope = (e20v - e20prev) / (aV * 4);
-  let side = null, conf = 0; const reasons = [];
-  if(e20v > e50v && slope > 0.10){
-    side='BUY'; conf = 50 + Math.min(30, Math.abs(slope)*100);
-    reasons.push('EMA20 فوق EMA50'); reasons.push('ميل صاعد '+slope.toFixed(2));
-    if(price > e20v){ conf += 5; reasons.push('سعر فوق EMA20'); }
-  } else if(e20v < e50v && slope < -0.10){
-    side='SELL'; conf = 50 + Math.min(30, Math.abs(slope)*100);
-    reasons.push('EMA20 تحت EMA50'); reasons.push('ميل هابط '+slope.toFixed(2));
-    if(price < e20v){ conf += 5; reasons.push('سعر تحت EMA20'); }
-  } else return null;
-  return { side, strategy:'TREND_FOLLOW', family:'TREND', confidence:Clamp(conf,0,90), weight:1.0,
-    entry:price, atr:aV, stop:side==='BUY'?price-2*aV:price+2*aV,
-    target:side==='BUY'?price+3*aV:price-3*aV, reasons };
-}
-
-/* FAMILY 2 — VOLATILITY_BREAK (BB + Squeeze only) */
-function s_volatilityBreak(d, sym, R){
-  if(!d.r1 || d.m1.length<80) return null;
-  const m1 = d.m1, closes = m1.map(c=>c.close);
-  const a = atrArr(m1,14), aV = a[a.length-1];
-  const bb = calcBB(closes,20,2);
-  if(!bb.upper.length || bb.upper.length < 10) return null;
-  const up = bb.upper[bb.upper.length-1].value;
-  const lo = bb.lower[bb.lower.length-1].value;
-  const upPrev = bb.upper[bb.upper.length-5].value;
-  const loPrev = bb.lower[bb.lower.length-5].value;
-  const price = closes[closes.length-1];
-  const width = (up-lo)/price, widthPrev = (upPrev-loPrev)/price;
-  const expanding = width > widthPrev * 1.1;
-  const narrow = width < 0.0025;
-  let side=null, conf=0; const reasons=[];
-  if(price > up && expanding){
-    side='BUY'; conf = 55 + Math.min(20, (width-widthPrev)*5000);
-    reasons.push('اختراق BB العلوي'); reasons.push('نطاق يتوسع');
-    if(narrow){ conf += 12; reasons.push('انفجار من ضغط'); }
-  } else if(price < lo && expanding){
-    side='SELL'; conf = 55 + Math.min(20, (width-widthPrev)*5000);
-    reasons.push('اختراق BB السفلي'); reasons.push('نطاق يتوسع');
-    if(narrow){ conf += 12; reasons.push('انفجار من ضغط'); }
-  } else return null;
-  return { side, strategy:'VOLATILITY_BREAK', family:'VOLATILITY', confidence:Clamp(conf,0,92), weight:1.1,
-    entry:price, atr:aV, stop:side==='BUY'?price-2*aV:price+2*aV,
-    target:side==='BUY'?price+4*aV:price-4*aV, reasons };
-}
-
-/* FAMILY 3 — MOMENTUM_SHIFT (RSI + MACD only) */
-function s_momentumShift(d, sym, R){
-  if(!d.r1 || d.m1.length<50) return null;
-  const m1 = d.m1, closes = m1.map(c=>c.close);
-  const a = atrArr(m1,14), aV = a[a.length-1];
-  const price = closes[closes.length-1];
-  const r14 = calcRSI(closes,14);
-  const r = r14[r14.length-1], rPrev = r14[r14.length-2], rPrev3 = r14[r14.length-4];
-  const mac = calcMACD(closes);
-  const M = mac.macd[mac.macd.length-1], S = mac.signal[mac.signal.length-1];
-  const hist = M - S;
-  const histPrev = mac.macd[mac.macd.length-2] - mac.signal[mac.signal.length-2];
-  const histPrev3 = mac.macd[mac.macd.length-4] - mac.signal[mac.signal.length-4];
-  let side=null, conf=0; const reasons=[];
-  if(r > 30 && r < 65 && r > rPrev && r > rPrev3 && hist > 0 && hist > histPrev && hist > histPrev3){
-    side='BUY'; conf = 50 + Math.min(25, (hist-histPrev3)*2000);
-    reasons.push('RSI='+r.toFixed(1)+' تتحسن'); reasons.push('MACD histogram يتوسع إيجاباً');
-  } else if(r < 70 && r > 35 && r < rPrev && r < rPrev3 && hist < 0 && hist < histPrev && hist < histPrev3){
-    side='SELL'; conf = 50 + Math.min(25, Math.abs(hist-histPrev3)*2000);
-    reasons.push('RSI='+r.toFixed(1)+' تضعف'); reasons.push('MACD histogram يتوسع سلباً');
-  } else return null;
-  return { side, strategy:'MOMENTUM_SHIFT', family:'MOMENTUM', confidence:Clamp(conf,0,88), weight:1.0,
-    entry:price, atr:aV, stop:side==='BUY'?price-1.8*aV:price+1.8*aV,
-    target:side==='BUY'?price+2.5*aV:price-2.5*aV, reasons };
-}
-
-/* FAMILY 4 — STRUCTURE_BOUNCE (S/R + Patterns only) */
-function s_structureBounce(d, sym, R){
-  if(!d.r1 || d.m1.length<80) return null;
-  const m1 = d.m1, closes = m1.map(c=>c.close);
-  const a = atrArr(m1,14), aV = a[a.length-1];
-  const price = closes[closes.length-1];
-  const pats = (typeof detectPatterns === 'function') ? detectPatterns(m1) : [];
-  let pBull=0, pBear=0; const pNames=[];
-  pats.forEach(p => {
-    if(p.side==='BUY'){ pBull += p.weight; pNames.push(p.ar); }
-    if(p.side==='SELL'){ pBear += p.weight; pNames.push(p.ar); }
-  });
-  let srSide=null, srLevel=null, srTests=0;
-  if(typeof calcSR === 'function'){
-    const sr = calcSR(m1,5);
-    const sup = (sr.supports||[]).find(s=>s.tests>=2);
-    const res = (sr.resistances||[]).find(s=>s.tests>=2);
-    if(sup && Math.abs(price-sup.price)/price < 0.0015){ srSide='BUY'; srLevel=sup.price; srTests=sup.tests; }
-    else if(res && Math.abs(price-res.price)/price < 0.0015){ srSide='SELL'; srLevel=res.price; srTests=res.tests; }
-  }
-  let side=null, conf=0; const reasons=[];
-  if(srSide==='BUY' && pBull > 0){
-    side='BUY'; conf = 55 + Math.min(20, srTests*5) + Math.min(15, pBull/2);
-    reasons.push('دعم ×'+srTests+' @ '+srLevel.toFixed(2)); reasons.push('نمط: '+pNames.join(' + '));
-  } else if(srSide==='SELL' && pBear > 0){
-    side='SELL'; conf = 55 + Math.min(20, srTests*5) + Math.min(15, pBear/2);
-    reasons.push('مقاومة ×'+srTests+' @ '+srLevel.toFixed(2)); reasons.push('نمط: '+pNames.join(' + '));
-  } else if(pBull >= 30 && !srSide){
-    side='BUY'; conf = 50 + Math.min(20, pBull/2); reasons.push('نمط قوي: '+pNames.join(' + '));
-  } else if(pBear >= 30 && !srSide){
-    side='SELL'; conf = 50 + Math.min(20, pBear/2); reasons.push('نمط قوي: '+pNames.join(' + '));
-  } else return null;
-  return { side, strategy:'STRUCTURE_BOUNCE', family:'STRUCTURE', confidence:Clamp(conf,0,90), weight:1.0,
-    entry:price, atr:aV, stop:side==='BUY'?price-1.8*aV:price+1.8*aV,
-    target:side==='BUY'?price+3*aV:price-3*aV, reasons };
-}
-
-const STRATEGIES = [s_trendFollow, s_volatilityBreak, s_momentumShift, s_structureBounce];
-window.__hz3_strategies.api = { STRATEGIES, FAMILIES:['TREND','VOLATILITY','MOMENTUM','STRUCTURE'] };
-console.log('[HUNTER v3] part 2/3 — 4 families loaded');
-})();
-</script>
-<!-- ====== END PART 2 ====== -->
-  <!-- ====== HUNTER v3 — PART 3 / ENGINE + UI ====== -->
-<script>
-(function(){
-'use strict';
-if (window.__hz3_engine) return;
-const P1 = window.__hz3_config, P2 = window.__hz3_strategies;
-if (!P1 || !P2) { console.error('[v3] parts 1-2 required'); return; }
-window.__hz3_engine = { loaded:true, at:Date.now() };
-
-const { SYMBOLS, CFG } = P1.api;
-const { STRATEGIES, FAMILIES } = P2.api;
-const $id = id => document.getElementById(id);
-function dk(){ const d=new Date(); return d.getUTCFullYear()+'-'+(d.getUTCMonth()+1)+'-'+d.getUTCDate(); }
-
-const S = {
-  running:false, timer:null, ws:null,
-  data:{}, scans:0, lastFireAt:{}, dailyTrades:0, dayKey:dk(),
-  pausedUntil:0, lossStreak:{},
-};
-SYMBOLS.forEach(s => S.data[s] = { m1:[], m5:[], m15:[], r1:false, r5:false, r15:false });
-function bal(){ return parseFloat(state.derivAccount && state.derivAccount.balance) || 0; }
-
-function analyzeSymbol(sym){
-  const d = S.data[sym];
-  if(!d.r1 || !d.r5) return null;
-  const R = { regime:'N/A' };
-  const results = [];
-  for(const fn of STRATEGIES){
-    try { const r = fn(d, sym, R); if(r) results.push(r); }
-    catch(e){ console.warn('[v3]', sym, e.message); }
-  }
-  if(!results.length) return { sym, ensemble:null };
-  const byFamily = {};
-  for(const r of results){
-    if(!byFamily[r.family] || r.confidence > byFamily[r.family].confidence) byFamily[r.family] = r;
-  }
-  const fam = Object.values(byFamily);
-  const bF = fam.filter(r=>r.side==='BUY');
-  const sF = fam.filter(r=>r.side==='SELL');
-  let side = null;
-  if(bF.length >= CFG.minFamilies && bF.length > sF.length) side='BUY';
-  else if(sF.length >= CFG.minFamilies && sF.length > bF.length) side='SELL';
-  else return { sym, ensemble:null, partial:{ bFams:bF.length, sFams:sF.length } };
-  const voters = side==='BUY' ? bF : sF;
-  const avg = voters.reduce((a,r)=>a+r.confidence, 0) / voters.length;
-  const adjusted = Math.round(avg + (voters.length - 3) * 5);
-  return { sym, ensemble:{ side, confidence:Math.min(95, adjusted), voters, voterCount:voters.length } };
-}
-
-function setState(t,c){ const e=$id('hunter-state'); if(!e) return; e.className='hunter-state'+(c?' '+c:''); const x=e.querySelector('.hunter-state-txt'); if(x) x.textContent=t; }
-function logLine(m,c){
-  const l=$id('hunter-log'); if(!l) return;
-  const e=l.querySelector('.hunter-log-empty'); if(e) e.remove();
-  const d=document.createElement('div'); d.className='hunter-log-line'; d.style.color=c||'var(--text)';
-  const t=new Date().toLocaleTimeString('ar-EG'); d.textContent='['+t+'] '+m;
-  l.prepend(d); while(l.children.length>30) l.removeChild(l.lastChild);
-}
-function chip(s,st){ const c=document.querySelector('.hunter-chip[data-sym="'+s+'"]'); if(c) c.className='hunter-chip '+(st||''); }
-function stats(){
-  const ready = SYMBOLS.filter(s=>S.data[s].r1 && S.data[s].r5).length;
-  if($id('hunter-scanned')) $id('hunter-scanned').textContent = ready+'/'+SYMBOLS.length;
-  const a = (state.activeTrades||[]).filter(t=>t.hunter).length;
-  if($id('hunter-active')) $id('hunter-active').textContent = a+'/'+CFG.maxConcurrent;
-}
-
-function buildCard(a){
-  const { sym, ensemble } = a;
-  const side = ensemble.side, conf = ensemble.confidence;
-  const rows = ensemble.voters.map(v =>
-    '<div style="margin:3px 0;"><b style="color:var(--cyan);">'+v.family+'</b> ('+v.confidence.toFixed(0)+'%) — '+v.reasons.join(' • ')+'</div>'
-  ).join('');
-  return '<div style="font-size:11px;line-height:1.6;">' +
-    '<div style="font-weight:900;color:'+(side==='BUY'?'var(--green)':'var(--red)')+';font-size:14px;margin-bottom:4px;">' +
-      (side==='BUY'?'▲ شراء':'▼ بيع')+' '+sym+' — ثقة '+conf+'% ('+ensemble.voterCount+'/4 عائلات)</div>' +
-    '<div style="border-top:1px dashed var(--border);padding-top:6px;margin-top:6px;">'+rows+'</div></div>';
-}
-
-function fire(a){
-  const { sym, ensemble } = a;
-  const side = ensemble.side, conf = ensemble.confidence;
-  if(conf < CFG.minConfidence){ chip(sym,'ready'); return false; }
-  const active = (state.activeTrades||[]).filter(t=>t.hunter);
-  if(active.length >= CFG.maxConcurrent) return false;
-  if(active.some(t=>t.symbol===sym)) return false;
-  if(active.filter(t=>t.side===side).length >= CFG.maxSameSide) return false;
-  if(Date.now() < S.pausedUntil) return false;
-  if(S.dailyTrades >= CFG.dailyTradeCap) return false;
-  if(S.lastFireAt[sym] && Date.now()-S.lastFireAt[sym] < CFG.symbolCooldownMs) return false;
-  const b = bal(); if(b <= 0) return false;
-  const v0 = ensemble.voters[0];
-  const ap = v0.atr / v0.entry;
-  const duration = ap < 0.0008 ? 3 : ap < 0.0015 ? 2 : 1;
-  const size = Math.max(0.35, Math.min(b*0.01, Number((b*CFG.riskPerTrade*(0.7+conf/100)).toFixed(2))));
-  logLine('🔥 '+side+' '+sym+' | ثقة '+conf+'% | '+ensemble.voterCount+'/4 | $'+size+' | '+duration+'m',
-    side==='BUY'?'var(--green)':'var(--red)');
-  const feed = $id('ap-feed');
-  if(feed){
-    const e = feed.querySelector('.ap-feed-empty'); if(e) e.remove();
-    const cd = document.createElement('div'); cd.className = 'ap-card ' + (side==='BUY'?'buy':'sell');
-    cd.innerHTML = buildCard(a); feed.prepend(cd);
-    while(feed.children.length > 15) feed.removeChild(feed.lastChild);
-  }
-  try {
-    sendProposal({ side, symbol:sym, amount:size, duration, auto:false, smart:false, hunter:true });
-    S.lastFireAt[sym] = Date.now(); S.dailyTrades++; chip(sym, side==='BUY'?'buy':'sell');
-  } catch(e){ logLine('send fail: '+e.message,'var(--red)'); return false; }
-  return true;
-}
-
-function tick(){
-  if(!S.running) return;
-  if(dk() !== S.dayKey){ S.dayKey = dk(); S.dailyTrades = 0; S.lossStreak = {}; }
-  if(Date.now() < S.pausedUntil){ setState('إيقاف '+Math.ceil((S.pausedUntil-Date.now())/60000)+'د','err'); return; }
-  if(!state.derivLinked || !state.derivWS){ setState('Deriv غير مربوط','err'); return; }
-  S.scans++;
-  const cands = [];
-  for(const s of SYMBOLS){
-    const a = analyzeSymbol(s);
-    if(!a){ chip(s,''); continue; }
-    if(!a.ensemble){
-      if(a.partial && (a.partial.bFams >= 2 || a.partial.sFams >= 2)) chip(s,'ready');
-      else chip(s,'');
-      continue;
-    }
-    chip(s,'ready'); cands.push(a);
-  }
-  if(!cands.length){ setState('فحص #'+S.scans+' — لا توافق 3/4',''); stats(); return; }
-  cands.sort((a,b) => b.ensemble.confidence - a.ensemble.confidence);
-  let fired = 0;
-  for(const c of cands){
-    if(c.ensemble.confidence < CFG.minConfidence) continue;
-    if(fire(c)) fired++;
-    if(fired >= 2) break;
-  }
-  setState(fired ? 'أطلق '+fired : 'مرشح محجوب', fired?'on':''); stats();
-}
-
-function pushCandle(arr, tf, price){
-  if(!isFinite(price)||price<=0) return;
-  const bt = Math.floor(Date.now()/1000/tf)*tf;
-  if(!arr.length){ arr.push({time:bt,open:price,high:price,low:price,close:price}); return; }
-  const l = arr[arr.length-1];
-  if(l.time === bt){ l.close=price; l.high=Math.max(l.high,price); l.low=Math.min(l.low,price); }
-  else if(l.time < bt){ arr.push({time:bt,open:l.close,high:price,low:price,close:price}); if(arr.length>400) arr.shift(); }
-}
-
-function openWS(){
-  if(S.ws && S.ws.readyState === 1) return;
-  if(S.ws){ try{S.ws.close();}catch(e){} }
-  S.ws = new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
-  S.ws.onopen = () => {
-    logLine('WS متصل — '+SYMBOLS.length+' رموز × 4 عائلات','var(--cyan)');
-    SYMBOLS.forEach((s,i) => {
-      try{
-        S.ws.send(JSON.stringify({ticks_history:s,count:300,end:'latest',style:'candles',granularity:60,req_id:100+i}));
-        S.ws.send(JSON.stringify({ticks_history:s,count:300,end:'latest',style:'candles',granularity:300,req_id:200+i}));
-        S.ws.send(JSON.stringify({ticks_history:s,count:200,end:'latest',style:'candles',granularity:900,req_id:300+i}));
-        S.ws.send(JSON.stringify({ticks:s,subscribe:1,req_id:400+i}));
-      }catch(e){}
-    });
-  };
-  S.ws.onmessage = ev => {
-    let m; try{m=JSON.parse(ev.data);}catch(e){return;}
-    if(m.error) return;
-    if(m.msg_type === 'candles' && m.echo_req){
-      const s = m.echo_req.ticks_history, g = m.echo_req.granularity;
-      if(!S.data[s]) return;
-      const arr = (m.candles||[]).map(c=>({time:c.epoch,open:+c.open,high:+c.high,low:+c.low,close:+c.close}));
-      if(g === 60){ S.data[s].m1 = arr; S.data[s].r1 = arr.length >= CFG.minBars; }
-      else if(g === 300){ S.data[s].m5 = arr; S.data[s].r5 = arr.length >= CFG.minBars; }
-      else if(g === 900){ S.data[s].m15 = arr; S.data[s].r15 = arr.length >= 60; }
-      stats();
-    } else if(m.msg_type === 'tick' && m.tick){
-      const s = m.tick.symbol, p = +m.tick.quote;
-      if(!S.data[s]) return;
-      pushCandle(S.data[s].m1, 60, p); pushCandle(S.data[s].m5, 300, p); pushCandle(S.data[s].m15, 900, p);
-    }
-  };
-  S.ws.onclose = () => { if(S.running) setTimeout(openWS, 5000); };
-}
-
-function buildChips(){
-  const el = $id('hunter-chips'); if(!el) return;
-  el.innerHTML = '';
-  SYMBOLS.forEach(s => {
-    const c = document.createElement('div'); c.className = 'hunter-chip'; c.dataset.sym = s;
-    c.textContent = s.replace('_',''); el.appendChild(c);
-  });
-}
-
-function injectSlider(){
-  const panel = $id('hunter-panel');
-  if(!panel || $id('kz3-conf-slider')) return;
-  const w = document.createElement('div');
-  w.id = 'kz3-conf-slider';
-  w.style.cssText = 'display:flex;align-items:center;gap:10px;margin:10px 0;padding:10px 12px;background:rgba(0,0,0,0.35);border-radius:10px;border:1px solid rgba(155,109,255,0.3);';
-  w.innerHTML = '<span style="color:var(--text-dim);font-size:11px;">حد الثقة</span>' +
-    '<input id="kz3-conf-range" type="range" min="50" max="90" step="5" value="'+CFG.minConfidence+'" style="flex:1;">' +
-    '<span id="kz3-conf-val" style="color:var(--purple);font-family:monospace;font-weight:900;min-width:44px;">'+CFG.minConfidence+'%</span>' +
-    '<span style="color:var(--text-dim);font-size:10px;">| 3/4 عائلات</span>';
-  const btn = $id('hunter-toggle');
-  if(btn && btn.parentNode) btn.parentNode.insertBefore(w, btn); else panel.appendChild(w);
-  const r = $id('kz3-conf-range'), v = $id('kz3-conf-val');
-  r.addEventListener('input', () => { CFG.minConfidence = parseInt(r.value); v.textContent = CFG.minConfidence+'%';
-    try { localStorage.setItem('kanzer_v3_minconf', String(CFG.minConfidence)); } catch(e){} });
-  try { const sv = localStorage.getItem('kanzer_v3_minconf'); if(sv){ CFG.minConfidence = parseInt(sv); r.value = CFG.minConfidence; v.textContent = CFG.minConfidence+'%'; } } catch(e){}
-}
-
-function guardCounters(){
-  ['hunter-scanned','hunter-active'].forEach(id => {
-    const el = document.getElementById(id);
-    if(!el || el.__v3guard) return;
-    el.__v3guard = true;
-    const desc = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent');
-    let last = desc.get.call(el);
-    Object.defineProperty(el, 'textContent', {
-      configurable:true, get(){ return last; },
-      set(v){ const s = String(v); if(/^0\//.test(s) && last && !/^0\//.test(last)) return; last = s; desc.set.call(el, s); }
-    });
-  });
-}
-
-function start(){
-  if(S.running) return;
-  if(!state.derivLinked){ alert('اربط Deriv أولاً'); return; }
-  S.running = true; S.scans = 0; S.pausedUntil = 0;
-  openWS();
-  S.timer = setInterval(tick, CFG.scanMs);
-  const p = $id('hunter-panel'); if(p) p.classList.add('on');
-  if($id('hunter-btn-txt')) $id('hunter-btn-txt').textContent = 'إيقاف HUNTER v3';
-  setState('يعمل','on');
-  logLine('HUNTER v3 — 4 عائلات | حد '+CFG.minConfidence+'% | '+CFG.minFamilies+'/4 توافق','var(--purple)');
-  setTimeout(tick, 4000);
-}
-function stop(){
-  S.running = false;
-  if(S.timer){ clearInterval(S.timer); S.timer = null; }
-  if(S.ws){ try{S.ws.close();}catch(e){} S.ws = null; }
-  const p = $id('hunter-panel'); if(p) p.classList.remove('on');
-  if($id('hunter-btn-txt')) $id('hunter-btn-txt').textContent = 'تشغيل HUNTER v3';
-  setState('متوقف',''); logLine('HUNTER v3 توقف','var(--text-dim)');
-}
-
-window.hunterToggle = () => S.running ? stop() : start();
-
-const _prevSettle = window._hunterOnSettle;
-window._hunterOnSettle = function(trade, won, profit){
-  const sym = trade.symbol;
-  if(won){ S.lossStreak[sym] = 0; }
-  else {
-    S.lossStreak[sym] = (S.lossStreak[sym]||0) + 1;
-    if(S.lossStreak[sym] >= 2){
-      S.pausedUntil = Date.now() + CFG.lossStreakPauseMs;
-      logLine('توقف 15د — خسارتان على '+sym,'var(--gold)'); setState('إيقاف','err');
-    }
-  }
-  logLine((won?'ربح ':'خسارة ')+sym+' '+(profit>=0?'+':'')+'$'+profit.toFixed(2), won?'var(--green)':'var(--red)');
-  stats();
-  if(typeof _prevSettle === 'function'){ try { _prevSettle.apply(this, arguments); } catch(e){} }
-};
-
-setTimeout(buildChips, 1500);
-setTimeout(injectSlider, 2000);
-setInterval(guardCounters, 2000);
-setTimeout(guardCounters, 2500);
-setInterval(stats, 3000);
-
-window._hunterV3 = { api:{ start, stop, state:S, config:CFG, status:()=>({
-  running:S.running, scans:S.scans, daily:S.dailyTrades,
-  minConf:CFG.minConfidence, minFamilies:CFG.minFamilies,
-  ready:SYMBOLS.filter(s=>S.data[s].r1 && S.data[s].r5).length,
-  active:(state.activeTrades||[]).filter(t=>t.hunter).length, paused:S.pausedUntil>Date.now()
-}) } };
-
-console.log('[HUNTER v3] part 3/3 — engine + UI active');
-})();
-</script>
-<!-- ====== END PART 3 ====== -->
-  <!-- ====== KANZER RISK SUITE v1 — RESTORED ====== -->
 <style>
 #kz-cb-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:99998;padding:10px 16px;background:linear-gradient(135deg,#c62828,#8b0000);color:#fff;font-size:13px;font-weight:700;text-align:center;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.5);}
 #kz-cb-banner.show{display:block;}
@@ -5969,211 +4494,362 @@ console.log('[HUNTER v3] part 3/3 — engine + UI active');
 <script>
 (function(){
 'use strict';
-if (window._kzRiskSuite) return;
-window._kzRiskSuite = true;
-
-let _reqSeq = 900000;
-const KZReq = { next: () => ++_reqSeq };
-
-const CBC = {
-  dailyLossPct: 0.05, weeklyLossPct: 0.12, monthlyLossPct: 0.20,
-  streakLosses: 4,
-  dailyCooldownMs: 24*60*60*1000, weeklyCooldownMs: 7*24*60*60*1000,
-  monthlyCooldownMs: 30*24*60*60*1000, streakCooldownMs: 2*60*60*1000,
-  storageKey: 'kanzer_cb_v1'
+if(window._kzRiskSuite) return; window._kzRiskSuite=true;
+let _seq=900000; const KZReq={next:()=>++_seq};
+const CBC={dailyLossPct:0.05,weeklyLossPct:0.12,monthlyLossPct:0.20,streakLosses:4,dailyCooldownMs:24*60*60*1000,weeklyCooldownMs:7*24*60*60*1000,monthlyCooldownMs:30*24*60*60*1000,streakCooldownMs:2*60*60*1000,storageKey:'kanzer_cb_v1'};
+const CBS={dayKey:'',weekKey:'',monthKey:'',dayStart:0,weekStart:0,monthStart:0,dayPnl:0,weekPnl:0,monthPnl:0,streak:0,pausedUntil:0,pauseReason:'',pauseScope:'none',history:[],settledIds:new Set()};
+function dkey(){const d=new Date();return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');}
+function wkey(){const d=new Date();const t=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));const day=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-day);const y=t.getUTCFullYear();const w=Math.ceil((((t-new Date(Date.UTC(y,0,1)))/86400000)+1)/7);return y+'-W'+String(w).padStart(2,'0');}
+function mkey(){const d=new Date();return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0');}
+function loadCB(){try{const r=localStorage.getItem(CBC.storageKey);if(!r)return;const p=JSON.parse(r);const s=p.settledIds||[];delete p.settledIds;Object.assign(CBS,p);CBS.settledIds=new Set(s);}catch(e){}}
+function saveCB(){try{localStorage.setItem(CBC.storageKey,JSON.stringify({dayKey:CBS.dayKey,weekKey:CBS.weekKey,monthKey:CBS.monthKey,dayStart:CBS.dayStart,weekStart:CBS.weekStart,monthStart:CBS.monthStart,dayPnl:CBS.dayPnl,weekPnl:CBS.weekPnl,monthPnl:CBS.monthPnl,streak:CBS.streak,pausedUntil:CBS.pausedUntil,pauseReason:CBS.pauseReason,pauseScope:CBS.pauseScope,history:CBS.history.slice(-100),settledIds:Array.from(CBS.settledIds).slice(-500)}));}catch(e){}}
+function rollover(){const dk=dkey(),wk=wkey(),mk=mkey();let c=false;
+  if(CBS.dayKey!==dk){CBS.dayKey=dk;CBS.dayPnl=0;CBS.dayStart=0;c=true;}
+  if(CBS.weekKey!==wk){CBS.weekKey=wk;CBS.weekPnl=0;CBS.weekStart=0;c=true;}
+  if(CBS.monthKey!==mk){CBS.monthKey=mk;CBS.monthPnl=0;CBS.monthStart=0;c=true;}
+  if(c){if(CBS.pauseScope==='daily'||CBS.pauseScope==='weekly'||CBS.pauseScope==='monthly'){CBS.pausedUntil=0;CBS.pauseReason='';CBS.pauseScope='none';}saveCB();renderBanner();}}
+function bal(){try{return parseFloat(state.derivAccount&&state.derivAccount.balance)||0;}catch(e){return 0;}}
+function record(won,profit){rollover();const b=bal();const pre=b-profit;
+  if(CBS.dayStart===0)CBS.dayStart=pre>0?pre:100;
+  if(CBS.weekStart===0)CBS.weekStart=pre>0?pre:100;
+  if(CBS.monthStart===0)CBS.monthStart=pre>0?pre:100;
+  CBS.dayPnl+=profit;CBS.weekPnl+=profit;CBS.monthPnl+=profit;
+  if(won)CBS.streak=0;else CBS.streak+=1;
+  CBS.history.push({ts:Date.now(),won,profit,dayPnl:CBS.dayPnl});
+  if(CBS.history.length>200)CBS.history.shift();
+  let br=null;
+  if(CBS.dayStart>0&&CBS.dayPnl<=-CBS.dayStart*CBC.dailyLossPct)br={scope:'daily',reason:'خسارة يومية '+((CBS.dayPnl/CBS.dayStart)*100).toFixed(1)+'%',ms:CBC.dailyCooldownMs};
+  else if(CBS.weekStart>0&&CBS.weekPnl<=-CBS.weekStart*CBC.weeklyLossPct)br={scope:'weekly',reason:'خسارة أسبوعية '+((CBS.weekPnl/CBS.weekStart)*100).toFixed(1)+'%',ms:CBC.weeklyCooldownMs};
+  else if(CBS.monthStart>0&&CBS.monthPnl<=-CBS.monthStart*CBC.monthlyLossPct)br={scope:'monthly',reason:'خسارة شهرية '+((CBS.monthPnl/CBS.monthStart)*100).toFixed(1)+'%',ms:CBC.monthlyCooldownMs};
+  else if(CBS.streak>=CBC.streakLosses)br={scope:'streak',reason:CBS.streak+' خسارات متتالية',ms:CBC.streakCooldownMs};
+  if(br){CBS.pausedUntil=Date.now()+br.ms;CBS.pauseReason=br.reason;CBS.pauseScope=br.scope;if(br.scope!=='streak')CBS.streak=0;
+    try{if(typeof window.showToast==='function')window.showToast('⛔ '+br.reason,'red');}catch(e){}}
+  saveCB();renderBanner();}
+function cbCheck(){rollover();if(CBS.pausedUntil>Date.now()){const m=Math.ceil((CBS.pausedUntil-Date.now())/60000);return{ok:false,reason:CBS.pauseReason+' — بعد '+m+'د'};}
+  if(CBS.pausedUntil>0&&CBS.pausedUntil<=Date.now()){CBS.pausedUntil=0;CBS.pauseReason='';CBS.pauseScope='none';saveCB();renderBanner();}
+  return{ok:true};}
+window.kzCB={check:cbCheck,record,state:CBS,config:CBC,
+  stats(){return{dayPnl:CBS.dayPnl,weekPnl:CBS.weekPnl,monthPnl:CBS.monthPnl,streak:CBS.streak,paused:CBS.pausedUntil>Date.now(),scope:CBS.pauseScope,reason:CBS.pauseReason};},
+  forceResume(){CBS.pausedUntil=0;CBS.pauseReason='';CBS.pauseScope='none';CBS.streak=0;saveCB();renderBanner();},
+  reset(){CBS.dayPnl=CBS.weekPnl=CBS.monthPnl=0;CBS.streak=0;CBS.pausedUntil=0;CBS.pauseReason='';CBS.pauseScope='none';CBS.dayStart=CBS.weekStart=CBS.monthStart=0;saveCB();renderBanner();}
 };
-
-const CBS = {
-  dayKey:'', weekKey:'', monthKey:'',
-  dayStart:0, weekStart:0, monthStart:0,
-  dayPnl:0, weekPnl:0, monthPnl:0, streak:0,
-  pausedUntil:0, pauseReason:'', pauseScope:'none',
-  history:[], settledIds:new Set()
-};
-
-function dkey(){ const d=new Date(); return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0'); }
-function wkey(){ const d=new Date(); const t=new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); const day=t.getUTCDay()||7; t.setUTCDate(t.getUTCDate()+4-day); const y=t.getUTCFullYear(); const w=Math.ceil((((t - new Date(Date.UTC(y,0,1)))/86400000)+1)/7); return y+'-W'+String(w).padStart(2,'0'); }
-function mkey(){ const d=new Date(); return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0'); }
-
-function loadCB(){ try { const raw = localStorage.getItem(CBC.storageKey); if (!raw) return; const p = JSON.parse(raw); const sIds = p.settledIds || []; delete p.settledIds; Object.assign(CBS, p); CBS.settledIds = new Set(sIds); } catch(e){} }
-function saveCB(){ try { localStorage.setItem(CBC.storageKey, JSON.stringify({ dayKey:CBS.dayKey, weekKey:CBS.weekKey, monthKey:CBS.monthKey, dayStart:CBS.dayStart, weekStart:CBS.weekStart, monthStart:CBS.monthStart, dayPnl:CBS.dayPnl, weekPnl:CBS.weekPnl, monthPnl:CBS.monthPnl, streak:CBS.streak, pausedUntil:CBS.pausedUntil, pauseReason:CBS.pauseReason, pauseScope:CBS.pauseScope, history:CBS.history.slice(-100), settledIds: Array.from(CBS.settledIds).slice(-500) })); } catch(e){} }
-
-function rollover(){
-  const dk=dkey(), wk=wkey(), mk=mkey(); let changed=false;
-  if (CBS.dayKey !== dk)   { CBS.dayKey=dk;   CBS.dayPnl=0;   CBS.dayStart=0;   changed=true; }
-  if (CBS.weekKey !== wk)  { CBS.weekKey=wk;  CBS.weekPnl=0;  CBS.weekStart=0;  changed=true; }
-  if (CBS.monthKey !== mk) { CBS.monthKey=mk; CBS.monthPnl=0; CBS.monthStart=0; changed=true; }
-  if (changed) { if (CBS.pauseScope==='daily'||CBS.pauseScope==='weekly'||CBS.pauseScope==='monthly'){ CBS.pausedUntil=0; CBS.pauseReason=''; CBS.pauseScope='none'; } saveCB(); renderBanner(); }
-}
-
-function currentBalance(){ try { return parseFloat(state.derivAccount && state.derivAccount.balance) || 0; } catch(e){ return 0; } }
-
-function recordResult(won, profit){
-  rollover();
-  const bal = currentBalance();
-  const pre = bal - profit;
-  if (CBS.dayStart === 0)   CBS.dayStart   = pre > 0 ? pre : 100;
-  if (CBS.weekStart === 0)  CBS.weekStart  = pre > 0 ? pre : 100;
-  if (CBS.monthStart === 0) CBS.monthStart = pre > 0 ? pre : 100;
-  CBS.dayPnl += profit; CBS.weekPnl += profit; CBS.monthPnl += profit;
-  if (won) CBS.streak = 0; else CBS.streak += 1;
-  CBS.history.push({ ts:Date.now(), won, profit, dayPnl:CBS.dayPnl });
-  if (CBS.history.length > 200) CBS.history.shift();
-  let breach = null;
-  if (CBS.dayStart>0 && CBS.dayPnl <= -CBS.dayStart*CBC.dailyLossPct) breach = { scope:'daily', reason:'خسارة يومية '+((CBS.dayPnl/CBS.dayStart)*100).toFixed(1)+'%', ms:CBC.dailyCooldownMs };
-  else if (CBS.weekStart>0 && CBS.weekPnl <= -CBS.weekStart*CBC.weeklyLossPct) breach = { scope:'weekly', reason:'خسارة أسبوعية '+((CBS.weekPnl/CBS.weekStart)*100).toFixed(1)+'%', ms:CBC.weeklyCooldownMs };
-  else if (CBS.monthStart>0 && CBS.monthPnl <= -CBS.monthStart*CBC.monthlyLossPct) breach = { scope:'monthly', reason:'خسارة شهرية '+((CBS.monthPnl/CBS.monthStart)*100).toFixed(1)+'%', ms:CBC.monthlyCooldownMs };
-  else if (CBS.streak >= CBC.streakLosses) breach = { scope:'streak', reason: CBS.streak+' خسارات متتالية', ms:CBC.streakCooldownMs };
-  if (breach) {
-    CBS.pausedUntil = Date.now() + breach.ms;
-    CBS.pauseReason = breach.reason; CBS.pauseScope = breach.scope;
-    if (breach.scope !== 'streak') CBS.streak = 0;
-    console.warn('[CB] BREACH', breach);
-    try { if (typeof window.showToast === 'function') window.showToast('⛔ '+breach.reason, 'red'); } catch(e){}
-  }
-  saveCB(); renderBanner();
-}
-
-function cbCheck(){
-  rollover();
-  if (CBS.pausedUntil > Date.now()) {
-    const mins = Math.ceil((CBS.pausedUntil - Date.now())/60000);
-    return { ok: false, scope: CBS.pauseScope, resumeAt: CBS.pausedUntil, reason: CBS.pauseReason + ' — بعد ' + mins + 'د' };
-  }
-  if (CBS.pausedUntil > 0 && CBS.pausedUntil <= Date.now()) { CBS.pausedUntil=0; CBS.pauseReason=''; CBS.pauseScope='none'; saveCB(); renderBanner(); }
-  return { ok: true };
-}
-
-window.kzCB = {
-  check: cbCheck, record: recordResult, state: CBS, config: CBC,
-  stats(){ return { dayPnl:CBS.dayPnl, weekPnl:CBS.weekPnl, monthPnl:CBS.monthPnl, streak:CBS.streak, paused:CBS.pausedUntil > Date.now(), scope:CBS.pauseScope, reason:CBS.pauseReason }; },
-  forceResume(){ CBS.pausedUntil=0; CBS.pauseReason=''; CBS.pauseScope='none'; CBS.streak=0; saveCB(); renderBanner(); try { if (typeof window.showToast==='function') window.showToast('✅ استُؤنف','green'); } catch(e){} },
-  reset(){ CBS.dayPnl=CBS.weekPnl=CBS.monthPnl=0; CBS.streak=0; CBS.pausedUntil=0; CBS.pauseReason=''; CBS.pauseScope='none'; CBS.dayStart=CBS.weekStart=CBS.monthStart=0; saveCB(); renderBanner(); }
-};
-
-const PGC = { minRoi: 0.86, blacklistAfterSkips: 3, blacklistDurationMs: 10*60*1000 };
-const PGS = { blacklist:{}, skips:{}, stats:{ fires:0, skips:0, totalRoi:0, samples:0 } };
-
-window.kzPayout = {
-  config: PGC, state: PGS,
-  evaluate(roi, symbol){
-    const bl = PGS.blacklist[symbol];
-    if (bl && Date.now() < bl.until) return { mode:'SKIP', reason:'الرمز محظور مؤقتاً' };
-    if (roi < PGC.minRoi) {
-      PGS.skips[symbol] = (PGS.skips[symbol]||0) + 1;
-      if (PGS.skips[symbol] >= PGC.blacklistAfterSkips) { PGS.blacklist[symbol] = { until: Date.now()+PGC.blacklistDurationMs, reason:'payout منخفض' }; PGS.skips[symbol] = 0; }
-      return { mode:'SKIP', reason:'ROI '+(roi*100).toFixed(1)+'%' };
-    }
-    PGS.skips[symbol] = 0;
-    return { mode:'FIRE', reason:'ROI مقبول' };
-  },
-  log(symbol, roi, decision){ PGS.stats.samples++; PGS.stats.totalRoi += roi; if (decision.mode==='SKIP') PGS.stats.skips++; else PGS.stats.fires++; updatePayoutBadge(roi, decision.mode); },
-  stats(){ return { ...PGS.stats, avgRoi: PGS.stats.samples > 0 ? PGS.stats.totalRoi/PGS.stats.samples : 0, fireRate: PGS.stats.samples > 0 ? PGS.stats.fires/PGS.stats.samples : 0 }; }
-};
-
-function updatePayoutBadge(roi, mode){
-  let el = document.getElementById('kz-payout-badge');
-  if (!el) { el = document.createElement('div'); el.id = 'kz-payout-badge'; document.body.appendChild(el); }
-  const color = mode === 'SKIP' ? '#ef5350' : (roi >= 0.90 ? '#26a69a' : '#d4af37');
-  el.style.borderColor = color + '88';
-  el.innerHTML = '<span style="color:#8a90a3;">ROI</span> <span style="color:'+color+';font-weight:900;font-size:14px;">'+(roi*100).toFixed(2)+'%</span>';
-  el.style.opacity = '1';
-  clearTimeout(el._t);
-  el._t = setTimeout(() => { el.style.opacity = '0.55'; }, 4000);
-}
-
-function renderBanner(){
-  let el = document.getElementById('kz-cb-banner');
-  if (!el) { el = document.createElement('div'); el.id = 'kz-cb-banner'; document.body.appendChild(el); }
-  if (CBS.pausedUntil > Date.now()) {
-    const mins = Math.ceil((CBS.pausedUntil - Date.now())/60000);
-    const resumeAt = new Date(CBS.pausedUntil).toLocaleString('ar-EG');
-    el.innerHTML = '⛔ <b>Circuit Breaker — التداول موقوف</b> <span style="opacity:0.9;">('+CBS.pauseReason+')</span> • يستأنف بعد '+mins+'د ('+resumeAt+')<button onclick="window.kzCB.forceResume()">استئناف</button>';
-    el.classList.add('show');
-  } else { el.classList.remove('show'); }
-}
-
-/* Settle hook (idempotent) */
-const _origSettle = window.settleTradeFromDeriv;
-if (typeof _origSettle === 'function') {
-  window.settleTradeFromDeriv = function(contract){
-    try {
-      const FINAL = ['won','lost','sold','cancelled'];
-      if (contract && FINAL.includes(contract.status)) {
-        const cid = contract.contract_id;
-        if (!CBS.settledIds.has(cid)) {
-          CBS.settledIds.add(cid);
-          if (CBS.settledIds.size > 800) { const arr = Array.from(CBS.settledIds); CBS.settledIds = new Set(arr.slice(-500)); }
-          const profit = parseFloat(contract.profit) || 0;
-          const won = contract.status === 'won' || (contract.status === 'sold' && profit > 0);
-          recordResult(won, profit);
-        }
-      }
-    } catch(e){}
-    return _origSettle.apply(this, arguments);
-  };
-}
-
-/* sendProposal replacement */
-window.sendProposal = function(opts){
-  const { side, symbol, duration, auto, smart, hunter } = opts || {};
-  let amount = Number(Number(opts && opts.amount).toFixed(2));
-  if (!(amount >= 0.35)) amount = 0.35;
-  if (!state.derivWS) { if (auto) { try { window.addAutoLog('Deriv WS غير متصل','var(--red)'); } catch(e){} } else { try { window.showToast('Deriv WS غير متصل','red'); } catch(e){} } return; }
-  const cb = cbCheck();
-  if (!cb.ok) { if (auto) { try { window.addAutoLog('CB: '+cb.reason,'var(--gold)'); } catch(e){} } else { try { window.showToast('⛔ '+cb.reason,'red'); } catch(e){} } return; }
-  const contractType = side === 'BUY' ? 'CALL' : 'PUT';
-  const probeId = KZReq.next(), buyId = KZReq.next(), subId = KZReq.next();
-  const currency = (typeof window.currentCurrency === 'function') ? window.currentCurrency() : 'USD';
-  let finished = false;
-  const finish = () => { if (finished) return; finished = true; try { clearTimeout(probeTimeout); } catch(e){} try { state.derivWS.removeEventListener('message', onProbe); } catch(e){} };
-  const probeTimeout = setTimeout(() => { finish(); const label = '⏱ Probe timeout'; if (auto) { try { window.addAutoLog(label,'var(--gold)'); } catch(e){} } else { try { window.showToast(label,'gold'); } catch(e){} } }, 6000);
-  const onProbe = (ev) => {
-    let msg; try { msg = JSON.parse(ev.data); } catch(e) { return; }
-    if (msg.req_id !== probeId) return;
-    finish();
-    if (msg.error) { if (auto) { try { window.addAutoLog('رفض probe: '+(msg.error.message||''),'var(--red)'); } catch(e){} } else { try { window.showToast('رفض probe','red'); } catch(e){} } return; }
-    if (msg.msg_type !== 'proposal' || !msg.proposal || !msg.proposal.id) return;
-    const askPrice = parseFloat(msg.proposal.ask_price) || amount;
-    const payout = parseFloat(msg.proposal.payout) || 0;
-    const roi = askPrice > 0 ? (payout - askPrice) / askPrice : 0;
-    const decision = window.kzPayout.evaluate(roi, symbol);
-    window.kzPayout.log(symbol, roi, decision);
-    if (decision.mode === 'SKIP') { if (auto) { try { window.addAutoLog('⛔ تخطي '+symbol+' — '+decision.reason,'var(--gold)'); } catch(e){} } else { try { window.showToast('⛔ تخطي '+symbol,'gold'); } catch(e){} } return; }
-    const onBuy = (ev2) => {
-      let m2; try { m2 = JSON.parse(ev2.data); } catch(e) { return; }
-      if (m2.req_id !== buyId) return;
-      try { state.derivWS.removeEventListener('message', onBuy); } catch(e){}
-      if (m2.error) { if (auto) { try { window.addAutoLog('رفض buy: '+m2.error.message,'var(--red)'); } catch(e){} } else { try { window.showToast('رفض buy','red'); } catch(e){} } return; }
-      if (m2.msg_type !== 'buy' || !m2.buy) return;
-      const contractId = m2.buy.contract_id;
-      const tradeId = KZReq.next();
-      const trade = { id:tradeId, contractId, reqId:probeId, time:new Date().toLocaleTimeString('ar-EG'), symbol, side, amount, duration, openPrice:state.currentPrice, buyPrice:parseFloat(m2.buy.buy_price)||amount, status:'pending', auto:!!auto, smart:!!smart, hunter:!!hunter, closeTime:Date.now()+duration*60*1000, payoutRoi:roi };
-      state.activeTrades.push(trade);
-      state.contractMap[contractId] = trade.id;
-      try { window.renderActiveTrades(); } catch(e){}
-      try { state.derivWS.send(JSON.stringify({ proposal_open_contract:1, contract_id:contractId, subscribe:1, req_id:subId })); } catch(e){}
-      const logMsg = (side === 'BUY' ? '▲ ' : '▼ ') + side + ' — $' + amount + ' @ ROI ' + (roi*100).toFixed(1) + '%';
-      if (auto) { try { window.addAutoLog(logMsg,'var(--green)'); } catch(e){} } else { try { window.showToast('تم — $'+amount+' @ '+(roi*100).toFixed(1)+'%','green'); } catch(e){} }
-    };
-    state.derivWS.addEventListener('message', onBuy);
-    setTimeout(() => { try { state.derivWS.removeEventListener('message', onBuy); } catch(e){} }, 20000);
-    try { state.derivWS.send(JSON.stringify({ buy: msg.proposal.id, price: msg.proposal.ask_price, req_id: buyId })); } catch(e){}
-  };
-  state.derivWS.addEventListener('message', onProbe);
-  try { state.derivWS.send(JSON.stringify({ proposal:1, amount, basis:'stake', contract_type:contractType, currency, duration, duration_unit:'m', underlying_symbol:symbol, req_id:probeId })); }
-  catch(e) { finish(); }
-};
-
-/* Init */
-loadCB(); rollover(); renderBanner();
-setInterval(renderBanner, 30000);
-window.addEventListener('DOMContentLoaded', renderBanner);
-setTimeout(renderBanner, 1200);
-
-console.log('[KZ RISK SUITE] RESTORED — CB + Payout active');
+const PGC={minRoi:0.86,blacklistAfterSkips:3,blacklistDurationMs:10*60*1000};
+const PGS={blacklist:{},skips:{},stats:{fires:0,skips:0,totalRoi:0,samples:0}};
+window.kzPayout={config:PGC,state:PGS,
+  evaluate(roi,sym){const bl=PGS.blacklist[sym];if(bl&&Date.now()<bl.until)return{mode:'SKIP',reason:'محظور مؤقتاً'};
+    if(roi<PGC.minRoi){PGS.skips[sym]=(PGS.skips[sym]||0)+1;if(PGS.skips[sym]>=PGC.blacklistAfterSkips){PGS.blacklist[sym]={until:Date.now()+PGC.blacklistDurationMs,reason:'payout منخفض'};PGS.skips[sym]=0;}return{mode:'SKIP',reason:'ROI '+(roi*100).toFixed(1)+'%'};}
+    PGS.skips[sym]=0;return{mode:'FIRE',reason:'OK'};},
+  log(sym,roi,d){PGS.stats.samples++;PGS.stats.totalRoi+=roi;if(d.mode==='SKIP')PGS.stats.skips++;else PGS.stats.fires++;updateBadge(roi,d.mode);},
+  stats(){return{...PGS.stats,avgRoi:PGS.stats.samples>0?PGS.stats.totalRoi/PGS.stats.samples:0,fireRate:PGS.stats.samples>0?PGS.stats.fires/PGS.stats.samples:0};}};
+function updateBadge(roi,mode){let el=document.getElementById('kz-payout-badge');if(!el){el=document.createElement('div');el.id='kz-payout-badge';document.body.appendChild(el);}
+  const c=mode==='SKIP'?'#ef5350':(roi>=0.90?'#26a69a':'#d4af37');
+  el.style.borderColor=c+'88';el.innerHTML='<span style="color:#8a90a3;">ROI</span> <span style="color:'+c+';font-weight:900;font-size:14px;">'+(roi*100).toFixed(2)+'%</span>';
+  el.style.opacity='1';clearTimeout(el._t);el._t=setTimeout(()=>{el.style.opacity='0.55';},4000);}
+function renderBanner(){let el=document.getElementById('kz-cb-banner');if(!el){el=document.createElement('div');el.id='kz-cb-banner';document.body.appendChild(el);}
+  if(CBS.pausedUntil>Date.now()){const m=Math.ceil((CBS.pausedUntil-Date.now())/60000);const ra=new Date(CBS.pausedUntil).toLocaleString('ar-EG');
+    el.innerHTML='⛔ <b>Circuit Breaker موقوف</b> ('+CBS.pauseReason+') • بعد '+m+'د ('+ra+')<button onclick="window.kzCB.forceResume()">استئناف</button>';el.classList.add('show');}
+  else el.classList.remove('show');}
+const _oSettle=window.settleTradeFromDeriv;
+if(typeof _oSettle==='function'){window.settleTradeFromDeriv=function(c){try{const F=['won','lost','sold','cancelled'];
+  if(c&&F.includes(c.status)){const cid=c.contract_id;if(!CBS.settledIds.has(cid)){CBS.settledIds.add(cid);
+    if(CBS.settledIds.size>800){const a=Array.from(CBS.settledIds);CBS.settledIds=new Set(a.slice(-500));}
+    const p=parseFloat(c.profit)||0;const w=c.status==='won'||(c.status==='sold'&&p>0);record(w,p);}}}catch(e){}
+  return _oSettle.apply(this,arguments);};}
+window.sendProposal=function(opts){const{side,symbol,duration,auto,smart,hunter}=opts||{};
+  let amount=Number(Number(opts&&opts.amount).toFixed(2));if(!(amount>=0.35))amount=0.35;
+  if(!state.derivWS){if(auto){try{window.addAutoLog('WS غير متصل','var(--red)');}catch(e){}}return;}
+  const cb=cbCheck();if(!cb.ok){if(auto){try{window.addAutoLog('CB: '+cb.reason,'var(--gold)');}catch(e){}}else{try{window.showToast('⛔ '+cb.reason,'red');}catch(e){}}return;}
+  const ct=side==='BUY'?'CALL':'PUT';
+  const pid=KZReq.next(),bid=KZReq.next(),sid=KZReq.next();
+  const cur=(typeof window.currentCurrency==='function')?window.currentCurrency():'USD';
+  let fin=false;const finish=()=>{if(fin)return;fin=true;try{clearTimeout(pto);}catch(e){}try{state.derivWS.removeEventListener('message',onP);}catch(e){}};
+  const pto=setTimeout(()=>{finish();if(auto){try{window.addAutoLog('Probe timeout','var(--gold)');}catch(e){}}},6000);
+  const onP=(ev)=>{let m;try{m=JSON.parse(ev.data);}catch(e){return;}if(m.req_id!==pid)return;finish();
+    if(m.error){if(auto){try{window.addAutoLog('probe: '+(m.error.message||''),'var(--red)');}catch(e){}}return;}
+    if(m.msg_type!=='proposal'||!m.proposal||!m.proposal.id)return;
+    const ask=parseFloat(m.proposal.ask_price)||amount;const pay=parseFloat(m.proposal.payout)||0;
+    const roi=ask>0?(pay-ask)/ask:0;const dec=window.kzPayout.evaluate(roi,symbol);window.kzPayout.log(symbol,roi,dec);
+    if(dec.mode==='SKIP'){if(auto){try{window.addAutoLog('⛔ تخطي '+symbol+' — '+dec.reason,'var(--gold)');}catch(e){}}return;}
+    const onB=(ev2)=>{let m2;try{m2=JSON.parse(ev2.data);}catch(e){return;}if(m2.req_id!==bid)return;
+      try{state.derivWS.removeEventListener('message',onB);}catch(e){}
+      if(m2.error||m2.msg_type!=='buy'||!m2.buy)return;
+      const cid=m2.buy.contract_id;const tid=KZReq.next();
+      const tr={id:tid,contractId:cid,reqId:pid,time:new Date().toLocaleTimeString('ar-EG'),symbol,side,amount,duration,openPrice:state.currentPrice,buyPrice:parseFloat(m2.buy.buy_price)||amount,status:'pending',auto:!!auto,smart:!!smart,hunter:!!hunter,closeTime:Date.now()+duration*60*1000,payoutRoi:roi};
+      state.activeTrades.push(tr);state.contractMap[cid]=tr.id;
+      try{window.renderActiveTrades();}catch(e){}
+      try{state.derivWS.send(JSON.stringify({proposal_open_contract:1,contract_id:cid,subscribe:1,req_id:sid}));}catch(e){}
+      if(auto){try{window.addAutoLog('▲ '+side+' — $'+amount+' @ '+(roi*100).toFixed(1)+'%','var(--green)');}catch(e){}}};
+    state.derivWS.addEventListener('message',onB);setTimeout(()=>{try{state.derivWS.removeEventListener('message',onB);}catch(e){}},20000);
+    try{state.derivWS.send(JSON.stringify({buy:m.proposal.id,price:m.proposal.ask_price,req_id:bid}));}catch(e){}};
+  state.derivWS.addEventListener('message',onP);
+  try{state.derivWS.send(JSON.stringify({proposal:1,amount,basis:'stake',contract_type:ct,currency:cur,duration,duration_unit:'m',underlying_symbol:symbol,req_id:pid}));}
+  catch(e){finish();}};
+loadCB();rollover();renderBanner();
+setInterval(renderBanner,30000);setTimeout(renderBanner,1200);
+console.log('[A2] Risk Suite active');
 })();
 </script>
-<!-- ====== END RISK SUITE ====== -->
+<!-- ====== END A ====== -->
+  <!-- ====== B: HUNTER v3 — 4 Families ====== -->
+<script>
+(function(){
+'use strict';
+if(window.__kzH) return; window.__kzH={loaded:true};
+const SYMS=['R_10','R_25','R_50','R_75','R_100'];
+const CFG={minConfidence:65,minFamilies:3,riskPerTrade:0.0015,portfolioCap:0.01,maxConcurrent:2,maxSameSide:2,scanMs:15000,symbolCooldownMs:300000,lossStreakPauseMs:15*60*1000,dailyTradeCap:15,minBars:80};
+const PATS={'Bullish Engulfing':'ابتلاع صاعد','Bearish Engulfing':'ابتلاع هابط','Hammer':'المطرقة','Shooting Star':'الشهاب','Doji':'الدوجي','Morning Star':'نجمة الصباح','Evening Star':'نجمة المساء','Three White Soldiers':'الجنود الثلاثة البيض','Three Black Crows':'الغربان الثلاثة السود','Inside Bar':'شمعة داخلية','Outside Bar':'شمعة خارجية','Bullish Harami':'هارامي صاعد','Bearish Harami':'هارامي هابط','Bullish Marubozu':'ماروبوزو صاعد','Bearish Marubozu':'ماروبوزو هابط','Tweezer Bottom':'قاع الملقط','Tweezer Top':'قمة الملقط','Bullish Pin Bar':'بن بار صاعد','Bearish Pin Bar':'بن بار هابط'};
+const bd=c=>Math.abs(c.close-c.open), rg=c=>Math.max(0.0001,c.high-c.low), uw=c=>c.high-Math.max(c.close,c.open), lw=c=>Math.min(c.close,c.open)-c.low;
+const isB=c=>c.close>c.open, isS=c=>c.close<c.open, isD=c=>bd(c)<rg(c)*0.1, isM=c=>bd(c)>rg(c)*0.9;
+function detectPatterns(c){if(!c||c.length<3)return[];const c3=c[c.length-3],c2=c[c.length-2],c1=c[c.length-1];const o=[];
+  if(isS(c2)&&isB(c1)&&c1.close>c2.open&&c1.open<c2.close&&bd(c1)>bd(c2)*1.2)o.push({name:'Bullish Engulfing',ar:PATS['Bullish Engulfing'],side:'BUY',weight:25});
+  if(isB(c2)&&isS(c1)&&c1.close<c2.open&&c1.open>c2.close&&bd(c1)>bd(c2)*1.2)o.push({name:'Bearish Engulfing',ar:PATS['Bearish Engulfing'],side:'SELL',weight:25});
+  if(lw(c1)>bd(c1)*2&&lw(c1)>rg(c1)*0.6&&uw(c1)<bd(c1)*0.5)o.push({name:'Hammer',ar:PATS['Hammer'],side:'BUY',weight:20});
+  if(uw(c1)>bd(c1)*2&&uw(c1)>rg(c1)*0.6&&lw(c1)<bd(c1)*0.5)o.push({name:'Shooting Star',ar:PATS['Shooting Star'],side:'SELL',weight:20});
+  if(isD(c1))o.push({name:'Doji',ar:PATS['Doji'],side:'NEUTRAL',weight:5});
+  if(isS(c3)&&isD(c2)&&isB(c1)&&c1.close>(c3.open+c3.close)/2)o.push({name:'Morning Star',ar:PATS['Morning Star'],side:'BUY',weight:30});
+  if(isB(c3)&&isD(c2)&&isS(c1)&&c1.close<(c3.open+c3.close)/2)o.push({name:'Evening Star',ar:PATS['Evening Star'],side:'SELL',weight:30});
+  if(isB(c3)&&isB(c2)&&isB(c1)&&c2.close>c3.close&&c1.close>c2.close&&bd(c2)>rg(c2)*0.6&&bd(c1)>rg(c1)*0.6)o.push({name:'3 White Soldiers',ar:PATS['Three White Soldiers'],side:'BUY',weight:35});
+  if(isS(c3)&&isS(c2)&&isS(c1)&&c2.close<c3.close&&c1.close<c2.close&&bd(c2)>rg(c2)*0.6&&bd(c1)>rg(c1)*0.6)o.push({name:'3 Black Crows',ar:PATS['Three Black Crows'],side:'SELL',weight:35});
+  if(c1.high<c2.high&&c1.low>c2.low)o.push({name:'Inside Bar',ar:PATS['Inside Bar'],side:'NEUTRAL',weight:8});
+  if(c1.high>c2.high&&c1.low<c2.low)o.push({name:'Outside Bar',ar:PATS['Outside Bar'],side:isB(c1)?'BUY':'SELL',weight:15});
+  if(isS(c2)&&isB(c1)&&c1.open>c2.close&&c1.close<c2.open&&bd(c1)<bd(c2)*0.6)o.push({name:'Harami B',ar:PATS['Bullish Harami'],side:'BUY',weight:18});
+  if(isB(c2)&&isS(c1)&&c1.open<c2.close&&c1.close>c2.open&&bd(c1)<bd(c2)*0.6)o.push({name:'Harami S',ar:PATS['Bearish Harami'],side:'SELL',weight:18});
+  if(isM(c1))o.push({name:isB(c1)?'Maru B':'Maru S',ar:isB(c1)?PATS['Bullish Marubozu']:PATS['Bearish Marubozu'],side:isB(c1)?'BUY':'SELL',weight:15});
+  if(Math.abs(c2.low-c1.low)/c1.low<0.0005&&isB(c1))o.push({name:'Tweezer B',ar:PATS['Tweezer Bottom'],side:'BUY',weight:20});
+  if(Math.abs(c2.high-c1.high)/c1.high<0.0005&&isS(c1))o.push({name:'Tweezer T',ar:PATS['Tweezer Top'],side:'SELL',weight:20});
+  if(lw(c1)>rg(c1)*0.66)o.push({name:'Pin B',ar:PATS['Bullish Pin Bar'],side:'BUY',weight:22});
+  if(uw(c1)>rg(c1)*0.66)o.push({name:'Pin S',ar:PATS['Bearish Pin Bar'],side:'SELL',weight:22});
+  return o;}
+const Clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ema=(a,p)=>calcEMA(a,p);
+const atrA=(c,p)=>calcATR(c.map(x=>x.close),c.map(x=>x.high),c.map(x=>x.low),p||14);
+
+// Family 1: TREND
+function f1(d,sym){
+  if(!d.r1||d.m1.length<60)return null;
+  const cl=d.m1.map(c=>c.close),e20=ema(cl,20),e50=ema(cl,50),a=atrA(d.m1,14),av=a[a.length-1];
+  const p=cl[cl.length-1],e20v=e20[e20.length-1],e50v=e50[e50.length-1],slope=(e20v-e20[e20.length-5])/(av*4);
+  let side=null,conf=0;const rs=[];
+  if(e20v>e50v&&slope>0.10){side='BUY';conf=50+Math.min(30,Math.abs(slope)*100);rs.push('EMA20>EMA50');rs.push('ميل '+slope.toFixed(2));if(p>e20v){conf+=5;rs.push('سعر فوق EMA20');}}
+  else if(e20v<e50v&&slope<-0.10){side='SELL';conf=50+Math.min(30,Math.abs(slope)*100);rs.push('EMA20<EMA50');rs.push('ميل '+slope.toFixed(2));if(p<e20v){conf+=5;rs.push('سعر تحت EMA20');}}
+  else return null;
+  return{side,family:'TREND',strategy:'TREND_FOLLOW',confidence:Clamp(conf,0,90),atr:av,entry:p,reasons:rs};}
+
+// Family 2: VOLATILITY
+function f2(d,sym){
+  if(!d.r1||d.m1.length<80)return null;
+  const cl=d.m1.map(c=>c.close),a=atrA(d.m1,14),av=a[a.length-1],bb=calcBB(cl,20,2);
+  if(!bb.upper.length||bb.upper.length<10)return null;
+  const up=bb.upper[bb.upper.length-1].value,lo=bb.lower[bb.lower.length-1].value;
+  const upP=bb.upper[bb.upper.length-5].value,loP=bb.lower[bb.lower.length-5].value;
+  const p=cl[cl.length-1],w=(up-lo)/p,wP=(upP-loP)/p,exp=w>wP*1.1,nar=w<0.0025;
+  let side=null,conf=0;const rs=[];
+  if(p>up&&exp){side='BUY';conf=55+Math.min(20,(w-wP)*5000);rs.push('اختراق BB علوي');rs.push('نطاق يتوسع');if(nar){conf+=12;rs.push('انفجار من ضغط');}}
+  else if(p<lo&&exp){side='SELL';conf=55+Math.min(20,(w-wP)*5000);rs.push('اختراق BB سفلي');rs.push('نطاق يتوسع');if(nar){conf+=12;rs.push('انفجار من ضغط');}}
+  else return null;
+  return{side,family:'VOLATILITY',strategy:'VOL_BREAK',confidence:Clamp(conf,0,92),atr:av,entry:p,reasons:rs};}
+
+// Family 3: MOMENTUM
+function f3(d,sym){
+  if(!d.r1||d.m1.length<50)return null;
+  const cl=d.m1.map(c=>c.close),a=atrA(d.m1,14),av=a[a.length-1],p=cl[cl.length-1];
+  const r14=calcRSI(cl,14),r=r14[r14.length-1],rp=r14[r14.length-2],rp3=r14[r14.length-4];
+  const mac=calcMACD(cl),M=mac.macd[mac.macd.length-1],S=mac.signal[mac.signal.length-1];
+  const h=M-S,hp=mac.macd[mac.macd.length-2]-mac.signal[mac.signal.length-2],hp3=mac.macd[mac.macd.length-4]-mac.signal[mac.signal.length-4];
+  let side=null,conf=0;const rs=[];
+  if(r>30&&r<65&&r>rp&&r>rp3&&h>0&&h>hp&&h>hp3){side='BUY';conf=50+Math.min(25,(h-hp3)*2000);rs.push('RSI='+r.toFixed(1));rs.push('MACD يتوسع +');}
+  else if(r<70&&r>35&&r<rp&&r<rp3&&h<0&&h<hp&&h<hp3){side='SELL';conf=50+Math.min(25,Math.abs(h-hp3)*2000);rs.push('RSI='+r.toFixed(1));rs.push('MACD يتوسع -');}
+  else return null;
+  return{side,family:'MOMENTUM',strategy:'MOM_SHIFT',confidence:Clamp(conf,0,88),atr:av,entry:p,reasons:rs};}
+
+// Family 4: STRUCTURE
+function f4(d,sym){
+  if(!d.r1||d.m1.length<80)return null;
+  const cl=d.m1.map(c=>c.close),a=atrA(d.m1,14),av=a[a.length-1],p=cl[cl.length-1];
+  const pats=detectPatterns(d.m1);let pB=0,pS=0;const pN=[];
+  pats.forEach(x=>{if(x.side==='BUY'){pB+=x.weight;pN.push(x.ar);}if(x.side==='SELL'){pS+=x.weight;pN.push(x.ar);}});
+  let srS=null,srL=null,srT=0;
+  if(typeof calcSR==='function'){const sr=calcSR(d.m1,5);const sup=(sr.supports||[]).find(s=>s.tests>=2),res=(sr.resistances||[]).find(s=>s.tests>=2);
+    if(sup&&Math.abs(p-sup.price)/p<0.0015){srS='BUY';srL=sup.price;srT=sup.tests;}
+    else if(res&&Math.abs(p-res.price)/p<0.0015){srS='SELL';srL=res.price;srT=res.tests;}}
+  let side=null,conf=0;const rs=[];
+  if(srS==='BUY'&&pB>0){side='BUY';conf=55+Math.min(20,srT*5)+Math.min(15,pB/2);rs.push('دعم ×'+srT);rs.push(pN.join(' + '));}
+  else if(srS==='SELL'&&pS>0){side='SELL';conf=55+Math.min(20,srT*5)+Math.min(15,pS/2);rs.push('مقاومة ×'+srT);rs.push(pN.join(' + '));}
+  else if(pB>=30&&!srS){side='BUY';conf=50+Math.min(20,pB/2);rs.push('نمط: '+pN.join(' + '));}
+  else if(pS>=30&&!srS){side='SELL';conf=50+Math.min(20,pS/2);rs.push('نمط: '+pN.join(' + '));}
+  else return null;
+  return{side,family:'STRUCTURE',strategy:'STRUCT_BOUNCE',confidence:Clamp(conf,0,90),atr:av,entry:p,reasons:rs};}
+
+const STRATS=[f1,f2,f3,f4];
+const FAMS=['TREND','VOLATILITY','MOMENTUM','STRUCTURE'];
+const S={running:false,timer:null,ws:null,data:{},scans:0,lastFireAt:{},daily:0,dayKey:dk(),pausedUntil:0,lossStreak:{}};
+SYMS.forEach(s=>S.data[s]={m1:[],m5:[],m15:[],r1:false,r5:false,r15:false});
+function dk(){const d=new Date();return d.getUTCFullYear()+'-'+(d.getUTCMonth()+1)+'-'+d.getUTCDate();}
+const $=id=>document.getElementById(id);
+function setSt(t,c){const e=$('hunter-state');if(!e)return;e.className='hunter-state'+(c?' '+c:'');const x=e.querySelector('.hunter-state-txt');if(x)x.textContent=t;}
+function logL(m,c){const l=$('hunter-log');if(!l)return;const e=l.querySelector('.hunter-log-empty');if(e)e.remove();
+  const d=document.createElement('div');d.className='hunter-log-line';d.style.color=c||'var(--text)';
+  d.textContent='['+new Date().toLocaleTimeString('ar-EG')+'] '+m;l.prepend(d);while(l.children.length>30)l.removeChild(l.lastChild);}
+function chip(s,st){const c=document.querySelector('.hunter-chip[data-sym="'+s+'"]');if(c)c.className='hunter-chip '+(st||'');}
+function stats(){const r=SYMS.filter(s=>S.data[s].r1&&S.data[s].r5).length;
+  if($('hunter-scanned'))$('hunter-scanned').textContent=r+'/'+SYMS.length;
+  const a=(state.activeTrades||[]).filter(t=>t.hunter).length;if($('hunter-active'))$('hunter-active').textContent=a+'/'+CFG.maxConcurrent;}
+
+function analyze(sym){const d=S.data[sym];if(!d.r1||!d.r5)return null;
+  const rs=[];for(const f of STRATS){try{const r=f(d,sym);if(r)rs.push(r);}catch(e){console.warn('strat',e.message);}}
+  if(!rs.length)return{sym,ens:null};
+  const by={};rs.forEach(r=>{if(!by[r.family]||r.confidence>by[r.family].confidence)by[r.family]=r;});
+  const fa=Object.values(by);const bF=fa.filter(r=>r.side==='BUY'),sF=fa.filter(r=>r.side==='SELL');
+  let side=null;
+  if(bF.length>=CFG.minFamilies&&bF.length>sF.length)side='BUY';
+  else if(sF.length>=CFG.minFamilies&&sF.length>bF.length)side='SELL';
+  else return{sym,ens:null,partial:{b:bF.length,s:sF.length}};
+  const vs=side==='BUY'?bF:sF;const avg=vs.reduce((a,r)=>a+r.confidence,0)/vs.length;
+  return{sym,ens:{side,confidence:Math.min(95,Math.round(avg+(vs.length-3)*5)),voters:vs,voterCount:vs.length}};}
+
+function fire(a){const{sym,ens}=a;const side=ens.side,conf=ens.confidence;
+  if(conf<CFG.minConfidence){chip(sym,'ready');return false;}
+  const act=(state.activeTrades||[]).filter(t=>t.hunter);
+  if(act.length>=CFG.maxConcurrent)return false;
+  if(act.some(t=>t.symbol===sym))return false;
+  if(act.filter(t=>t.side===side).length>=CFG.maxSameSide)return false;
+  if(Date.now()<S.pausedUntil)return false;
+  if(S.daily>=CFG.dailyTradeCap)return false;
+  if(S.lastFireAt[sym]&&Date.now()-S.lastFireAt[sym]<CFG.symbolCooldownMs)return false;
+  const b=parseFloat(state.derivAccount&&state.derivAccount.balance)||0;if(b<=0)return false;
+  const v0=ens.voters[0];const ap=v0.atr/v0.entry;const dur=ap<0.0008?3:ap<0.0015?2:1;
+  const size=Math.max(0.35,Math.min(b*0.01,Number((b*CFG.riskPerTrade*(0.7+conf/100)).toFixed(2))));
+  logL('🔥 '+side+' '+sym+' | '+conf+'% | '+ens.voterCount+'/4 | $'+size+' | '+dur+'m',side==='BUY'?'var(--green)':'var(--red)');
+  const feed=$('ap-feed');
+  if(feed){const em=feed.querySelector('.ap-feed-empty');if(em)em.remove();
+    const cd=document.createElement('div');cd.className='ap-card '+(side==='BUY'?'buy':'sell');
+    const rows=ens.voters.map(v=>'<div style="margin:3px 0;"><b style="color:var(--cyan);">'+v.family+'</b> ('+v.confidence.toFixed(0)+'%) — '+v.reasons.join(' • ')+'</div>').join('');
+    cd.innerHTML='<div style="font-size:11px;line-height:1.6;"><div style="font-weight:900;color:'+(side==='BUY'?'var(--green)':'var(--red)')+';font-size:14px;margin-bottom:4px;">'+(side==='BUY'?'▲ شراء':'▼ بيع')+' '+sym+' — ثقة '+conf+'% ('+ens.voterCount+'/4)</div><div style="border-top:1px dashed var(--border);padding-top:6px;margin-top:6px;">'+rows+'</div></div>';
+    feed.prepend(cd);while(feed.children.length>15)feed.removeChild(feed.lastChild);}
+  try{sendProposal({side,symbol:sym,amount:size,duration:dur,auto:false,smart:false,hunter:true});
+    S.lastFireAt[sym]=Date.now();S.daily++;chip(sym,side==='BUY'?'buy':'sell');}catch(e){logL('send: '+e.message,'var(--red)');return false;}
+  return true;}
+
+function tick(){if(!S.running)return;
+  if(dk()!==S.dayKey){S.dayKey=dk();S.daily=0;S.lossStreak={};}
+  if(Date.now()<S.pausedUntil){setSt('إيقاف '+Math.ceil((S.pausedUntil-Date.now())/60000)+'د','err');return;}
+  if(!state.derivLinked||!state.derivWS){setSt('Deriv غير مربوط','err');return;}
+  S.scans++;const cs=[];
+  for(const s of SYMS){const a=analyze(s);if(!a){chip(s,'');continue;}
+    if(!a.ens){if(a.partial&&(a.partial.b>=2||a.partial.s>=2))chip(s,'ready');else chip(s,'');continue;}
+    chip(s,'ready');cs.push(a);}
+  if(!cs.length){setSt('فحص #'+S.scans+' — لا توافق 3/4','');stats();return;}
+  cs.sort((a,b)=>b.ens.confidence-a.ens.confidence);
+  let f=0;for(const c of cs){if(c.ens.confidence<CFG.minConfidence)continue;if(fire(c))f++;if(f>=2)break;}
+  setSt(f?'أطلق '+f:'مرشح محجوب',f?'on':'');stats();}
+
+function push(arr,tf,p){if(!isFinite(p)||p<=0)return;const bt=Math.floor(Date.now()/1000/tf)*tf;
+  if(!arr.length){arr.push({time:bt,open:p,high:p,low:p,close:p});return;}
+  const l=arr[arr.length-1];if(l.time===bt){l.close=p;l.high=Math.max(l.high,p);l.low=Math.min(l.low,p);}
+  else if(l.time<bt){arr.push({time:bt,open:l.close,high:p,low:p,close:p});if(arr.length>400)arr.shift();}}
+
+function openWS(){if(S.ws&&S.ws.readyState===1)return;if(S.ws){try{S.ws.close();}catch(e){}}
+  S.ws=new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
+  S.ws.onopen=()=>{logL('WS متصل — '+SYMS.length+' رموز × 4 عائلات','var(--cyan)');
+    SYMS.forEach((s,i)=>{try{
+      S.ws.send(JSON.stringify({ticks_history:s,count:300,end:'latest',style:'candles',granularity:60,req_id:100+i}));
+      S.ws.send(JSON.stringify({ticks_history:s,count:300,end:'latest',style:'candles',granularity:300,req_id:200+i}));
+      S.ws.send(JSON.stringify({ticks_history:s,count:200,end:'latest',style:'candles',granularity:900,req_id:300+i}));
+      S.ws.send(JSON.stringify({ticks:s,subscribe:1,req_id:400+i}));}catch(e){}});};
+  S.ws.onmessage=ev=>{let m;try{m=JSON.parse(ev.data);}catch(e){return;}if(m.error)return;
+    if(m.msg_type==='candles'&&m.echo_req){const s=m.echo_req.ticks_history,g=m.echo_req.granularity;if(!S.data[s])return;
+      const arr=(m.candles||[]).map(c=>({time:c.epoch,open:+c.open,high:+c.high,low:+c.low,close:+c.close}));
+      if(g===60){S.data[s].m1=arr;S.data[s].r1=arr.length>=CFG.minBars;}
+      else if(g===300){S.data[s].m5=arr;S.data[s].r5=arr.length>=CFG.minBars;}
+      else if(g===900){S.data[s].m15=arr;S.data[s].r15=arr.length>=60;}stats();}
+    else if(m.msg_type==='tick'&&m.tick){const s=m.tick.symbol,p=+m.tick.quote;if(!S.data[s])return;
+      push(S.data[s].m1,60,p);push(S.data[s].m5,300,p);push(S.data[s].m15,900,p);}};
+  S.ws.onclose=()=>{if(S.running)setTimeout(openWS,5000);};}
+
+function buildChips(){const el=$('hunter-chips');if(!el)return;el.innerHTML='';
+  SYMS.forEach(s=>{const c=document.createElement('div');c.className='hunter-chip';c.dataset.sym=s;c.textContent=s.replace('_','');el.appendChild(c);});}
+
+function injectSlider(){const p=$('hunter-panel');if(!p||$('kz3-conf-slider'))return;
+  const w=document.createElement('div');w.id='kz3-conf-slider';
+  w.style.cssText='display:flex;align-items:center;gap:10px;margin:10px 0;padding:10px 12px;background:rgba(0,0,0,0.35);border-radius:10px;border:1px solid rgba(155,109,255,0.3);';
+  w.innerHTML='<span style="color:var(--text-dim);font-size:11px;">حد الثقة</span><input id="kz3-conf-range" type="range" min="50" max="90" step="5" value="'+CFG.minConfidence+'" style="flex:1;"><span id="kz3-conf-val" style="color:var(--purple);font-family:monospace;font-weight:900;min-width:44px;">'+CFG.minConfidence+'%</span><span style="color:var(--text-dim);font-size:10px;">| 3/4 عائلات</span>';
+  const btn=$('hunter-toggle');if(btn&&btn.parentNode)btn.parentNode.insertBefore(w,btn);else p.appendChild(w);
+  const r=$('kz3-conf-range'),v=$('kz3-conf-val');
+  r.addEventListener('input',()=>{CFG.minConfidence=parseInt(r.value);v.textContent=CFG.minConfidence+'%';
+    try{localStorage.setItem('kanzer_v3_minconf',String(CFG.minConfidence));}catch(e){}});
+  try{const sv=localStorage.getItem('kanzer_v3_minconf');if(sv){CFG.minConfidence=parseInt(sv);r.value=CFG.minConfidence;v.textContent=CFG.minConfidence+'%';}}catch(e){}}
+
+function guard(){['hunter-scanned','hunter-active'].forEach(id=>{const el=document.getElementById(id);if(!el||el.__g)return;el.__g=true;
+  const d=Object.getOwnPropertyDescriptor(Node.prototype,'textContent');let last=d.get.call(el);
+  Object.defineProperty(el,'textContent',{configurable:true,get(){return last;},set(v){const s=String(v);if(/^0\//.test(s)&&last&&!/^0\//.test(last))return;last=s;d.set.call(el,s);}});});}
+
+function start(){if(S.running)return;if(!state.derivLinked){alert('اربط Deriv أولاً');return;}
+  S.running=true;S.scans=0;S.pausedUntil=0;openWS();S.timer=setInterval(tick,CFG.scanMs);
+  const p=$('hunter-panel');if(p)p.classList.add('on');if($('hunter-btn-txt'))$('hunter-btn-txt').textContent='إيقاف HUNTER v3';
+  setSt('يعمل','on');logL('HUNTER v3 — 4 عائلات | حد '+CFG.minConfidence+'% | 3/4 توافق','var(--purple)');setTimeout(tick,4000);}
+function stop(){S.running=false;if(S.timer){clearInterval(S.timer);S.timer=null;}if(S.ws){try{S.ws.close();}catch(e){}S.ws=null;}
+  const p=$('hunter-panel');if(p)p.classList.remove('on');if($('hunter-btn-txt'))$('hunter-btn-txt').textContent='تشغيل HUNTER v3';
+  setSt('متوقف','');logL('HUNTER v3 توقف','var(--text-dim)');}
+
+window.hunterToggle=()=>S.running?stop():start();
+const _pS=window._hunterOnSettle;
+window._hunterOnSettle=function(t,w,p){const sym=t.symbol;
+  if(w)S.lossStreak[sym]=0;else{S.lossStreak[sym]=(S.lossStreak[sym]||0)+1;
+    if(S.lossStreak[sym]>=2){S.pausedUntil=Date.now()+CFG.lossStreakPauseMs;logL('توقف 15د — خسارتان '+sym,'var(--gold)');setSt('إيقاف','err');}}
+  logL((w?'ربح ':'خسارة ')+sym+' '+(p>=0?'+':'')+'$'+p.toFixed(2),w?'var(--green)':'var(--red)');stats();
+  if(typeof _pS==='function'){try{_pS.apply(this,arguments);}catch(e){}};};
+
+setTimeout(buildChips,1500);setTimeout(injectSlider,2000);
+setInterval(guard,2000);setTimeout(guard,2500);setInterval(stats,3000);
+
+window._hunterV3={api:{start,stop,state:S,config:CFG,status:()=>({running:S.running,scans:S.scans,daily:S.daily,minConf:CFG.minConfidence,minFamilies:CFG.minFamilies,ready:SYMS.filter(s=>S.data[s].r1&&S.data[s].r5).length,active:(state.activeTrades||[]).filter(t=>t.hunter).length,paused:S.pausedUntil>Date.now()})}};
+console.log('[B] HUNTER v3 active');
+})();
+</script>
+<!-- ====== END B ====== -->
+  <!-- ====== C: KZ Keeper ====== -->
+<script>
+(function(){
+'use strict';
+if(window._kzKeeper) return; window._kzKeeper=true;
+const K={audioCtx:null,osc:null,enabled:false,drift:0,samples:[],lastVisible:Date.now()};
+function initAudio(){if(K.audioCtx)return true;try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
+  K.audioCtx=new AC();K.osc=K.audioCtx.createOscillator();const g=K.audioCtx.createGain();
+  K.osc.type='sine';K.osc.frequency.value=20000;g.gain.value=0.0001;
+  K.osc.connect(g);g.connect(K.audioCtx.destination);K.osc.start();return true;}catch(e){return false;}}
+function resume(){if(!K.audioCtx)initAudio();if(!K.audioCtx)return;
+  if(K.audioCtx.state==='suspended')K.audioCtx.resume().then(()=>{K.enabled=true;badge();}).catch(()=>{});
+  else{K.enabled=true;badge();}}
+function watchdog(){let last=performance.now();setInterval(()=>{const n=performance.now();const d=(n-last)-1000;last=n;
+  K.samples.push(d);if(K.samples.length>20)K.samples.shift();
+  K.drift=K.samples.reduce((a,b)=>a+b,0)/K.samples.length;badge();},1000);}
+setInterval(()=>{try{if(state.derivWS&&state.derivWS.readyState===1)state.derivWS.send(JSON.stringify({ping:1}));}catch(e){}
+  try{if(state.ws&&state.ws.readyState===1)state.ws.send(JSON.stringify({ping:1}));}catch(e){}},25000);
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'){
+    if(window._hunterV3&&_hunterV3.api&&_hunterV3.api.state){const H=_hunterV3.api.state;
+      if(H.running&&(!H.ws||H.ws.readyState!==1)){try{_hunterV3.api.stop();_hunterV3.api.start();}catch(e){}}}
+    if(state.derivLinked&&!state.derivWS){const t=localStorage.getItem('deriv_token');
+      if(t&&typeof authorizeToken==='function'){try{authorizeToken(t,null,true);}catch(e){}}}
+    if(!state.wsConnected&&typeof connectWS==='function'){try{connectWS();}catch(e){}}badge();}
+  else{K.lastVisible=Date.now();if(K.audioCtx&&K.audioCtx.state==='suspended')K.audioCtx.resume().catch(()=>{});badge();}});
+function badge(){let el=document.getElementById('kz-keeper-badge');
+  if(!el){el=document.createElement('div');el.id='kz-keeper-badge';
+    el.style.cssText='position:fixed;bottom:16px;left:16px;z-index:99996;background:rgba(15,18,24,0.92);border:1px solid rgba(155,109,255,0.35);border-radius:10px;padding:8px 14px;font-family:Courier New,monospace;font-size:11px;color:#e8eaf0;box-shadow:0 4px 20px rgba(0,0,0,0.5);display:flex;align-items:center;gap:8px;';
+    document.body.appendChild(el);}
+  const h=document.visibilityState==='hidden',th=K.drift>3000;let c,l;
+  if(!K.enabled){c='#ef5350';l='KEEPER OFF';}
+  else if(th){c='#ffa726';l='THROTTLED';}
+  else if(h){c='#26a69a';l='BG ACTIVE';}
+  else{c='#9b6dff';l='KEEPER ON';}
+  el.style.borderColor=c+'88';
+  el.innerHTML='<span style="width:8px;height:8px;border-radius:50%;background:'+c+';box-shadow:0 0 8px '+c+';"></span><span style="color:'+c+';font-weight:700;">'+l+'</span><span style="color:#8a90a3;">drift '+K.drift.toFixed(0)+'ms</span>';}
+function init(){document.addEventListener('click',function once(){resume();document.removeEventListener('click',once);},{once:true});
+  watchdog();setInterval(badge,2000);badge();}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+console.log('[C] KZ Keeper active');
+})();
+</script>
+<!-- ====== END C ====== -->
 </body> 
 </html>
