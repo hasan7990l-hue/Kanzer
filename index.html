@@ -1705,7 +1705,9 @@ function settleTradeFromDeriv(contract) {
   state.balance += profit;
   if (won) { state.profit += profit; state.wins += 1; }
   else { state.loss += Math.abs(profit) || t.amount; }
-
+  if (t.smart && typeof window._apOnSettle === 'function') {
+  window._apOnSettle(t, won, profit);
+  }
   if (t.auto) {
     if (won) { state.autoStats.profit += profit; state.autoStats.consecutiveLosses = 0; }
     else {
