@@ -5417,6 +5417,36 @@ else init();
 console.log('[KZ KEEPER] loaded');
 })();
 </script>
-<!-- ====== END KZ KEEPER ====== --> 
+  <!-- ====== HUNTER v2 — calcBB safety patch ====== -->
+<script>
+(function(){
+'use strict';
+if (window._kzBBFix) return;
+window._kzBBFix = true;
+
+window.calcBB = function(closes, p, m) {
+  p = p || 20;
+  m = m || 2;
+  if (!Array.isArray(closes) || closes.length < p) return { upper: [], lower: [] };
+  const src = (typeof state !== 'undefined' && state.candles) ? state.candles : [];
+  const up = [], lo = [];
+  for (let i = p - 1; i < closes.length; i++) {
+    const slice = closes.slice(i - p + 1, i + 1);
+    const mean = slice.reduce((a, b) => a + b, 0) / p;
+    const v = slice.reduce((a, b) => a + (b - mean) ** 2, 0) / p;
+    const std = Math.sqrt(v);
+    const t = (src.length > i && src[i] && typeof src[i].time === 'number')
+      ? src[i].time
+      : i;
+    up.push({ time: t, value: mean + m * std });
+    lo.push({ time: t, value: mean - m * std });
+  }
+  return { upper: up, lower: lo };
+};
+
+console.log('[KZ] calcBB safety patch installed');
+})();
+</script>
+<!-- ====== END calcBB patch ====== -->
 </body> 
 </html>
