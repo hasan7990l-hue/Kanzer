@@ -1968,9 +1968,6 @@ function updateUI() {
   setText('prof-net', (net >= 0 ? '+' : '') + '$' + net.toFixed(2), net >= 0 ? 'var(--green)' : 'var(--red)');
   setText('prof-winrate', state.totalTrades ? ((state.wins / state.totalTrades) * 100).toFixed(0) + '%' : '0%');
   setText('prof-total', state.totalTrades);
-  setText('auto-count', state.autoStats.count);
-  setText('auto-profit', '$' + state.autoStats.profit.toFixed(2));
-  setText('auto-loss', '$' + state.autoStats.loss.toFixed(2));
 }
 // حساب الإحصائيات الكاملة من سجل الصفقات
 function computeTradeStats() {
