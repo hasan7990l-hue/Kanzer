@@ -1161,6 +1161,21 @@ html, body {
       <span class="ap-scan-line"></span>
       <span class="ap-scan-txt">لا فحص بعد</span>
     </div>
+    <div class="kz-strict" id="kz-strict">
+  <button type="button" class="kz-strict-btn" data-strict="3" onclick="kzSetStrict(3)">
+    <span class="kz-s-label">3/6</span>
+    <span class="kz-s-sub">ACTIVE</span>
+  </button>
+  <button type="button" class="kz-strict-btn active" data-strict="4" onclick="kzSetStrict(4)">
+    <span class="kz-s-label">4/6</span>
+    <span class="kz-s-sub">BALANCED</span>
+  </button>
+  <button type="button" class="kz-strict-btn" data-strict="5" onclick="kzSetStrict(5)">
+    <span class="kz-s-label">5/6</span>
+    <span class="kz-s-sub">STRICT</span>
+  </button>
+</div>
+<input type="hidden" id="ap-strictness" value="4">
     <div class="ap-meta" id="ap-meta">
       <div class="ap-meta-item"><span class="ap-meta-lbl">الفريم</span><span class="ap-meta-val" id="ap-tf">—</span></div>
       <div class="ap-meta-item"><span class="ap-meta-lbl">المدة</span><span class="ap-meta-val" id="ap-dur">—</span></div>
