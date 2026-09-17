@@ -2184,20 +2184,50 @@ function startDerivKeepAlive() {
 function stopDerivKeepAlive() { if (window._derivKeepAlive) { clearInterval(window._derivKeepAlive); window._derivKeepAlive = null; } }
 
 function updateDerivUI() {
-  const badge = $('deriv-badge'), badgeText = $('deriv-badge-text');
-  const notLinked = $('deriv-not-linked'), linked = $('deriv-linked');
-  if (!badge) return;
-  if (state.derivLinked && state.derivAccount) {
-    badge.className = 'deriv-badge linked';
-    badgeText.textContent = state.derivAccount.loginid || 'مربوط';
-    notLinked.style.display = 'none'; linked.style.display = 'block';
+  const stage = document.getElementById('deriv-stage');
+  const emblem = document.getElementById('deriv-emblem');
+  const headTitle = document.getElementById('deriv-head-title');
+  const headSub = document.getElementById('deriv-head-sub');
+  const pulse = document.getElementById('deriv-pulse');
+  const notLinked = document.getElementById('deriv-not-linked');
+  const linked = document.getElementById('deriv-linked');
+  const badge = document.getElementById('deriv-badge');
+  const badgeText = document.getElementById('deriv-badge-text');
+
+  const isLinked = state.derivLinked && state.derivAccount;
+
+  if (isLinked) {
+    if (stage) stage.classList.add('connected');
+    if (emblem) emblem.textContent = '✅';
+    if (headTitle) headTitle.textContent = 'الحساب متصل بـ Deriv';
+    if (headSub) headSub.textContent = state.derivAccount.loginid || 'ACTIVE SESSION';
+    if (pulse) pulse.classList.add('live');
+    if (notLinked) notLinked.style.display = 'none';
+    if (linked) linked.classList.add('show');
+
     setText('deriv-account-id', state.derivAccount.loginid || '—');
-    setText('deriv-account-type', state.derivAccount.isVirtual ? 'تجريبي (Demo)' : 'حقيقي (Real)');
-    setText('deriv-account-balance', (state.derivAccount.balance || 0).toFixed(2) + ' ' + (state.derivAccount.currency || 'USD'));
+    const typeEl = document.getElementById('deriv-account-type');
+    if (typeEl) {
+      typeEl.textContent = state.derivAccount.isVirtual ? 'Demo Account' : 'Real Account';
+      typeEl.className = 'deriv-hero-type' + (state.derivAccount.isVirtual ? '' : ' real');
+    }
+    const balEl = document.getElementById('deriv-account-balance');
+    if (balEl) {
+      const cur = state.derivAccount.currency || 'USD';
+      balEl.innerHTML = (state.derivAccount.balance || 0).toFixed(2) + ' <small>' + cur + '</small>';
+    }
+    if (badge) badge.className = 'deriv-badge linked';
+    if (badgeText) badgeText.textContent = state.derivAccount.loginid || 'مربوط';
   } else {
-    badge.className = 'deriv-badge';
-    badgeText.textContent = 'غير مربوط';
-    notLinked.style.display = 'block'; linked.style.display = 'none';
+    if (stage) stage.classList.remove('connected');
+    if (emblem) emblem.textContent = '🔗';
+    if (headTitle) headTitle.textContent = 'Deriv Trading API';
+    if (headSub) headSub.textContent = 'OAuth 2.0 · PKCE';
+    if (pulse) pulse.classList.remove('live');
+    if (notLinked) notLinked.style.display = 'block';
+    if (linked) linked.classList.remove('show');
+    if (badge) badge.className = 'deriv-badge';
+    if (badgeText) badgeText.textContent = 'غير مربوط';
   }
 }
 async function switchDerivAccount() {
