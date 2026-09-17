@@ -2424,7 +2424,7 @@ function computeKellyAmount(balance) {
   if (avgWin <= 0 || avgLoss <= 0) return Math.min(manual, balance * 0.01);
 
   const f = kellyFraction(p, avgWin / avgLoss);
-  return Math.max(0.35, balance * f);
+  return Math.max(0.35, Number((balance * f).toFixed(2)));
 }
 function addAutoLog(msg, color = 'var(--text)') {
   const log = $('auto-log'); if (!log) return;
