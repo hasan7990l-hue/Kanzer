@@ -1160,6 +1160,7 @@ function setupNav() {
       setText('pageTitle', el.textContent.trim());
       $('sidebar').classList.remove('open');
       if (page === 'auto') setTimeout(() => state.chart && state.chart.timeScale().fitContent(), 100);
+      if (page === 'deriv') setTimeout(() => { try { updateDerivUI(); } catch(e){} }, 50);
     });
   });
   const mb = $('menuBtn');
@@ -3552,5 +3553,6 @@ function toggleLegal(btn) {
 
 })();
 </script>
-</body>
+  
+</body> 
 </html>
