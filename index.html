@@ -5448,5 +5448,515 @@ console.log('[KZ] calcBB safety patch installed');
 })();
 </script>
 <!-- ====== END calcBB patch ====== -->
+  <!-- ====== HUNTER v3 — PART 1 / CONFIG + PATTERNS ====== -->
+<script>
+(function(){
+'use strict';
+if (window.__hz3_config) return;
+window.__hz3_config = { loaded:true, at:Date.now() };
+
+const SYMBOLS = ['R_10','R_25','R_50','R_75','R_100'];
+
+const CFG = {
+  minConfidence: 65,
+  minFamilies: 3,
+  riskPerTrade: 0.0015,
+  portfolioCap: 0.01,
+  maxConcurrent: 2,
+  maxSameSide: 2,
+  scanMs: 15000,
+  symbolCooldownMs: 300000,
+  lossStreakPauseMs: 15*60*1000,
+  dailyTradeCap: 15,
+  minBars: 80,
+};
+
+const PATTERN_AR = {
+  'Bullish Engulfing':'ابتلاع صاعد','Bearish Engulfing':'ابتلاع هابط',
+  'Hammer':'المطرقة','Shooting Star':'الشهاب','Doji':'الدوجي',
+  'Morning Star':'نجمة الصباح','Evening Star':'نجمة المساء',
+  'Three White Soldiers':'الجنود الثلاثة البيض','Three Black Crows':'الغربان الثلاثة السود',
+  'Inside Bar':'الشمعة الداخلية','Outside Bar':'الشمعة الخارجية',
+  'Bullish Harami':'هارامي صاعد','Bearish Harami':'هارامي هابط',
+  'Bullish Marubozu':'ماروبوزو صاعد','Bearish Marubozu':'ماروبوزو هابط',
+  'Tweezer Bottom':'قاع الملقط','Tweezer Top':'قمة الملقط',
+  'Bullish Pin Bar':'بن بار صاعد','Bearish Pin Bar':'بن بار هابط',
+};
+
+const bodyOf = c => Math.abs(c.close - c.open);
+const rangeOf = c => Math.max(0.0001, c.high - c.low);
+const upperW = c => c.high - Math.max(c.close, c.open);
+const lowerW = c => Math.min(c.close, c.open) - c.low;
+const isBull = c => c.close > c.open;
+const isBear = c => c.close < c.open;
+const isDoji = c => bodyOf(c) < rangeOf(c) * 0.1;
+const isMarubozu = c => bodyOf(c) > rangeOf(c) * 0.9;
+
+function detectPatterns(candles){
+  if (!candles || candles.length < 3) return [];
+  const c3 = candles[candles.length-3];
+  const c2 = candles[candles.length-2];
+  const c1 = candles[candles.length-1];
+  const out = [];
+
+  if (isBear(c2) && isBull(c1) && c1.close > c2.open && c1.open < c2.close && bodyOf(c1) > bodyOf(c2)*1.2)
+    out.push({ name:'Bullish Engulfing', ar:PATTERN_AR['Bullish Engulfing'], side:'BUY', weight:25 });
+  if (isBull(c2) && isBear(c1) && c1.close < c2.open && c1.open > c2.close && bodyOf(c1) > bodyOf(c2)*1.2)
+    out.push({ name:'Bearish Engulfing', ar:PATTERN_AR['Bearish Engulfing'], side:'SELL', weight:25 });
+  if (lowerW(c1) > bodyOf(c1)*2 && lowerW(c1) > rangeOf(c1)*0.6 && upperW(c1) < bodyOf(c1)*0.5)
+    out.push({ name:'Hammer', ar:PATTERN_AR['Hammer'], side:'BUY', weight:20 });
+  if (upperW(c1) > bodyOf(c1)*2 && upperW(c1) > rangeOf(c1)*0.6 && lowerW(c1) < bodyOf(c1)*0.5)
+    out.push({ name:'Shooting Star', ar:PATTERN_AR['Shooting Star'], side:'SELL', weight:20 });
+  if (isDoji(c1))
+    out.push({ name:'Doji', ar:PATTERN_AR['Doji'], side:'NEUTRAL', weight:5 });
+  if (isBear(c3) && isDoji(c2) && isBull(c1) && c1.close > (c3.open+c3.close)/2)
+    out.push({ name:'Morning Star', ar:PATTERN_AR['Morning Star'], side:'BUY', weight:30 });
+  if (isBull(c3) && isDoji(c2) && isBear(c1) && c1.close < (c3.open+c3.close)/2)
+    out.push({ name:'Evening Star', ar:PATTERN_AR['Evening Star'], side:'SELL', weight:30 });
+  if (isBull(c3) && isBull(c2) && isBull(c1) && c2.close > c3.close && c1.close > c2.close && bodyOf(c2) > rangeOf(c2)*0.6 && bodyOf(c1) > rangeOf(c1)*0.6)
+    out.push({ name:'Three White Soldiers', ar:PATTERN_AR['Three White Soldiers'], side:'BUY', weight:35 });
+  if (isBear(c3) && isBear(c2) && isBear(c1) && c2.close < c3.close && c1.close < c2.close && bodyOf(c2) > rangeOf(c2)*0.6 && bodyOf(c1) > rangeOf(c1)*0.6)
+    out.push({ name:'Three Black Crows', ar:PATTERN_AR['Three Black Crows'], side:'SELL', weight:35 });
+  if (c1.high < c2.high && c1.low > c2.low)
+    out.push({ name:'Inside Bar', ar:PATTERN_AR['Inside Bar'], side:'NEUTRAL', weight:8 });
+  if (c1.high > c2.high && c1.low < c2.low)
+    out.push({ name:'Outside Bar', ar:PATTERN_AR['Outside Bar'], side:isBull(c1)?'BUY':'SELL', weight:15 });
+  if (isBear(c2) && isBull(c1) && c1.open > c2.close && c1.close < c2.open && bodyOf(c1) < bodyOf(c2)*0.6)
+    out.push({ name:'Bullish Harami', ar:PATTERN_AR['Bullish Harami'], side:'BUY', weight:18 });
+  if (isBull(c2) && isBear(c1) && c1.open < c2.close && c1.close > c2.open && bodyOf(c1) < bodyOf(c2)*0.6)
+    out.push({ name:'Bearish Harami', ar:PATTERN_AR['Bearish Harami'], side:'SELL', weight:18 });
+  if (isMarubozu(c1))
+    out.push({ name: isBull(c1)?'Bullish Marubozu':'Bearish Marubozu', ar:PATTERN_AR[isBull(c1)?'Bullish Marubozu':'Bearish Marubozu'], side: isBull(c1)?'BUY':'SELL', weight:15 });
+  if (Math.abs(c2.low - c1.low)/c1.low < 0.0005 && isBull(c1))
+    out.push({ name:'Tweezer Bottom', ar:PATTERN_AR['Tweezer Bottom'], side:'BUY', weight:20 });
+  if (Math.abs(c2.high - c1.high)/c1.high < 0.0005 && isBear(c1))
+    out.push({ name:'Tweezer Top', ar:PATTERN_AR['Tweezer Top'], side:'SELL', weight:20 });
+  if (lowerW(c1) > rangeOf(c1)*0.66)
+    out.push({ name:'Bullish Pin Bar', ar:PATTERN_AR['Bullish Pin Bar'], side:'BUY', weight:22 });
+  if (upperW(c1) > rangeOf(c1)*0.66)
+    out.push({ name:'Bearish Pin Bar', ar:PATTERN_AR['Bearish Pin Bar'], side:'SELL', weight:22 });
+  return out;
+}
+
+window.__hz3_config.api = { SYMBOLS, CFG, PATTERN_AR, detectPatterns };
+console.log('[HUNTER v3] part 1/5 — config + 19 patterns loaded');
+})();
+</script>
+<!-- ====== END PART 1 ====== -->
+  <!-- ====== HUNTER v3 — PART 2 / 4 FAMILIES ====== -->
+<script>
+(function(){
+'use strict';
+if (window.__hz3_strategies) return;
+const P = window.__hz3_config;
+if (!P) { console.error('[v3] part 1 missing'); return; }
+window.__hz3_strategies = { loaded:true };
+
+const Clamp = (v,lo,hi) => Math.max(lo, Math.min(hi, v));
+const ema = (a,p) => calcEMA(a,p);
+const atrArr = (c,p) => calcATR(c.map(x=>x.close), c.map(x=>x.high), c.map(x=>x.low), p||14);
+
+/* FAMILY 1 — TREND_FOLLOW (EMA only) */
+function s_trendFollow(d, sym, R){
+  if(!d.r1 || d.m1.length<60) return null;
+  const m1 = d.m1, closes = m1.map(c=>c.close);
+  const e20 = ema(closes,20), e50 = ema(closes,50);
+  const a = atrArr(m1,14), aV = a[a.length-1];
+  const price = closes[closes.length-1];
+  const e20v = e20[e20.length-1], e50v = e50[e50.length-1];
+  const e20prev = e20[e20.length-5];
+  const slope = (e20v - e20prev) / (aV * 4);
+  let side = null, conf = 0; const reasons = [];
+  if(e20v > e50v && slope > 0.10){
+    side='BUY'; conf = 50 + Math.min(30, Math.abs(slope)*100);
+    reasons.push('EMA20 فوق EMA50'); reasons.push('ميل صاعد '+slope.toFixed(2));
+    if(price > e20v){ conf += 5; reasons.push('سعر فوق EMA20'); }
+  } else if(e20v < e50v && slope < -0.10){
+    side='SELL'; conf = 50 + Math.min(30, Math.abs(slope)*100);
+    reasons.push('EMA20 تحت EMA50'); reasons.push('ميل هابط '+slope.toFixed(2));
+    if(price < e20v){ conf += 5; reasons.push('سعر تحت EMA20'); }
+  } else return null;
+  return { side, strategy:'TREND_FOLLOW', family:'TREND', confidence:Clamp(conf,0,90), weight:1.0,
+    entry:price, atr:aV, stop:side==='BUY'?price-2*aV:price+2*aV,
+    target:side==='BUY'?price+3*aV:price-3*aV, reasons };
+}
+
+/* FAMILY 2 — VOLATILITY_BREAK (BB + Squeeze only) */
+function s_volatilityBreak(d, sym, R){
+  if(!d.r1 || d.m1.length<80) return null;
+  const m1 = d.m1, closes = m1.map(c=>c.close);
+  const a = atrArr(m1,14), aV = a[a.length-1];
+  const bb = calcBB(closes,20,2);
+  if(!bb.upper.length || bb.upper.length < 10) return null;
+  const up = bb.upper[bb.upper.length-1].value;
+  const lo = bb.lower[bb.lower.length-1].value;
+  const upPrev = bb.upper[bb.upper.length-5].value;
+  const loPrev = bb.lower[bb.lower.length-5].value;
+  const price = closes[closes.length-1];
+  const width = (up-lo)/price, widthPrev = (upPrev-loPrev)/price;
+  const expanding = width > widthPrev * 1.1;
+  const narrow = width < 0.0025;
+  let side=null, conf=0; const reasons=[];
+  if(price > up && expanding){
+    side='BUY'; conf = 55 + Math.min(20, (width-widthPrev)*5000);
+    reasons.push('اختراق BB العلوي'); reasons.push('نطاق يتوسع');
+    if(narrow){ conf += 12; reasons.push('انفجار من ضغط'); }
+  } else if(price < lo && expanding){
+    side='SELL'; conf = 55 + Math.min(20, (width-widthPrev)*5000);
+    reasons.push('اختراق BB السفلي'); reasons.push('نطاق يتوسع');
+    if(narrow){ conf += 12; reasons.push('انفجار من ضغط'); }
+  } else return null;
+  return { side, strategy:'VOLATILITY_BREAK', family:'VOLATILITY', confidence:Clamp(conf,0,92), weight:1.1,
+    entry:price, atr:aV, stop:side==='BUY'?price-2*aV:price+2*aV,
+    target:side==='BUY'?price+4*aV:price-4*aV, reasons };
+}
+
+/* FAMILY 3 — MOMENTUM_SHIFT (RSI + MACD only) */
+function s_momentumShift(d, sym, R){
+  if(!d.r1 || d.m1.length<50) return null;
+  const m1 = d.m1, closes = m1.map(c=>c.close);
+  const a = atrArr(m1,14), aV = a[a.length-1];
+  const price = closes[closes.length-1];
+  const r14 = calcRSI(closes,14);
+  const r = r14[r14.length-1], rPrev = r14[r14.length-2], rPrev3 = r14[r14.length-4];
+  const mac = calcMACD(closes);
+  const M = mac.macd[mac.macd.length-1], S = mac.signal[mac.signal.length-1];
+  const hist = M - S;
+  const histPrev = mac.macd[mac.macd.length-2] - mac.signal[mac.signal.length-2];
+  const histPrev3 = mac.macd[mac.macd.length-4] - mac.signal[mac.signal.length-4];
+  let side=null, conf=0; const reasons=[];
+  if(r > 30 && r < 65 && r > rPrev && r > rPrev3 && hist > 0 && hist > histPrev && hist > histPrev3){
+    side='BUY'; conf = 50 + Math.min(25, (hist-histPrev3)*2000);
+    reasons.push('RSI='+r.toFixed(1)+' تتحسن'); reasons.push('MACD histogram يتوسع إيجاباً');
+  } else if(r < 70 && r > 35 && r < rPrev && r < rPrev3 && hist < 0 && hist < histPrev && hist < histPrev3){
+    side='SELL'; conf = 50 + Math.min(25, Math.abs(hist-histPrev3)*2000);
+    reasons.push('RSI='+r.toFixed(1)+' تضعف'); reasons.push('MACD histogram يتوسع سلباً');
+  } else return null;
+  return { side, strategy:'MOMENTUM_SHIFT', family:'MOMENTUM', confidence:Clamp(conf,0,88), weight:1.0,
+    entry:price, atr:aV, stop:side==='BUY'?price-1.8*aV:price+1.8*aV,
+    target:side==='BUY'?price+2.5*aV:price-2.5*aV, reasons };
+}
+
+/* FAMILY 4 — STRUCTURE_BOUNCE (S/R + Patterns only) */
+function s_structureBounce(d, sym, R){
+  if(!d.r1 || d.m1.length<80) return null;
+  const m1 = d.m1, closes = m1.map(c=>c.close);
+  const a = atrArr(m1,14), aV = a[a.length-1];
+  const price = closes[closes.length-1];
+  const pats = (typeof detectPatterns === 'function') ? detectPatterns(m1) : [];
+  let pBull=0, pBear=0; const pNames=[];
+  pats.forEach(p => {
+    if(p.side==='BUY'){ pBull += p.weight; pNames.push(p.ar); }
+    if(p.side==='SELL'){ pBear += p.weight; pNames.push(p.ar); }
+  });
+  let srSide=null, srLevel=null, srTests=0;
+  if(typeof calcSR === 'function'){
+    const sr = calcSR(m1,5);
+    const sup = (sr.supports||[]).find(s=>s.tests>=2);
+    const res = (sr.resistances||[]).find(s=>s.tests>=2);
+    if(sup && Math.abs(price-sup.price)/price < 0.0015){ srSide='BUY'; srLevel=sup.price; srTests=sup.tests; }
+    else if(res && Math.abs(price-res.price)/price < 0.0015){ srSide='SELL'; srLevel=res.price; srTests=res.tests; }
+  }
+  let side=null, conf=0; const reasons=[];
+  if(srSide==='BUY' && pBull > 0){
+    side='BUY'; conf = 55 + Math.min(20, srTests*5) + Math.min(15, pBull/2);
+    reasons.push('دعم ×'+srTests+' @ '+srLevel.toFixed(2)); reasons.push('نمط: '+pNames.join(' + '));
+  } else if(srSide==='SELL' && pBear > 0){
+    side='SELL'; conf = 55 + Math.min(20, srTests*5) + Math.min(15, pBear/2);
+    reasons.push('مقاومة ×'+srTests+' @ '+srLevel.toFixed(2)); reasons.push('نمط: '+pNames.join(' + '));
+  } else if(pBull >= 30 && !srSide){
+    side='BUY'; conf = 50 + Math.min(20, pBull/2); reasons.push('نمط قوي: '+pNames.join(' + '));
+  } else if(pBear >= 30 && !srSide){
+    side='SELL'; conf = 50 + Math.min(20, pBear/2); reasons.push('نمط قوي: '+pNames.join(' + '));
+  } else return null;
+  return { side, strategy:'STRUCTURE_BOUNCE', family:'STRUCTURE', confidence:Clamp(conf,0,90), weight:1.0,
+    entry:price, atr:aV, stop:side==='BUY'?price-1.8*aV:price+1.8*aV,
+    target:side==='BUY'?price+3*aV:price-3*aV, reasons };
+}
+
+const STRATEGIES = [s_trendFollow, s_volatilityBreak, s_momentumShift, s_structureBounce];
+window.__hz3_strategies.api = { STRATEGIES, FAMILIES:['TREND','VOLATILITY','MOMENTUM','STRUCTURE'] };
+console.log('[HUNTER v3] part 2/3 — 4 families loaded');
+})();
+</script>
+<!-- ====== END PART 2 ====== -->
+  <!-- ====== HUNTER v3 — PART 3 / ENGINE + UI ====== -->
+<script>
+(function(){
+'use strict';
+if (window.__hz3_engine) return;
+const P1 = window.__hz3_config, P2 = window.__hz3_strategies;
+if (!P1 || !P2) { console.error('[v3] parts 1-2 required'); return; }
+window.__hz3_engine = { loaded:true, at:Date.now() };
+
+const { SYMBOLS, CFG } = P1.api;
+const { STRATEGIES, FAMILIES } = P2.api;
+const $id = id => document.getElementById(id);
+function dk(){ const d=new Date(); return d.getUTCFullYear()+'-'+(d.getUTCMonth()+1)+'-'+d.getUTCDate(); }
+
+const S = {
+  running:false, timer:null, ws:null,
+  data:{}, scans:0, lastFireAt:{}, dailyTrades:0, dayKey:dk(),
+  pausedUntil:0, lossStreak:{},
+};
+SYMBOLS.forEach(s => S.data[s] = { m1:[], m5:[], m15:[], r1:false, r5:false, r15:false });
+function bal(){ return parseFloat(state.derivAccount && state.derivAccount.balance) || 0; }
+
+function analyzeSymbol(sym){
+  const d = S.data[sym];
+  if(!d.r1 || !d.r5) return null;
+  const R = { regime:'N/A' };
+  const results = [];
+  for(const fn of STRATEGIES){
+    try { const r = fn(d, sym, R); if(r) results.push(r); }
+    catch(e){ console.warn('[v3]', sym, e.message); }
+  }
+  if(!results.length) return { sym, ensemble:null };
+  const byFamily = {};
+  for(const r of results){
+    if(!byFamily[r.family] || r.confidence > byFamily[r.family].confidence) byFamily[r.family] = r;
+  }
+  const fam = Object.values(byFamily);
+  const bF = fam.filter(r=>r.side==='BUY');
+  const sF = fam.filter(r=>r.side==='SELL');
+  let side = null;
+  if(bF.length >= CFG.minFamilies && bF.length > sF.length) side='BUY';
+  else if(sF.length >= CFG.minFamilies && sF.length > bF.length) side='SELL';
+  else return { sym, ensemble:null, partial:{ bFams:bF.length, sFams:sF.length } };
+  const voters = side==='BUY' ? bF : sF;
+  const avg = voters.reduce((a,r)=>a+r.confidence, 0) / voters.length;
+  const adjusted = Math.round(avg + (voters.length - 3) * 5);
+  return { sym, ensemble:{ side, confidence:Math.min(95, adjusted), voters, voterCount:voters.length } };
+}
+
+function setState(t,c){ const e=$id('hunter-state'); if(!e) return; e.className='hunter-state'+(c?' '+c:''); const x=e.querySelector('.hunter-state-txt'); if(x) x.textContent=t; }
+function logLine(m,c){
+  const l=$id('hunter-log'); if(!l) return;
+  const e=l.querySelector('.hunter-log-empty'); if(e) e.remove();
+  const d=document.createElement('div'); d.className='hunter-log-line'; d.style.color=c||'var(--text)';
+  const t=new Date().toLocaleTimeString('ar-EG'); d.textContent='['+t+'] '+m;
+  l.prepend(d); while(l.children.length>30) l.removeChild(l.lastChild);
+}
+function chip(s,st){ const c=document.querySelector('.hunter-chip[data-sym="'+s+'"]'); if(c) c.className='hunter-chip '+(st||''); }
+function stats(){
+  const ready = SYMBOLS.filter(s=>S.data[s].r1 && S.data[s].r5).length;
+  if($id('hunter-scanned')) $id('hunter-scanned').textContent = ready+'/'+SYMBOLS.length;
+  const a = (state.activeTrades||[]).filter(t=>t.hunter).length;
+  if($id('hunter-active')) $id('hunter-active').textContent = a+'/'+CFG.maxConcurrent;
+}
+
+function buildCard(a){
+  const { sym, ensemble } = a;
+  const side = ensemble.side, conf = ensemble.confidence;
+  const rows = ensemble.voters.map(v =>
+    '<div style="margin:3px 0;"><b style="color:var(--cyan);">'+v.family+'</b> ('+v.confidence.toFixed(0)+'%) — '+v.reasons.join(' • ')+'</div>'
+  ).join('');
+  return '<div style="font-size:11px;line-height:1.6;">' +
+    '<div style="font-weight:900;color:'+(side==='BUY'?'var(--green)':'var(--red)')+';font-size:14px;margin-bottom:4px;">' +
+      (side==='BUY'?'▲ شراء':'▼ بيع')+' '+sym+' — ثقة '+conf+'% ('+ensemble.voterCount+'/4 عائلات)</div>' +
+    '<div style="border-top:1px dashed var(--border);padding-top:6px;margin-top:6px;">'+rows+'</div></div>';
+}
+
+function fire(a){
+  const { sym, ensemble } = a;
+  const side = ensemble.side, conf = ensemble.confidence;
+  if(conf < CFG.minConfidence){ chip(sym,'ready'); return false; }
+  const active = (state.activeTrades||[]).filter(t=>t.hunter);
+  if(active.length >= CFG.maxConcurrent) return false;
+  if(active.some(t=>t.symbol===sym)) return false;
+  if(active.filter(t=>t.side===side).length >= CFG.maxSameSide) return false;
+  if(Date.now() < S.pausedUntil) return false;
+  if(S.dailyTrades >= CFG.dailyTradeCap) return false;
+  if(S.lastFireAt[sym] && Date.now()-S.lastFireAt[sym] < CFG.symbolCooldownMs) return false;
+  const b = bal(); if(b <= 0) return false;
+  const v0 = ensemble.voters[0];
+  const ap = v0.atr / v0.entry;
+  const duration = ap < 0.0008 ? 3 : ap < 0.0015 ? 2 : 1;
+  const size = Math.max(0.35, Math.min(b*0.01, Number((b*CFG.riskPerTrade*(0.7+conf/100)).toFixed(2))));
+  logLine('🔥 '+side+' '+sym+' | ثقة '+conf+'% | '+ensemble.voterCount+'/4 | $'+size+' | '+duration+'m',
+    side==='BUY'?'var(--green)':'var(--red)');
+  const feed = $id('ap-feed');
+  if(feed){
+    const e = feed.querySelector('.ap-feed-empty'); if(e) e.remove();
+    const cd = document.createElement('div'); cd.className = 'ap-card ' + (side==='BUY'?'buy':'sell');
+    cd.innerHTML = buildCard(a); feed.prepend(cd);
+    while(feed.children.length > 15) feed.removeChild(feed.lastChild);
+  }
+  try {
+    sendProposal({ side, symbol:sym, amount:size, duration, auto:false, smart:false, hunter:true });
+    S.lastFireAt[sym] = Date.now(); S.dailyTrades++; chip(sym, side==='BUY'?'buy':'sell');
+  } catch(e){ logLine('send fail: '+e.message,'var(--red)'); return false; }
+  return true;
+}
+
+function tick(){
+  if(!S.running) return;
+  if(dk() !== S.dayKey){ S.dayKey = dk(); S.dailyTrades = 0; S.lossStreak = {}; }
+  if(Date.now() < S.pausedUntil){ setState('إيقاف '+Math.ceil((S.pausedUntil-Date.now())/60000)+'د','err'); return; }
+  if(!state.derivLinked || !state.derivWS){ setState('Deriv غير مربوط','err'); return; }
+  S.scans++;
+  const cands = [];
+  for(const s of SYMBOLS){
+    const a = analyzeSymbol(s);
+    if(!a){ chip(s,''); continue; }
+    if(!a.ensemble){
+      if(a.partial && (a.partial.bFams >= 2 || a.partial.sFams >= 2)) chip(s,'ready');
+      else chip(s,'');
+      continue;
+    }
+    chip(s,'ready'); cands.push(a);
+  }
+  if(!cands.length){ setState('فحص #'+S.scans+' — لا توافق 3/4',''); stats(); return; }
+  cands.sort((a,b) => b.ensemble.confidence - a.ensemble.confidence);
+  let fired = 0;
+  for(const c of cands){
+    if(c.ensemble.confidence < CFG.minConfidence) continue;
+    if(fire(c)) fired++;
+    if(fired >= 2) break;
+  }
+  setState(fired ? 'أطلق '+fired : 'مرشح محجوب', fired?'on':''); stats();
+}
+
+function pushCandle(arr, tf, price){
+  if(!isFinite(price)||price<=0) return;
+  const bt = Math.floor(Date.now()/1000/tf)*tf;
+  if(!arr.length){ arr.push({time:bt,open:price,high:price,low:price,close:price}); return; }
+  const l = arr[arr.length-1];
+  if(l.time === bt){ l.close=price; l.high=Math.max(l.high,price); l.low=Math.min(l.low,price); }
+  else if(l.time < bt){ arr.push({time:bt,open:l.close,high:price,low:price,close:price}); if(arr.length>400) arr.shift(); }
+}
+
+function openWS(){
+  if(S.ws && S.ws.readyState === 1) return;
+  if(S.ws){ try{S.ws.close();}catch(e){} }
+  S.ws = new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
+  S.ws.onopen = () => {
+    logLine('WS متصل — '+SYMBOLS.length+' رموز × 4 عائلات','var(--cyan)');
+    SYMBOLS.forEach((s,i) => {
+      try{
+        S.ws.send(JSON.stringify({ticks_history:s,count:300,end:'latest',style:'candles',granularity:60,req_id:100+i}));
+        S.ws.send(JSON.stringify({ticks_history:s,count:300,end:'latest',style:'candles',granularity:300,req_id:200+i}));
+        S.ws.send(JSON.stringify({ticks_history:s,count:200,end:'latest',style:'candles',granularity:900,req_id:300+i}));
+        S.ws.send(JSON.stringify({ticks:s,subscribe:1,req_id:400+i}));
+      }catch(e){}
+    });
+  };
+  S.ws.onmessage = ev => {
+    let m; try{m=JSON.parse(ev.data);}catch(e){return;}
+    if(m.error) return;
+    if(m.msg_type === 'candles' && m.echo_req){
+      const s = m.echo_req.ticks_history, g = m.echo_req.granularity;
+      if(!S.data[s]) return;
+      const arr = (m.candles||[]).map(c=>({time:c.epoch,open:+c.open,high:+c.high,low:+c.low,close:+c.close}));
+      if(g === 60){ S.data[s].m1 = arr; S.data[s].r1 = arr.length >= CFG.minBars; }
+      else if(g === 300){ S.data[s].m5 = arr; S.data[s].r5 = arr.length >= CFG.minBars; }
+      else if(g === 900){ S.data[s].m15 = arr; S.data[s].r15 = arr.length >= 60; }
+      stats();
+    } else if(m.msg_type === 'tick' && m.tick){
+      const s = m.tick.symbol, p = +m.tick.quote;
+      if(!S.data[s]) return;
+      pushCandle(S.data[s].m1, 60, p); pushCandle(S.data[s].m5, 300, p); pushCandle(S.data[s].m15, 900, p);
+    }
+  };
+  S.ws.onclose = () => { if(S.running) setTimeout(openWS, 5000); };
+}
+
+function buildChips(){
+  const el = $id('hunter-chips'); if(!el) return;
+  el.innerHTML = '';
+  SYMBOLS.forEach(s => {
+    const c = document.createElement('div'); c.className = 'hunter-chip'; c.dataset.sym = s;
+    c.textContent = s.replace('_',''); el.appendChild(c);
+  });
+}
+
+function injectSlider(){
+  const panel = $id('hunter-panel');
+  if(!panel || $id('kz3-conf-slider')) return;
+  const w = document.createElement('div');
+  w.id = 'kz3-conf-slider';
+  w.style.cssText = 'display:flex;align-items:center;gap:10px;margin:10px 0;padding:10px 12px;background:rgba(0,0,0,0.35);border-radius:10px;border:1px solid rgba(155,109,255,0.3);';
+  w.innerHTML = '<span style="color:var(--text-dim);font-size:11px;">حد الثقة</span>' +
+    '<input id="kz3-conf-range" type="range" min="50" max="90" step="5" value="'+CFG.minConfidence+'" style="flex:1;">' +
+    '<span id="kz3-conf-val" style="color:var(--purple);font-family:monospace;font-weight:900;min-width:44px;">'+CFG.minConfidence+'%</span>' +
+    '<span style="color:var(--text-dim);font-size:10px;">| 3/4 عائلات</span>';
+  const btn = $id('hunter-toggle');
+  if(btn && btn.parentNode) btn.parentNode.insertBefore(w, btn); else panel.appendChild(w);
+  const r = $id('kz3-conf-range'), v = $id('kz3-conf-val');
+  r.addEventListener('input', () => { CFG.minConfidence = parseInt(r.value); v.textContent = CFG.minConfidence+'%';
+    try { localStorage.setItem('kanzer_v3_minconf', String(CFG.minConfidence)); } catch(e){} });
+  try { const sv = localStorage.getItem('kanzer_v3_minconf'); if(sv){ CFG.minConfidence = parseInt(sv); r.value = CFG.minConfidence; v.textContent = CFG.minConfidence+'%'; } } catch(e){}
+}
+
+function guardCounters(){
+  ['hunter-scanned','hunter-active'].forEach(id => {
+    const el = document.getElementById(id);
+    if(!el || el.__v3guard) return;
+    el.__v3guard = true;
+    const desc = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent');
+    let last = desc.get.call(el);
+    Object.defineProperty(el, 'textContent', {
+      configurable:true, get(){ return last; },
+      set(v){ const s = String(v); if(/^0\//.test(s) && last && !/^0\//.test(last)) return; last = s; desc.set.call(el, s); }
+    });
+  });
+}
+
+function start(){
+  if(S.running) return;
+  if(!state.derivLinked){ alert('اربط Deriv أولاً'); return; }
+  S.running = true; S.scans = 0; S.pausedUntil = 0;
+  openWS();
+  S.timer = setInterval(tick, CFG.scanMs);
+  const p = $id('hunter-panel'); if(p) p.classList.add('on');
+  if($id('hunter-btn-txt')) $id('hunter-btn-txt').textContent = 'إيقاف HUNTER v3';
+  setState('يعمل','on');
+  logLine('HUNTER v3 — 4 عائلات | حد '+CFG.minConfidence+'% | '+CFG.minFamilies+'/4 توافق','var(--purple)');
+  setTimeout(tick, 4000);
+}
+function stop(){
+  S.running = false;
+  if(S.timer){ clearInterval(S.timer); S.timer = null; }
+  if(S.ws){ try{S.ws.close();}catch(e){} S.ws = null; }
+  const p = $id('hunter-panel'); if(p) p.classList.remove('on');
+  if($id('hunter-btn-txt')) $id('hunter-btn-txt').textContent = 'تشغيل HUNTER v3';
+  setState('متوقف',''); logLine('HUNTER v3 توقف','var(--text-dim)');
+}
+
+window.hunterToggle = () => S.running ? stop() : start();
+
+const _prevSettle = window._hunterOnSettle;
+window._hunterOnSettle = function(trade, won, profit){
+  const sym = trade.symbol;
+  if(won){ S.lossStreak[sym] = 0; }
+  else {
+    S.lossStreak[sym] = (S.lossStreak[sym]||0) + 1;
+    if(S.lossStreak[sym] >= 2){
+      S.pausedUntil = Date.now() + CFG.lossStreakPauseMs;
+      logLine('توقف 15د — خسارتان على '+sym,'var(--gold)'); setState('إيقاف','err');
+    }
+  }
+  logLine((won?'ربح ':'خسارة ')+sym+' '+(profit>=0?'+':'')+'$'+profit.toFixed(2), won?'var(--green)':'var(--red)');
+  stats();
+  if(typeof _prevSettle === 'function'){ try { _prevSettle.apply(this, arguments); } catch(e){} }
+};
+
+setTimeout(buildChips, 1500);
+setTimeout(injectSlider, 2000);
+setInterval(guardCounters, 2000);
+setTimeout(guardCounters, 2500);
+setInterval(stats, 3000);
+
+window._hunterV3 = { api:{ start, stop, state:S, config:CFG, status:()=>({
+  running:S.running, scans:S.scans, daily:S.dailyTrades,
+  minConf:CFG.minConfidence, minFamilies:CFG.minFamilies,
+  ready:SYMBOLS.filter(s=>S.data[s].r1 && S.data[s].r5).length,
+  active:(state.activeTrades||[]).filter(t=>t.hunter).length, paused:S.pausedUntil>Date.now()
+}) } };
+
+console.log('[HUNTER v3] part 3/3 — engine + UI active');
+})();
+</script>
+<!-- ====== END PART 3 ====== -->
 </body> 
 </html>
