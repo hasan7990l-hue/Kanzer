@@ -1109,12 +1109,22 @@ html, body {
         <div class="signal-wrap" id="signal-wrap">
           <div class="signal-label">الإشارة الحالية</div>
           <div class="signal-main" id="signal-main">—</div>
-          <div class="signal-meta">
-            <span>الثقة: <strong id="signal-conf">—</strong></span>
-            <span>الاتجاه: <strong id="signal-trend">—</strong></span>
-            <span>السعر: <strong id="signal-price">—</strong></span>
-          </div>
-          <div class="signal-action" id="signal-action">
+          <div class="kz-conf" id="kz-conf">
+    <div class="kz-conf-head">
+    <span class="kz-conf-label">CONFIDENCE</span>
+    <span class="kz-conf-value low" id="signal-conf">0.00%</span>
+  </div>
+  <div class="kz-conf-track" id="kz-conf-track"></div>
+  <div class="kz-conf-foot">
+    <span>NEUTRAL</span>
+    <span>SIGNAL</span>
+  </div>
+</div>
+<div class="signal-meta" style="margin-top:10px;">
+  <span>الاتجاه: <strong id="signal-trend">—</strong></span>
+  <span>السعر: <strong id="signal-price">—</strong></span>
+</div>
+ <div class="signal-action" id="signal-action">
             <button class="btn btn-buy" id="signal-buy-btn" onclick="executeSignalTrade('BUY')">▲ شراء الآن</button>
             <button class="btn btn-sell" id="signal-sell-btn" onclick="executeSignalTrade('SELL')">▼ بيع الآن</button>
           </div>
