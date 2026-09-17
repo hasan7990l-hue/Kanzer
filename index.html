@@ -4120,12 +4120,15 @@ function toggleLegal(btn) {
     const sellScore = Object.values(sellChecks).filter(Boolean).length;
 
     // قرار
-    if (buyScore === 6 && buyScore > sellScore) {
-      return { signal: 'BUY', checks: buyChecks, score: buyScore, price, rsi: R, bbUp: UP, bbLo: LO, e9: E9, e21: E21 };
-    }
-    if (sellScore === 6 && sellScore > buyScore) {
-      return { signal: 'SELL', checks: sellChecks, score: sellScore, price, rsi: R, bbUp: UP, bbLo: LO, e9: E9, e21: E21 };
-    }
+    const strictEl = document.getElementById('ap-strictness');
+const need = strictEl ? parseInt(strictEl.value) : 4;
+
+if (buyScore >= need && buyScore > sellScore) {
+  return { signal: 'BUY', checks: buyChecks, score: buyScore, price, rsi: R, bbUp: UP, bbLo: LO, e9: E9, e21: E21 };
+}
+if (sellScore >= need && sellScore > buyScore) {
+  return { signal: 'SELL', checks: sellChecks, score: sellScore, price, rsi: R, bbUp: UP, bbLo: LO, e9: E9, e21: E21 };
+        }
     return {
       signal: 'NEUTRAL',
       checks: buyScore > sellScore ? buyChecks : sellChecks,
