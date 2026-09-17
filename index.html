@@ -1582,15 +1582,6 @@ function settleTradeFromDeriv(contract) {
   const t = state.activeTrades[idx];
   const profit = parseFloat(contract.profit) || 0;
   const won = contract.status === 'won' || (contract.status === 'sold' && profit > 0);
-  if (t.smart) {
-  window.smartStats.trades += 1;
-  window.smartStats.pnl += profit;
-  if (won) window.smartStats.wins += 1;
-  else window.smartStats.losses += 1;
-  if (typeof window.smartLog === 'function') {
-    window.smartLog('📊 صفقة ذكية: ' + (won ? '🟢 ربح' : '🔴 خسارة') + ' ' + (profit >= 0 ? '+' : '') + '$' + profit.toFixed(2) + ' | الإجمالي: ' + window.smartStats.trades, won ? 'var(--green)' : 'var(--red)');
-  }
-  }
   t.status = won ? 'win' : 'loss';
   t.closePrice = parseFloat(contract.exit_spot) || state.currentPrice;
   t.pnl = profit;
