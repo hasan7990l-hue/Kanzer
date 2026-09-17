@@ -1764,33 +1764,6 @@ function computeKellyAmount(balance) {
   const f = kellyFraction(p, avgWin / avgLoss);
   return Math.max(0.35, balance * f);
 }
-function loadShadowStats() {
-  try {
-    const d = JSON.parse(localStorage.getItem('kanzer_shadow') || '{}');
-    state.shadowTrades = d.trades || [];
-    state.shadowAccepted = d.accepted || 0;
-    state.shadowRejected = d.rejected || 0;
-  } catch(e) {}
-}
-function renderShadowStats() {
-  const el = $('shadow-stats'); if (!el) return;
-  const done = state.shadowTrades.filter(t => t.result !== 'pending');
-  const wins = done.filter(t => t.result === 'win').length;
-  const losses = done.filter(t => t.result === 'loss').length;
-  const net = done.reduce((a,b) => a + (b.pnl || 0), 0);
-  const rate = done.length ? ((wins / done.length) * 100).toFixed(0) : '0';
-  const total = (state.shadowAccepted || 0) + (state.shadowRejected || 0);
-  const acceptRate = total ? ((state.shadowAccepted / total) * 100).toFixed(0) : '0';
-  el.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
-      <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:11px;color:var(--text-dim);">صفقات كاملة</div><div style="font-size:22px;font-weight:900;color:var(--cyan);">${done.length}</div></div>
-      <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:11px;color:var(--text-dim);">رابحة / خاسرة</div><div style="font-size:22px;font-weight:900;"><span style="color:var(--green);">${wins}</span> / <span style="color:var(--red);">${losses}</span></div></div>
-      <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:11px;color:var(--text-dim);">نسبة النجاح</div><div style="font-size:22px;font-weight:900;color:${rate >= 60 ? 'var(--green)' : rate >= 50 ? 'var(--gold)' : 'var(--red)'};">${rate}%</div></div>
-      <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:11px;color:var(--text-dim);">صافي (افتراضي)</div><div style="font-size:22px;font-weight:900;color:${net >= 0 ? 'var(--green)' : 'var(--red)'};">${net >= 0 ? '+' : ''}$${net.toFixed(2)}</div></div>
-      <div style="background:var(--bg-1);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;grid-column:1/-1;"><div style="font-size:11px;color:var(--text-dim);">نسبة القبول</div><div style="font-size:22px;font-weight:900;color:var(--gold);">${acceptRate}% <span style="font-size:12px;color:var(--text-dim);">(${state.shadowAccepted || 0} من ${total})</span></div></div>
-    </div>`;
-}
-
 function addAutoLog(msg, color = 'var(--text)') {
   const log = $('auto-log'); if (!log) return;
   const time = new Date().toLocaleTimeString('ar-EG');
