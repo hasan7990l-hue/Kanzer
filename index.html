@@ -771,6 +771,39 @@ a { color:var(--gold); text-decoration:none; }
   background: rgba(17, 19, 25, 0.98) !important;
 }
   </style>
+  <style>
+/* ============ LAYOUT FORCE-FIT ============ */
+html, body {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+.main, .page, .panel {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+.main { margin-right: 0 !important; padding: 12px !important; }
+
+.sidebar {
+  width: 260px !important;
+  max-width: 85vw;
+  transform: translateX(100%) !important;
+  z-index: 10000 !important;
+  transition: transform 0.3s ease;
+}
+.sidebar.open { transform: translateX(0) !important; }
+
+.menu-btn { display: flex !important; align-items: center; justify-content: center; }
+
+canvas, #intro-particles {
+  pointer-events: none !important;
+  z-index: -1 !important;
+}
+
+.sidebar { pointer-events: auto !important; }
+.nav-item { pointer-events: auto !important; cursor: pointer; }
+  </style>
 </head>
 <body>
 <div class="live-stats" id="live-stats">
