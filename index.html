@@ -1086,8 +1086,6 @@ async function showApp() {
   if (state.derivToken) setTimeout(() => authorizeToken(state.derivToken, null, true), 1500);
   startRefreshLoop();
   startCountdownTimer();
-  loadShadowStats();
-  renderShadowStats();
 }
 async function loadDerivTokenFromFirebase() {
   try {
