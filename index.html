@@ -2249,6 +2249,8 @@ function executeSignalTrade(side) {
 function sendProposal({ side, symbol, amount, duration, auto, smart }) {
   amount = Number(Number(amount).toFixed(2));
 if (!(amount >= 0.35)) amount = 0.35;
+  amount = Number(Number(amount).toFixed(2));
+if (!(amount >= 0.35)) amount = 0.35;
   if (!state.derivWS) return;
   const contractType = side === 'BUY' ? 'CALL' : 'PUT';
   const reqId = Date.now() + Math.floor(Math.random() * 1000);
