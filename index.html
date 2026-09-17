@@ -4214,6 +4214,21 @@ function toggleLegal(btn) {
       setScan('خطأ: ' + e.message, 'sell');
     }
   }
+window.kzSetStrict = function(level) {
+  const input = document.getElementById('ap-strictness');
+  if (input) input.value = level;
+  document.querySelectorAll('.kz-strict-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.strict) === level);
+  });
+  try { localStorage.setItem('kanzer_strictness', String(level)); } catch(e){}
+};
+
+setTimeout(() => {
+  try {
+    const saved = localStorage.getItem('kanzer_strictness');
+    if (saved) window.kzSetStrict(parseInt(saved));
+  } catch(e){}
+}, 500);
 
   // ============ التشغيل/الإيقاف ============
   window.toggleAutopilot = function() {
