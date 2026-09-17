@@ -5317,5 +5317,106 @@ console.log('[HUNTER v2] part 2/2 — loop active');
 })();
 </script>
 <!-- ====== END PART 2 ====== -->
+ <!-- ====== KZ KEEPER — anti-throttle ====== -->
+<script>
+(function(){
+'use strict';
+if (window._kzKeeper) return;
+window._kzKeeper = true;
+
+const K = { audioCtx:null, osc:null, enabled:false, drift:0, samples:[], lastVisible:Date.now() };
+
+function initAudio(){
+  if (K.audioCtx) return true;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    K.audioCtx = new AC();
+    K.osc = K.audioCtx.createOscillator();
+    const g = K.audioCtx.createGain();
+    K.osc.type='sine'; K.osc.frequency.value=20000; g.gain.value=0.0001;
+    K.osc.connect(g); g.connect(K.audioCtx.destination); K.osc.start();
+    return true;
+  } catch(e){ return false; }
+}
+function resumeAudio(){
+  if (!K.audioCtx) initAudio();
+  if (!K.audioCtx) return;
+  if (K.audioCtx.state === 'suspended') {
+    K.audioCtx.resume().then(()=>{ K.enabled=true; badge(); }).catch(()=>{});
+  } else { K.enabled=true; badge(); }
+}
+
+function watchdog(){
+  let last = performance.now();
+  setInterval(()=>{
+    const now = performance.now();
+    const drift = (now - last) - 1000;
+    last = now;
+    K.samples.push(drift);
+    if (K.samples.length > 20) K.samples.shift();
+    K.drift = K.samples.reduce((a,b)=>a+b,0) / K.samples.length;
+    badge();
+  }, 1000);
+}
+
+setInterval(()=>{
+  try { if (state.derivWS && state.derivWS.readyState === 1) state.derivWS.send(JSON.stringify({ping:1})); } catch(e){}
+  try { if (state.ws && state.ws.readyState === 1) state.ws.send(JSON.stringify({ping:1})); } catch(e){}
+}, 25000);
+
+document.addEventListener('visibilitychange', ()=>{
+  if (document.visibilityState === 'visible') {
+    if (window._hunterV2 && _hunterV2.api && _hunterV2.api.state) {
+      const H = _hunterV2.api.state;
+      if (H.running && (!H.ws || H.ws.readyState !== 1)) {
+        try { _hunterV2.api.stop(); _hunterV2.api.start(); } catch(e){}
+      }
+    }
+    if (state.derivLinked && !state.derivWS) {
+      const t = localStorage.getItem('deriv_token');
+      if (t && typeof authorizeToken === 'function') { try { authorizeToken(t, null, true); } catch(e){} }
+    }
+    if (!state.wsConnected && typeof connectWS === 'function') { try { connectWS(); } catch(e){} }
+    badge();
+  } else {
+    K.lastVisible = Date.now();
+    if (K.audioCtx && K.audioCtx.state === 'suspended') K.audioCtx.resume().catch(()=>{});
+    badge();
+  }
+});
+
+function badge(){
+  let el = document.getElementById('kz-keeper-badge');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'kz-keeper-badge';
+    el.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:99996;background:rgba(15,18,24,0.92);border:1px solid rgba(155,109,255,0.35);border-radius:10px;padding:8px 14px;font-family:Courier New,monospace;font-size:11px;color:#e8eaf0;box-shadow:0 4px 20px rgba(0,0,0,0.5);display:flex;align-items:center;gap:8px;';
+    document.body.appendChild(el);
+  }
+  const hidden = document.visibilityState === 'hidden';
+  const throttled = K.drift > 3000;
+  let color, label;
+  if (!K.enabled)     { color='#ef5350'; label='KEEPER OFF'; }
+  else if (throttled) { color='#ffa726'; label='THROTTLED'; }
+  else if (hidden)    { color='#26a69a'; label='BG ACTIVE'; }
+  else                { color='#9b6dff'; label='KEEPER ON'; }
+  el.style.borderColor = color + '88';
+  el.innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:'+color+';box-shadow:0 0 8px '+color+';"></span><span style="color:'+color+';font-weight:700;">'+label+'</span><span style="color:#8a90a3;">drift '+K.drift.toFixed(0)+'ms</span>';
+}
+
+function init(){
+  document.addEventListener('click', function once(){ resumeAudio(); document.removeEventListener('click', once); }, { once:true });
+  watchdog();
+  setInterval(badge, 2000);
+  badge();
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+
+console.log('[KZ KEEPER] loaded');
+})();
+</script>
+<!-- ====== END KZ KEEPER ====== --> 
 </body> 
 </html>
