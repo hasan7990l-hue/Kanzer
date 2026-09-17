@@ -352,6 +352,87 @@ a { color:var(--gold); text-decoration:none; }
 ::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
 ::-webkit-scrollbar-thumb:hover { background:var(--gold-dim); }
 </style>
+ <style>
+/* ============ AUTOPILOT ============ */
+.autopilot-shell{
+  position:relative;overflow:hidden;border-radius:20px;padding:22px 22px 18px;
+  background:linear-gradient(135deg,rgba(0,212,255,0.08),rgba(212,175,55,0.05) 40%,rgba(17,19,25,0.85));
+  border:1px solid rgba(0,212,255,0.25);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  box-shadow:0 20px 50px rgba(0,0,0,0.55),inset 0 1px 0 rgba(255,255,255,0.06);
+  margin-bottom:16px;
+}
+.autopilot-shell.on{border-color:rgba(38,166,154,0.55);box-shadow:0 20px 50px rgba(0,0,0,0.55),0 0 40px rgba(38,166,154,0.18),inset 0 1px 0 rgba(255,255,255,0.06);}
+.autopilot-shell.err{border-color:rgba(239,83,80,0.55);}
+.ap-glow{position:absolute;top:-40%;left:-10%;width:60%;height:180%;background:radial-gradient(ellipse,rgba(0,212,255,0.22),transparent 70%);filter:blur(40px);pointer-events:none;}
+.autopilot-shell.on .ap-glow{background:radial-gradient(ellipse,rgba(38,166,154,0.28),transparent 70%);}
+.ap-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;position:relative;z-index:2;}
+.ap-mark{display:flex;align-items:center;gap:10px;}
+.ap-mark-dot{width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--gold));box-shadow:0 0 12px rgba(0,212,255,0.8);}
+.ap-mark-txt{font-size:12px;letter-spacing:5px;font-weight:900;color:var(--text);opacity:0.9;}
+.ap-state{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);padding:6px 12px;background:rgba(0,0,0,0.3);border-radius:20px;border:1px solid rgba(255,255,255,0.06);}
+.ap-state-dot{width:8px;height:8px;border-radius:50%;background:#8a90a3;transition:all 0.3s;}
+.ap-state.on{color:var(--green);}
+.ap-state.on .ap-state-dot{background:var(--green);box-shadow:0 0 12px var(--green);animation:apPulse 1.6s infinite;}
+.ap-state.err{color:var(--red);}
+.ap-state.err .ap-state-dot{background:var(--red);}
+@keyframes apPulse{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.5);opacity:0.5;}}
+.ap-center{position:relative;z-index:2;margin-bottom:18px;}
+.ap-scan{position:relative;padding:14px 18px;border-radius:12px;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.05);overflow:hidden;text-align:center;margin-bottom:12px;}
+.ap-scan-line{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:0;}
+.autopilot-shell.on .ap-scan-line{opacity:1;animation:apScan 2.4s linear infinite;}
+@keyframes apScan{0%{transform:translateX(-100%);}100%{transform:translateX(100%);}}
+.ap-scan-txt{font-size:13px;color:var(--text-dim);letter-spacing:0.4px;transition:color 0.3s;}
+.ap-scan.trade .ap-scan-txt{color:var(--cyan);}
+.ap-scan.buy .ap-scan-txt{color:var(--green);}
+.ap-scan.sell .ap-scan-txt{color:var(--red);}
+.ap-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.ap-meta-item{background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.04);border-radius:10px;padding:10px 8px;text-align:center;}
+.ap-meta-lbl{display:block;font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:4px;text-transform:uppercase;}
+.ap-meta-val{display:block;font-size:14px;font-weight:900;color:var(--text);font-family:monospace;}
+.ap-btn{
+  width:100%;padding:16px;border:none;border-radius:14px;cursor:pointer;
+  background:linear-gradient(135deg,var(--cyan),#0080ff);color:#fff;font-size:15px;font-weight:900;letter-spacing:1px;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  position:relative;z-index:2;transition:all 0.3s;
+  box-shadow:0 8px 24px rgba(0,212,255,0.35);
+}
+.ap-btn:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,212,255,0.5);}
+.ap-btn-ico{font-size:14px;}
+.autopilot-shell.on .ap-btn{background:linear-gradient(135deg,#ef5350,#c62828);box-shadow:0 8px 24px rgba(239,83,80,0.35);}
+.autopilot-shell.on .ap-btn:hover{box-shadow:0 12px 32px rgba(239,83,80,0.5);}
+.ap-feed{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;}
+.ap-feed-empty{font-size:12px;color:var(--text-dim);text-align:center;padding:16px;background:rgba(0,0,0,0.25);border-radius:12px;border:1px dashed rgba(255,255,255,0.06);}
+.ap-card{
+  position:relative;overflow:hidden;border-radius:14px;padding:14px 16px;
+  background:linear-gradient(135deg,rgba(255,255,255,0.03),rgba(0,0,0,0.4));
+  border:1px solid rgba(255,255,255,0.06);
+  backdrop-filter:blur(10px);
+  animation:apCardIn 0.4s ease;
+}
+@keyframes apCardIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.ap-card.buy{border-left:3px solid var(--green);}
+.ap-card.sell{border-left:3px solid var(--red);}
+.ap-card.win{border-left:3px solid var(--green);background:linear-gradient(135deg,rgba(38,166,154,0.08),rgba(0,0,0,0.4));}
+.ap-card.loss{border-left:3px solid var(--red);background:linear-gradient(135deg,rgba(239,83,80,0.08),rgba(0,0,0,0.4));}
+.ap-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.ap-card-title{font-size:13px;font-weight:900;letter-spacing:0.5px;}
+.ap-card-title.buy{color:var(--green);}
+.ap-card-title.sell{color:var(--red);}
+.ap-card-title.win{color:var(--green);}
+.ap-card-title.loss{color:var(--red);}
+.ap-card-time{font-size:11px;color:var(--text-dim);font-family:monospace;}
+.ap-card-rows{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;}
+.ap-card-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed rgba(255,255,255,0.05);}
+.ap-card-row span:first-child{color:var(--text-dim);}
+.ap-card-row span:last-child{color:var(--text);font-weight:700;font-family:monospace;}
+.ap-reasons{margin-top:10px;padding-top:10px;border-top:1px dashed rgba(255,255,255,0.08);font-size:11px;line-height:1.8;color:var(--text-dim);}
+.ap-reasons b{color:var(--cyan);font-weight:700;}
+@media (max-width:500px){
+  .ap-meta{grid-template-columns:repeat(2,1fr);}
+  .ap-card-rows{grid-template-columns:1fr;}
+}
+ </style> 
 </head>
 <body>
 <div class="live-stats" id="live-stats">
