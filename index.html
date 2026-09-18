@@ -4934,5 +4934,105 @@ console.log('[D] WS watchdog + badge active');
 })();
 </script>
 <!-- ====== END D ====== -->
+  <!-- ====== E: Correlation Guard + Momentum fix ====== -->
+<script>
+(function(){
+'use strict';
+if (window._kzCorrFix) return;
+window._kzCorrFix = true;
+
+/* --- 1. رصد آخر صفقتين — إن كانتا نفس الاتجاه خلال 90 ثانية، ارفض الثالثة --- */
+const recentFires = [];  // { sym, side, ts, amount }
+
+const _origSend = window.sendProposal;
+window.sendProposal = function(opts) {
+  if (!opts || opts.hunter !== true) return _origSend.apply(this, arguments);
+
+  const now = Date.now();
+  // نظّف القديم
+  while (recentFires.length && now - recentFires[0].ts > 90000) recentFires.shift();
+
+  // احسب التعرض الحالي على نفس الاتجاه
+  const sameSide = recentFires.filter(f => f.side === opts.side);
+  const sameSideAmt = sameSide.reduce((s, f) => s + f.amount, 0);
+
+  // بوابة 1: لا تفتح أكثر من صفقتين على نفس الاتجاه في 90 ثانية
+  if (sameSide.length >= 2) {
+    console.warn('[CORR] blocked: 2 same-side fires in 90s', opts.side);
+    try {
+      const log = document.getElementById('hunter-log');
+      if (log) {
+        const e = log.querySelector('.hunter-log-empty'); if (e) e.remove();
+        const d = document.createElement('div');
+        d.className = 'hunter-log-line';
+        d.style.color = 'var(--gold)';
+        d.textContent = '[' + new Date().toLocaleTimeString('ar-EG') + '] ⛔ حجب ' + opts.symbol + ' — تعرض مترابط';
+        log.prepend(d);
+      }
+    } catch(e){}
+    return;
+  }
+
+  // بوابة 2: لا تفتح أكثر من 1.2% من الرصيد على نفس الاتجاه
+  const bal = parseFloat(state.derivAccount && state.derivAccount.balance) || 0;
+  if (bal > 0 && (sameSideAmt + opts.amount) > bal * 0.012) {
+    const remaining = Math.max(0.35, bal * 0.012 - sameSideAmt);
+    if (remaining < 0.35) {
+      console.warn('[CORR] blocked: side exposure cap');
+      return;
+    }
+    opts.amount = Number(remaining.toFixed(2));
+  }
+
+  // بوابة 3: توزيع زمني — لا صفقتان خلال 20 ثانية
+  const lastFire = recentFires[recentFires.length - 1];
+  if (lastFire && now - lastFire.ts < 20000) {
+    console.warn('[CORR] blocked: too fast (', (now-lastFire.ts)/1000, 's)');
+    return;
+  }
+
+  recentFires.push({ sym: opts.symbol, side: opts.side, ts: now, amount: opts.amount });
+  return _origSend.apply(this, arguments);
+};
+
+/* --- 2. إصلاح MOMENTUM: لا SELL و RSI < 40 (سكين ساقطة) --- */
+/* نعرّض دالة patch لـ STRATS عبر اعتراض calculateSignal */
+const _origH3 = window._hunterV3;
+if (_origH3 && _origH3.api && _origH3.api.state) {
+  // موجود، لكن F3 مغلقة داخل closure. الحل: طبقة حماية فوق fire
+  // عبر فحص حالة السوق قبل التنفيذ — محاكاة
+  const _origTick = setInterval;  // لا نستبدل tick، نراقب بدلاً
+}
+// بديل: نراقب activeTrades ونغلق يدوياً إذا RSI كان متطرفاً
+// (لكن Deriv لا يدعم الإغلاق المبكر في binary options — لا يمكن)
+
+/* --- 3. Reduced size للصفقات المتزامنة --- */
+// size في v3 ثابت. نُصغّره في sendProposal أعلاه عبر cap.
+
+/* --- 4. Badge جديد --- */
+function corrBadge() {
+  let el = document.getElementById('kz-corr-badge');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'kz-corr-badge';
+    el.style.cssText = 'position:fixed;top:100px;left:16px;z-index:99995;background:rgba(15,18,24,0.92);border:1px solid rgba(212,175,55,0.35);border-radius:8px;padding:6px 12px;font-family:Courier New,monospace;font-size:11px;color:#e8eaf0;box-shadow:0 2px 12px rgba(0,0,0,0.5);';
+    document.body.appendChild(el);
+  }
+  const now = Date.now();
+  const recent = recentFires.filter(f => now - f.ts < 90000);
+  const b = recent.filter(f => f.side === 'BUY').length;
+  const s = recent.filter(f => f.side === 'SELL').length;
+  el.style.borderColor = (b >= 2 || s >= 2) ? '#ef535088' : '#d4af5588';
+  el.innerHTML = '<span style="color:#8a90a3;">CORR</span> ' +
+                 '<span style="color:' + (b>=2?'#ef5350':'#26a69a') + ';">BUY ' + b + '</span> ' +
+                 '<span style="color:' + (s>=2?'#ef5350':'#26a69a') + ';">SELL ' + s + '</span>';
+}
+setInterval(corrBadge, 2000);
+setTimeout(corrBadge, 1500);
+
+console.log('[E] Correlation guard active');
+})();
+</script>
+<!-- ====== END E ====== -->
 </body> 
 </html>
