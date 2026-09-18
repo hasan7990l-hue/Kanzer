@@ -3750,380 +3750,6 @@ async function handleCallback() {
   }
 })();
 </script>  
-  
-</script>
-  <script>
-/* ══════════════════════════════════════════════════════════════════
-   KANZER MULTI-SYMBOL SCANNER v2.0 — Self-Contained
-   5 symbols · highest-confidence auto-fire · no external deps
-══════════════════════════════════════════════════════════════════ */
-(function () {
-  'use strict';
-  const $ = id => document.getElementById(id);
-
-  const SYMBOLS = ['R_10', 'R_50', 'R_75', 'R_100', '1HZ100V'];
-  const NAME = { 'R_10':'V10','R_50':'V50','R_75':'V75','R_100':'V100','1HZ100V':'1HZ100' };
-  const GRAN = 60;
-
-  const MS = {
-    running: false, ws: null,
-    candles: {}, prices: {}, results: {},
-    best: null, timer: null, activeTrade: null,
-    cooldownUntil: 0,
-    stats: { scans:0, fired:0, wins:0, losses:0 },
-    config: { minConfidence: 68, cooldownMs: 8000, lossCooldownMs: 180000, stake: 1 }
-  };
-  window._multiScanner = MS;
-
-  const ema = (a,p) => { if(!a.length) return []; const k=2/(p+1), o=[a[0]]; for(let i=1;i<a.length;i++) o.push(a[i]*k+o[i-1]*(1-k)); return o; };
-  function rsiCalc(a,p){ const o=new Array(a.length).fill(50); if(a.length<p+1) return o; let g=0,l=0; for(let i=1;i<=p;i++){const d=a[i]-a[i-1]; d>0?g+=d:l-=d;} let ag=g/p, al=l/p; o[p]=al===0?100:100-100/(1+ag/al); for(let i=p+1;i<a.length;i++){const d=a[i]-a[i-1], gn=d>0?d:0, ls=d<0?-d:0; ag=(ag*(p-1)+gn)/p; al=(al*(p-1)+ls)/p; o[i]=al===0?100:100-100/(1+ag/al);} return o; }
-  function atrOf(c,p){ if(c.length<2) return 0; const t=[]; for(let i=1;i<c.length;i++){const x=c[i],y=c[i-1]; t.push(Math.max(x.high-x.low,Math.abs(x.high-y.close),Math.abs(x.low-y.close)));} const e=ema(t,p); return e[e.length-1]||0; }
-  const stdev = a => { const m=a.reduce((x,y)=>x+y,0)/a.length; return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/a.length); };
-
-  function analyze(candles) {
-    const n = candles.length;
-    if (n < 40) return null;
-    const closes = candles.map(c => c.close);
-    const opens  = candles.map(c => c.open);
-    const price  = closes[n-1];
-    const e3 = ema(closes,3), e8 = ema(closes,8), e21 = ema(closes,21);
-    const r = rsiCalc(closes,7);
-    const atr = atrOf(candles,14);
-    const trs = [];
-    for (let i=1;i<n;i++){ const x=candles[i],y=candles[i-1]; trs.push(Math.max(x.high-x.low,Math.abs(x.high-y.close),Math.abs(x.low-y.close))); }
-    const avgAtr = trs.slice(-30).reduce((a,b)=>a+b,0)/Math.min(30,trs.length);
-    const volRatio = avgAtr>0 ? atr/avgAtr : 1;
-    const e3v=e3[n-1], e8v=e8[n-1], e21v=e21[n-1];
-    const prevE3=e3[n-2], prevE8=e8[n-2];
-    const rsiV=r[n-1], rsiPrev=r[n-2]||rsiV, rsiSlope=rsiV-rsiPrev;
-    const vel3 = (closes[n-1]-closes[n-4])/(atr||1);
-    let bull=0, bear=0;
-    if (e3v>e8v && e8v>e21v) bull += 2;
-    else if (e3v<e8v && e8v<e21v) bear += 2;
-    else if (e3v>e8v) bull += 0.5;
-    else if (e3v<e8v) bear += 0.5;
-    if (prevE3<=prevE8 && e3v>e8v) bull += 1.6;
-    if (prevE3>=prevE8 && e3v<e8v) bear += 1.6;
-    if (vel3>0.5) bull += 1.5;
-    else if (vel3>0.2) bull += 0.7;
-    else if (vel3<-0.5) bear += 1.5;
-    else if (vel3<-0.2) bear += 0.7;
-    if (rsiV>55 && rsiSlope>1) bull += 1;
-    else if (rsiV<45 && rsiSlope<-1) bear += 1;
-    else if (rsiV<25) bull += 0.8;
-    else if (rsiV>75) bear += 0.8;
-    let upStreak=0, dnStreak=0;
-    for (let i=n-1;i>=Math.max(0,n-10);i--){
-      if (closes[i]>opens[i]) { if(dnStreak>0) break; upStreak++; }
-      else if (closes[i]<opens[i]) { if(upStreak>0) break; dnStreak++; }
-      else break;
-    }
-    if (upStreak>=3) bull += 1;
-    if (dnStreak>=3) bear += 1;
-    const win = closes.slice(-20);
-    const bbMid = win.reduce((a,b)=>a+b,0)/20;
-    const bbStd = stdev(win);
-    const bbU = bbMid + 2*bbStd, bbL = bbMid - 2*bbStd;
-    const bbPos = (price - bbL) / ((bbU - bbL) || 1);
-    if (bbPos<0.15) bull += 1;
-    else if (bbPos>0.85) bear += 1;
-    const c1 = candles[n-1];
-    const body = Math.abs(c1.close - c1.open);
-    const range = (c1.high - c1.low) || 0.0001;
-    const upperWick = c1.high - Math.max(c1.close, c1.open);
-    const lowerWick = Math.min(c1.close, c1.open) - c1.low;
-    if (lowerWick>body*1.8 && lowerWick>range*0.4) bull += 1.2;
-    if (upperWick>body*1.8 && upperWick>range*0.4) bear += 1.2;
-    if (volRatio < 0.6) { bull *= 0.55; bear *= 0.55; }
-    else if (volRatio > 1.9) { bull *= 0.72; bear *= 0.72; }
-    const maxScore = Math.max(bull, bear);
-    const total = bull + bear;
-    const conf = total > 0 ? Math.min(99, Math.round((maxScore/total)*100*(1+Math.min(total/15,0.28)))) : 0;
-    let dir = 'NEUTRAL';
-    if (bull >= 4.5 && bull > bear*1.5) dir = 'BUY';
-    else if (bear >= 4.5 && bear > bull*1.5) dir = 'SELL';
-    return { direction: dir, confidence: conf, bull, bear, price, volRatio, ts: Date.now() };
-  }
-
-  function injectPanel() {
-    if ($('multi-scanner-panel')) return;
-    const pageAuto = $('page-auto');
-    if (!pageAuto) return;
-
-    const html = `
-<div class="hunter-panel" id="multi-scanner-panel" style="border-color:rgba(212,175,55,0.4);">
-  <div class="hunter-head">
-    <div class="hunter-title" style="background:linear-gradient(135deg,#d4af37,#00d4ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">MULTI-SCANNER · 5 SYMBOLS</div>
-    <div class="hunter-state" id="ms-state"><span class="hunter-dot"></span><span id="ms-state-txt">جاهز</span></div>
-  </div>
-  <div id="ms-table" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;"></div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
-    <div class="field"><label style="font-size:10px;">المبلغ ($)</label><input type="number" id="ms-stake" value="1" min="0.35" step="0.5"></div>
-    <div class="field"><label style="font-size:10px;">حد الثقة (%)</label><input type="number" id="ms-minconf" value="68" min="55" max="95"></div>
-    <div class="field"><label style="font-size:10px;">المؤقت (ث)</label><input type="number" id="ms-cooldown" value="8" min="3" max="60"></div>
-  </div>
-  <div style="display:flex;gap:8px;margin-bottom:10px;">
-    <button class="hunter-btn" id="ms-toggle" style="flex:2;background:linear-gradient(135deg,#d4af37,#a8862a);">
-      <span>◆</span><span id="ms-btn-txt">تشغيل MULTI</span>
-    </button>
-    <button class="btn btn-outline" style="flex:1;font-size:12px;" onclick="window._msReset()">تصفير</button>
-  </div>
-  <div style="display:flex;gap:8px;margin-bottom:10px;">
-    <button class="btn btn-outline btn-full" style="font-size:12px;" onclick="window.KZAudio.setEnabled(!window.KZAudio.enabled);showToast(window.KZAudio.enabled?'🔊 الأصوات مفعّلة':'🔇 الأصوات معطّلة')">🔊 الصوت</button>
-    <button class="btn btn-outline btn-full" style="font-size:12px;" onclick="window._msTestSounds()">🎵 تجربة الأصوات</button>
-  </div>
-  <div id="ms-log" style="max-height:100px;overflow-y:auto;font-size:11px;font-family:'Courier New',monospace;line-height:1.7;padding:8px;border-radius:8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.04);">
-    <div style="color:var(--text-dim);text-align:center;">في انتظار...</div>
-  </div>
-</div>`;
-
-    pageAuto.insertAdjacentHTML('afterbegin', html);
-
-    const table = $('ms-table');
-    if (table) {
-      table.innerHTML = SYMBOLS.map(sym => `
-<div id="ms-row-${sym}" style="display:grid;grid-template-columns:60px 60px 70px 1fr;gap:8px;align-items:center;padding:8px 10px;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.05);border-radius:8px;transition:all 0.3s;">
-  <div style="font-family:monospace;font-size:13px;font-weight:900;color:var(--text);">${NAME[sym]}</div>
-  <div id="ms-dir-${sym}" style="font-size:12px;font-weight:900;color:var(--text-dim);text-align:center;">—</div>
-  <div id="ms-conf-${sym}" style="font-size:13px;font-weight:900;color:var(--text-dim);text-align:center;font-family:monospace;">0%</div>
-  <div style="height:8px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden;">
-    <div id="ms-bar-${sym}" style="height:100%;width:0%;background:linear-gradient(90deg,#00d4ff,#26a69a);transition:width 0.4s;"></div>
-  </div>
-</div>`).join('');
-    }
-    $('ms-toggle').addEventListener('click', () => MS.running ? stop() : start());
-
-    ['ms-stake','ms-minconf','ms-cooldown'].forEach(id => {
-      const el = $(id);
-      if (el) el.addEventListener('change', () => {
-        MS.config.stake = Math.max(0.35, parseFloat($('ms-stake').value) || 1);
-        MS.config.minConfidence = Math.min(95, Math.max(55, parseInt($('ms-minconf').value) || 68));
-        MS.config.cooldownMs = Math.max(3000, (parseInt($('ms-cooldown').value) || 8) * 1000);
-      });
-    });
-  }
-
-  function mlog(msg, color) {
-    const el = $('ms-log'); if (!el) return;
-    if (el.firstChild && el.firstChild.style && el.firstChild.style.textAlign === 'center') el.innerHTML = '';
-    const line = document.createElement('div');
-    line.style.color = color || 'var(--text)';
-    line.textContent = '[' + new Date().toLocaleTimeString('ar-EG') + '] ' + msg;
-    el.prepend(line);
-    while (el.children.length > 20) el.removeChild(el.lastChild);
-  }
-
-  function paintRow(sym, res) {
-    const row  = $('ms-row-' + sym);
-    const dir  = $('ms-dir-' + sym);
-    const conf = $('ms-conf-' + sym);
-    const bar  = $('ms-bar-' + sym);
-    if (!row || !dir || !conf || !bar) return;
-    if (!res) {
-      dir.textContent = '—'; dir.style.color = 'var(--text-dim)';
-      conf.textContent = '0%'; conf.style.color = 'var(--text-dim)';
-      bar.style.width = '0%';
-      row.style.borderColor = 'rgba(255,255,255,0.05)';
-      return;
-    }
-    const isBuy = res.direction === 'BUY';
-    const isSell = res.direction === 'SELL';
-    const c = isBuy ? '#26a69a' : isSell ? '#ef5350' : '#8a90a3';
-    dir.textContent = isBuy ? 'BUY' : isSell ? 'SELL' : '—';
-    dir.style.color = c;
-    conf.textContent = res.confidence + '%';
-    conf.style.color = res.confidence >= MS.config.minConfidence ? c : 'var(--text-dim)';
-    bar.style.width = Math.min(100, res.confidence) + '%';
-    bar.style.background = isBuy  ? 'linear-gradient(90deg,#26a69a,#00b894)'
-                         : isSell ? 'linear-gradient(90deg,#ef5350,#c62828)'
-                         : 'linear-gradient(90deg,#2a2f3d,#1a1d24)';
-    row.style.borderColor = res.confidence >= MS.config.minConfidence && (isBuy||isSell) ? c : 'rgba(255,255,255,0.05)';
-  }
-
-  function connect() {
-    if (MS.ws && MS.ws.readyState === 1) return;
-    if (MS.ws) { try { MS.ws.close(); } catch(e){} }
-    mlog('🔌 فتح اتصال لخمس رموز...', 'var(--cyan)');
-    MS.ws = new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
-    MS.ws.onopen = () => {
-      mlog('✅ متصل — طلب الشموع', 'var(--green)');
-      for (let i = 0; i < SYMBOLS.length; i++) {
-        MS.ws.send(JSON.stringify({ ticks_history: SYMBOLS[i], adjust_start_time: 1, count: 200, end: 'latest', start: 1, style: 'candles', granularity: GRAN, req_id: 1000 + i }));
-        MS.ws.send(JSON.stringify({ ticks: SYMBOLS[i], subscribe: 1, req_id: 2000 + i }));
-      }
-    };
-    MS.ws.onmessage = (ev) => {
-      try {
-        const msg = JSON.parse(ev.data);
-        if (msg.msg_type === 'candles' && msg.candles) {
-          const sym = msg.echo_req && msg.echo_req.ticks_history;
-          if (!sym) return;
-          MS.candles[sym] = msg.candles.map(c => ({ time: c.epoch, open: +c.open, high: +c.high, low: +c.low, close: +c.close }));
-        } else if (msg.msg_type === 'tick' && msg.tick) {
-          const sym = msg.tick.symbol;
-          const p = +msg.tick.quote;
-          MS.prices[sym] = p;
-          const arr = MS.candles[sym];
-          if (arr && arr.length) {
-            const last = arr[arr.length-1];
-            const bt = Math.floor(Date.now()/1000/GRAN)*GRAN;
-            if (last.time === bt) { last.close = p; last.high = Math.max(last.high,p); last.low = Math.min(last.low,p); }
-            else if (last.time < bt) {
-              arr.push({ time: bt, open: last.close, high: Math.max(last.close,p), low: Math.min(last.close,p), close: p });
-              if (arr.length > 500) arr.shift();
-            }
-          }
-        }
-      } catch(e){}
-    };
-    MS.ws.onerror = () => mlog('❌ خطأ اتصال', 'var(--red)');
-    MS.ws.onclose = () => { MS.ws = null; if (MS.running) setTimeout(connect, 3000); };
-  }
-
-  function scan() {
-    if (!MS.running) return;
-    MS.stats.scans++;
-    if (MS.activeTrade && Date.now() - MS.activeTrade.ts > 90000) {
-      MS.activeTrade = null;
-      mlog('⚠ تصفير صفقة قديمة', 'var(--gold)');
-    }
-    let best = null;
-    for (const sym of SYMBOLS) {
-      const candles = MS.candles[sym];
-      if (!candles || candles.length < 40) { paintRow(sym, null); continue; }
-      const r = analyze(candles);
-      if (!r) { paintRow(sym, null); continue; }
-      MS.results[sym] = r;
-      paintRow(sym, r);
-      if (r.direction !== 'NEUTRAL' && r.confidence >= MS.config.minConfidence) {
-        if (!best || r.confidence > best.confidence) best = { symbol: sym, ...r };
-      }
-    }
-    MS.best = best;
-if (best) {
-  const key = best.symbol + '|' + best.direction;
-  if (MS._lastLogKey !== key) {
-    MS._lastLogKey = key;
-    mlog(`🎯 ${NAME[best.symbol]} · ${best.direction} · ${best.confidence}%`, best.direction === 'BUY' ? 'var(--green)' : 'var(--red)');
-  }
-  tryFire(best);
-} else {
-  MS._lastLogKey = null;
-}
-
-  function tryFire(best) {
-    const now = Date.now();
-    if (MS.activeTrade) return;
-    if (now < MS.cooldownUntil) return;
-    if (!window.state || !window.state.derivWS || !window.state.derivLinked) {
-      mlog('❌ Deriv غير مربوط', 'var(--red)');
-      MS.cooldownUntil = now + 30000;
-      return;
-    }
-    if (typeof window.sendProposal !== 'function') { mlog('❌ sendProposal غير متاح', 'var(--red)'); return; }
-    const amount = MS.config.stake;
-    MS.activeTrade = { ts: now, symbol: best.symbol, direction: best.direction, amount, confidence: best.confidence };
-    MS.stats.fired++;
-    MS.cooldownUntil = now + MS.config.cooldownMs;
-    mlog(`▶ تنفيذ ${best.direction} ${NAME[best.symbol]} $${amount} — ${best.confidence}%`, 'var(--cyan)');
-    if (window.KZAudio && window.KZAudio.playTradeFire) window.KZAudio.playTradeFire();
-    try {
-      window.sendProposal({ side: best.direction, symbol: best.symbol, amount, duration: 1, auto: true, smart: false, scalp: true });
-    } catch (e) {
-      mlog('❌ فشل: ' + e.message, 'var(--red)');
-      MS.activeTrade = null;
-    }
-  }
-
-  function hookSettle() {
-    if (typeof window.settleTradeFromDeriv !== 'function') { setTimeout(hookSettle, 800); return; }
-    if (window.settleTradeFromDeriv.__msHooked) return;
-    const orig = window.settleTradeFromDeriv;
-    const wrapper = function (contract) {
-      try {
-        const profit = parseFloat(contract.profit) || 0;
-        const won = contract.status === 'won' || (contract.status === 'sold' && profit > 0);
-        // Multi هو المنفّذ الوحيد → أي تسوية مع activeTrade = صفقتنا
-        if (MS.activeTrade) {
-          MS.activeTrade = null;
-if (won) { MS.stats.wins++;   MS.cooldownUntil = Date.now() + MS.config.cooldownMs; }
-else     { MS.stats.losses++; MS.cooldownUntil = Date.now() + MS.config.lossCooldownMs; }
-mlog((won ? '🟢 WIN +$' : '🔴 LOSS -$') + Math.abs(profit).toFixed(2), won ? 'var(--green)' : 'var(--red)');
-        }
-      } catch (e) { console.warn('MS settle hook', e); }
-      return orig.apply(this, arguments);
-    };
-    wrapper.__msHooked = true;
-    window.settleTradeFromDeriv = wrapper;
-    try { settleTradeFromDeriv = wrapper; } catch(e){}
-  }
-
-  function start() {
-    if (MS.running) return;
-    MS.running = true;
-    MS.stats = { scans:0, fired:0, wins:0, losses:0 };
-    MS.activeTrade = null;
-    MS.cooldownUntil = 0;
-    if ($('ms-stake')) MS.config.stake = Math.max(0.35, parseFloat($('ms-stake').value) || 1);
-    if ($('ms-minconf')) MS.config.minConfidence = Math.min(95, Math.max(55, parseInt($('ms-minconf').value) || 68));
-    if ($('ms-cooldown')) MS.config.cooldownMs = Math.max(3000, (parseInt($('ms-cooldown').value) || 8) * 1000);
-    connect();
-    if (MS.timer) clearInterval(MS.timer);
-    MS.timer = setInterval(scan, 4000);
-    setTimeout(scan, 2000);
-    $('ms-state-txt').textContent = 'يعمل';
-    $('ms-state').classList.add('on');
-    $('ms-btn-txt').textContent = 'إيقاف MULTI';
-    mlog('▶ MULTI-SCANNER يعمل على 5 رموز', 'var(--cyan)');
-    if (window.KZAudio && window.KZAudio.playStart) window.KZAudio.playStart();
-  }
-
-  function stop() {
-    if (!MS.running) return;
-    MS.running = false;
-    if (MS.timer) { clearInterval(MS.timer); MS.timer = null; }
-    if (MS.ws) { try { MS.ws.close(); } catch(e){} MS.ws = null; }
-    $('ms-state-txt').textContent = 'جاهز';
-    $('ms-state').classList.remove('on');
-    $('ms-btn-txt').textContent = 'تشغيل MULTI';
-    mlog('■ تم إيقاف MULTI-SCANNER', 'var(--gold)');
-    if (window.KZAudio && window.KZAudio.playStop) window.KZAudio.playStop();
-  }
-
-  window._msReset = function () {
-    stop();
-    MS.candles = {}; MS.prices = {}; MS.results = {}; MS.best = null;
-    SYMBOLS.forEach(s => paintRow(s, null));
-    const el = $('ms-log'); if (el) el.innerHTML = '<div style="color:var(--text-dim);text-align:center;">تم التصفير.</div>';
-  };
-  window._msTestSounds = async function () {
-    const seq = ['start','scan','signal','fire','target','win','loss','stop'];
-    for (const s of seq) {
-      if (window.KZAudio) {
-        if (s === 'start') window.KZAudio.playStart();
-        if (s === 'scan') window.KZAudio.playScanTick();
-        if (s === 'signal') window.KZAudio.playSignal();
-        if (s === 'fire') window.KZAudio.playTradeFire();
-        if (s === 'target') window.KZAudio.playTarget();
-        if (s === 'win') window.KZAudio.playWin();
-        if (s === 'loss') window.KZAudio.playLoss();
-        if (s === 'stop') window.KZAudio.playStop();
-      }
-      await new Promise(r => setTimeout(r, 900));
-    }
-  };
-
-  function boot() {
-    injectPanel();
-    hookSettle();
-    SYMBOLS.forEach(s => paintRow(s, null));
-    console.log('[Kanzer] Multi-Scanner v2 loaded (self-contained)');
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
-  else setTimeout(boot, 2000);
-  setInterval(() => { if ($('page-auto') && !$('multi-scanner-panel')) injectPanel(); }, 3000);
-})();
-</script>
  <script>
 /* ══════════════════════════════════════════════════════════════════
    KANZER FIX PACK v1 — State Bridge + Audio Unlock
@@ -4482,6 +4108,348 @@ mlog((won ? '🟢 WIN +$' : '🔴 LOSS -$') + Math.abs(profit).toFixed(2), won ?
   );
 
   console.log('[Kanzer] KZAudio engine loaded');
+})();
+</script>
+ <script>
+/* ══════════════════════════════════════════════════════════════════
+   KANZER MULTI-SYMBOL SCANNER v2.1 — Clean Build
+══════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const SYMBOLS = ['R_10','R_50','R_75','R_100','1HZ100V'];
+  const NAME = { 'R_10':'V10','R_50':'V50','R_75':'V75','R_100':'V100','1HZ100V':'1HZ100' };
+  const GRAN = 60;
+
+  const MS = {
+    running:false, ws:null, candles:{}, prices:{}, results:{},
+    best:null, timer:null, activeTrade:null, cooldownUntil:0,
+    stats:{ scans:0, fired:0, wins:0, losses:0 },
+    config:{ minConfidence:68, cooldownMs:8000, lossCooldownMs:180000, stake:1 }
+  };
+  window._multiScanner = MS;
+
+  const ema=(a,p)=>{ if(!a.length) return []; const k=2/(p+1), o=[a[0]]; for(let i=1;i<a.length;i++) o.push(a[i]*k+o[i-1]*(1-k)); return o; };
+  function rsiCalc(a,p){ const o=new Array(a.length).fill(50); if(a.length<p+1) return o; let g=0,l=0; for(let i=1;i<=p;i++){const d=a[i]-a[i-1]; d>0?g+=d:l-=d;} let ag=g/p, al=l/p; o[p]=al===0?100:100-100/(1+ag/al); for(let i=p+1;i<a.length;i++){const d=a[i]-a[i-1], gn=d>0?d:0, ls=d<0?-d:0; ag=(ag*(p-1)+gn)/p; al=(al*(p-1)+ls)/p; o[i]=al===0?100:100-100/(1+ag/al);} return o; }
+  function atrOf(c,p){ if(c.length<2) return 0; const t=[]; for(let i=1;i<c.length;i++){const x=c[i],y=c[i-1]; t.push(Math.max(x.high-x.low,Math.abs(x.high-y.close),Math.abs(x.low-y.close)));} const e=ema(t,p); return e[e.length-1]||0; }
+  const stdev=a=>{ const m=a.reduce((x,y)=>x+y,0)/a.length; return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/a.length); };
+
+  function analyze(candles) {
+    const n = candles.length;
+    if (n < 40) return null;
+    const closes = candles.map(c=>c.close), opens = candles.map(c=>c.open);
+    const price = closes[n-1];
+    const e3=ema(closes,3), e8=ema(closes,8), e21=ema(closes,21);
+    const r = rsiCalc(closes,7);
+    const atr = atrOf(candles,14);
+    const trs=[]; for(let i=1;i<n;i++){const x=candles[i],y=candles[i-1]; trs.push(Math.max(x.high-x.low,Math.abs(x.high-y.close),Math.abs(x.low-y.close)));}
+    const avgAtr = trs.slice(-30).reduce((a,b)=>a+b,0)/Math.min(30,trs.length);
+    const volRatio = avgAtr>0 ? atr/avgAtr : 1;
+    const e3v=e3[n-1], e8v=e8[n-1], e21v=e21[n-1];
+    const prevE3=e3[n-2], prevE8=e8[n-2];
+    const rsiV=r[n-1], rsiPrev=r[n-2]||rsiV, rsiSlope=rsiV-rsiPrev;
+    const vel3=(closes[n-1]-closes[n-4])/(atr||1);
+    let bull=0, bear=0;
+    if(e3v>e8v && e8v>e21v) bull+=2; else if(e3v<e8v && e8v<e21v) bear+=2;
+    else if(e3v>e8v) bull+=0.5; else if(e3v<e8v) bear+=0.5;
+    if(prevE3<=prevE8 && e3v>e8v) bull+=1.6;
+    if(prevE3>=prevE8 && e3v<e8v) bear+=1.6;
+    if(vel3>0.5) bull+=1.5; else if(vel3>0.2) bull+=0.7;
+    else if(vel3<-0.5) bear+=1.5; else if(vel3<-0.2) bear+=0.7;
+    if(rsiV>55 && rsiSlope>1) bull+=1; else if(rsiV<45 && rsiSlope<-1) bear+=1;
+    else if(rsiV<25) bull+=0.8; else if(rsiV>75) bear+=0.8;
+    let upStreak=0, dnStreak=0;
+    for(let i=n-1;i>=Math.max(0,n-10);i--){
+      if(closes[i]>opens[i]){ if(dnStreak>0) break; upStreak++; }
+      else if(closes[i]<opens[i]){ if(upStreak>0) break; dnStreak++; } else break;
+    }
+    if(upStreak>=3) bull+=1; if(dnStreak>=3) bear+=1;
+    const win = closes.slice(-20);
+    const bbMid = win.reduce((a,b)=>a+b,0)/20;
+    const bbStd = stdev(win);
+    const bbU = bbMid+2*bbStd, bbL = bbMid-2*bbStd;
+    const bbPos = (price-bbL)/((bbU-bbL)||1);
+    if(bbPos<0.15) bull+=1; else if(bbPos>0.85) bear+=1;
+    const c1=candles[n-1];
+    const body=Math.abs(c1.close-c1.open);
+    const range=(c1.high-c1.low)||0.0001;
+    const upperWick=c1.high-Math.max(c1.close,c1.open);
+    const lowerWick=Math.min(c1.close,c1.open)-c1.low;
+    if(lowerWick>body*1.8 && lowerWick>range*0.4) bull+=1.2;
+    if(upperWick>body*1.8 && upperWick>range*0.4) bear+=1.2;
+    if(volRatio<0.6){ bull*=0.55; bear*=0.55; } else if(volRatio>1.9){ bull*=0.72; bear*=0.72; }
+    const maxScore = Math.max(bull,bear), total = bull+bear;
+    const conf = total>0 ? Math.min(99, Math.round((maxScore/total)*100*(1+Math.min(total/15,0.28)))) : 0;
+    let dir='NEUTRAL';
+    if(bull>=4.5 && bull>bear*1.5) dir='BUY';
+    else if(bear>=4.5 && bear>bull*1.5) dir='SELL';
+    return { direction:dir, confidence:conf, bull, bear, price, volRatio, ts:Date.now() };
+  }
+
+  function injectPanel() {
+    if ($('multi-scanner-panel')) return;
+    const pageAuto = $('page-auto');
+    if (!pageAuto) return;
+    const html = `
+<div class="hunter-panel" id="multi-scanner-panel" style="border-color:rgba(212,175,55,0.4);">
+  <div class="hunter-head">
+    <div class="hunter-title" style="background:linear-gradient(135deg,#d4af37,#00d4ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">MULTI-SCANNER · 5 SYMBOLS</div>
+    <div class="hunter-state" id="ms-state"><span class="hunter-dot"></span><span id="ms-state-txt">جاهز</span></div>
+  </div>
+  <div id="ms-table" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;"></div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
+    <div class="field"><label style="font-size:10px;">المبلغ ($)</label><input type="number" id="ms-stake" value="1" min="0.35" step="0.5"></div>
+    <div class="field"><label style="font-size:10px;">حد الثقة (%)</label><input type="number" id="ms-minconf" value="75" min="55" max="95"></div>
+    <div class="field"><label style="font-size:10px;">المؤقت (ث)</label><input type="number" id="ms-cooldown" value="30" min="3" max="60"></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:10px;">
+    <button class="hunter-btn" id="ms-toggle" style="flex:2;background:linear-gradient(135deg,#d4af37,#a8862a);">
+      <span>◆</span><span id="ms-btn-txt">تشغيل MULTI</span>
+    </button>
+    <button class="btn btn-outline" style="flex:1;font-size:12px;" onclick="window._msReset()">تصفير</button>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:10px;">
+    <button class="btn btn-outline btn-full" style="font-size:12px;" onclick="window.KZAudio.setEnabled(!window.KZAudio.enabled);showToast(window.KZAudio.enabled?'الأصوات مفعلة':'الأصوات معطلة')">🔊 الصوت</button>
+    <button class="btn btn-outline btn-full" style="font-size:12px;" onclick="window._msTestSounds()">🎵 تجربة الأصوات</button>
+  </div>
+  <div id="ms-log" style="max-height:100px;overflow-y:auto;font-size:11px;font-family:'Courier New',monospace;line-height:1.7;padding:8px;border-radius:8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.04);">
+    <div style="color:var(--text-dim);text-align:center;">في انتظار...</div>
+  </div>
+</div>`;
+    pageAuto.insertAdjacentHTML('afterbegin', html);
+    const table = $('ms-table');
+    if (table) {
+      table.innerHTML = SYMBOLS.map(sym => `
+<div id="ms-row-${sym}" style="display:grid;grid-template-columns:60px 60px 70px 1fr;gap:8px;align-items:center;padding:8px 10px;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.05);border-radius:8px;transition:all 0.3s;">
+  <div style="font-family:monospace;font-size:13px;font-weight:900;color:var(--text);">${NAME[sym]}</div>
+  <div id="ms-dir-${sym}" style="font-size:12px;font-weight:900;color:var(--text-dim);text-align:center;">—</div>
+  <div id="ms-conf-${sym}" style="font-size:13px;font-weight:900;color:var(--text-dim);text-align:center;font-family:monospace;">0%</div>
+  <div style="height:8px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden;">
+    <div id="ms-bar-${sym}" style="height:100%;width:0%;background:linear-gradient(90deg,#00d4ff,#26a69a);transition:width 0.4s;"></div>
+  </div>
+</div>`).join('');
+    }
+    $('ms-toggle').addEventListener('click', () => MS.running ? stop() : start());
+    ['ms-stake','ms-minconf','ms-cooldown'].forEach(id => {
+      const el = $(id);
+      if (el) el.addEventListener('change', () => {
+        MS.config.stake = Math.max(0.35, parseFloat($('ms-stake').value) || 1);
+        MS.config.minConfidence = Math.min(95, Math.max(55, parseInt($('ms-minconf').value) || 75));
+        MS.config.cooldownMs = Math.max(3000, (parseInt($('ms-cooldown').value) || 30) * 1000);
+      });
+    });
+  }
+
+  function mlog(msg, color) {
+    const el = $('ms-log'); if (!el) return;
+    if (el.firstChild && el.firstChild.style && el.firstChild.style.textAlign === 'center') el.innerHTML = '';
+    const line = document.createElement('div');
+    line.style.color = color || 'var(--text)';
+    line.textContent = '[' + new Date().toLocaleTimeString('ar-EG') + '] ' + msg;
+    el.prepend(line);
+    while (el.children.length > 20) el.removeChild(el.lastChild);
+  }
+
+  function paintRow(sym, res) {
+    const row=$('ms-row-'+sym), dir=$('ms-dir-'+sym), conf=$('ms-conf-'+sym), bar=$('ms-bar-'+sym);
+    if (!row||!dir||!conf||!bar) return;
+    if (!res) { dir.textContent='—'; dir.style.color='var(--text-dim)'; conf.textContent='0%'; conf.style.color='var(--text-dim)'; bar.style.width='0%'; row.style.borderColor='rgba(255,255,255,0.05)'; return; }
+    const isBuy=res.direction==='BUY', isSell=res.direction==='SELL';
+    const c=isBuy?'#26a69a':isSell?'#ef5350':'#8a90a3';
+    dir.textContent=isBuy?'BUY':isSell?'SELL':'—'; dir.style.color=c;
+    conf.textContent=res.confidence+'%';
+    conf.style.color=res.confidence>=MS.config.minConfidence?c:'var(--text-dim)';
+    bar.style.width=Math.min(100,res.confidence)+'%';
+    bar.style.background=isBuy?'linear-gradient(90deg,#26a69a,#00b894)':isSell?'linear-gradient(90deg,#ef5350,#c62828)':'linear-gradient(90deg,#2a2f3d,#1a1d24)';
+    row.style.borderColor=res.confidence>=MS.config.minConfidence&&(isBuy||isSell)?c:'rgba(255,255,255,0.05)';
+  }
+
+  function connect() {
+    if (MS.ws && MS.ws.readyState===1) return;
+    if (MS.ws) { try { MS.ws.close(); } catch(e){} }
+    mlog('فتح اتصال لخمس رموز...', 'var(--cyan)');
+    MS.ws = new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
+    MS.ws.onopen = () => {
+      mlog('متصل - طلب الشموع', 'var(--green)');
+      for (let i=0;i<SYMBOLS.length;i++) {
+        MS.ws.send(JSON.stringify({ ticks_history:SYMBOLS[i], adjust_start_time:1, count:200, end:'latest', start:1, style:'candles', granularity:GRAN, req_id:1000+i }));
+        MS.ws.send(JSON.stringify({ ticks:SYMBOLS[i], subscribe:1, req_id:2000+i }));
+      }
+    };
+    MS.ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.msg_type==='candles' && msg.candles) {
+          const sym = msg.echo_req && msg.echo_req.ticks_history;
+          if (!sym) return;
+          MS.candles[sym] = msg.candles.map(c => ({ time:c.epoch, open:+c.open, high:+c.high, low:+c.low, close:+c.close }));
+        } else if (msg.msg_type==='tick' && msg.tick) {
+          const sym = msg.tick.symbol, p = +msg.tick.quote;
+          MS.prices[sym] = p;
+          const arr = MS.candles[sym];
+          if (arr && arr.length) {
+            const last = arr[arr.length-1];
+            const bt = Math.floor(Date.now()/1000/GRAN)*GRAN;
+            if (last.time===bt) { last.close=p; last.high=Math.max(last.high,p); last.low=Math.min(last.low,p); }
+            else if (last.time<bt) {
+              arr.push({ time:bt, open:last.close, high:Math.max(last.close,p), low:Math.min(last.close,p), close:p });
+              if (arr.length>500) arr.shift();
+            }
+          }
+        }
+      } catch(e){}
+    };
+    MS.ws.onerror = () => mlog('خطأ اتصال', 'var(--red)');
+    MS.ws.onclose = () => { MS.ws=null; if (MS.running) setTimeout(connect, 3000); };
+  }
+
+  function scan() {
+    if (!MS.running) return;
+    MS.stats.scans++;
+    if (MS.activeTrade && Date.now()-MS.activeTrade.ts > 90000) {
+      MS.activeTrade = null;
+      mlog('تصفير صفقة قديمة', 'var(--gold)');
+    }
+    let best = null;
+    for (const sym of SYMBOLS) {
+      const candles = MS.candles[sym];
+      if (!candles || candles.length<40) { paintRow(sym,null); continue; }
+      const r = analyze(candles);
+      if (!r) { paintRow(sym,null); continue; }
+      MS.results[sym] = r;
+      paintRow(sym, r);
+      if (r.direction!=='NEUTRAL' && r.confidence>=MS.config.minConfidence) {
+        if (!best || r.confidence>best.confidence) best = { symbol:sym, ...r };
+      }
+    }
+    MS.best = best;
+    if (best) {
+      const key = best.symbol + '|' + best.direction;
+      if (MS._lastLogKey !== key) {
+        MS._lastLogKey = key;
+        mlog(`اشارة ${NAME[best.symbol]} ${best.direction} ${best.confidence}%`, best.direction==='BUY'?'var(--green)':'var(--red)');
+      }
+      tryFire(best);
+    } else {
+      MS._lastLogKey = null;
+    }
+  }
+
+  function tryFire(best) {
+    const now = Date.now();
+    if (MS.activeTrade) return;
+    if (now < MS.cooldownUntil) return;
+    if (!window.state || !window.state.derivWS || !window.state.derivLinked) {
+      mlog('Deriv غير مربوط', 'var(--red)');
+      MS.cooldownUntil = now + 30000;
+      return;
+    }
+    if (typeof window.sendProposal !== 'function') { mlog('sendProposal غير متاح', 'var(--red)'); return; }
+    const amount = MS.config.stake;
+    MS.activeTrade = { ts:now, symbol:best.symbol, direction:best.direction, amount, confidence:best.confidence };
+    MS.stats.fired++;
+    MS.cooldownUntil = now + MS.config.cooldownMs;
+    mlog(`تنفيذ ${best.direction} ${NAME[best.symbol]} $${amount} - ${best.confidence}%`, 'var(--cyan)');
+    if (window.KZAudio && window.KZAudio.playTradeFire) window.KZAudio.playTradeFire();
+    try {
+      window.sendProposal({ side:best.direction, symbol:best.symbol, amount, duration:1, auto:true, smart:false, scalp:true });
+    } catch (e) {
+      mlog('فشل: ' + e.message, 'var(--red)');
+      MS.activeTrade = null;
+    }
+  }
+
+  function hookSettle() {
+    if (typeof window.settleTradeFromDeriv !== 'function') { setTimeout(hookSettle, 800); return; }
+    if (window.settleTradeFromDeriv.__msHooked) return;
+    const orig = window.settleTradeFromDeriv;
+    const wrapper = function (contract) {
+      try {
+        const profit = parseFloat(contract.profit) || 0;
+        const won = contract.status==='won' || (contract.status==='sold' && profit>0);
+        if (MS.activeTrade) {
+          MS.activeTrade = null;
+          if (won) {
+            MS.stats.wins++;
+            MS.cooldownUntil = Date.now() + MS.config.cooldownMs;
+          } else {
+            MS.stats.losses++;
+            MS.cooldownUntil = Date.now() + MS.config.lossCooldownMs;
+          }
+          mlog((won?'WIN +$':'LOSS -$') + Math.abs(profit).toFixed(2), won?'var(--green)':'var(--red)');
+        }
+      } catch (e) { console.warn('MS settle hook', e); }
+      return orig.apply(this, arguments);
+    };
+    wrapper.__msHooked = true;
+    window.settleTradeFromDeriv = wrapper;
+    try { settleTradeFromDeriv = wrapper; } catch(e){}
+  }
+
+  function start() {
+    if (MS.running) return;
+    MS.running = true;
+    MS.stats = { scans:0, fired:0, wins:0, losses:0 };
+    MS.activeTrade = null;
+    MS.cooldownUntil = 0;
+    if ($('ms-stake')) MS.config.stake = Math.max(0.35, parseFloat($('ms-stake').value) || 1);
+    if ($('ms-minconf')) MS.config.minConfidence = Math.min(95, Math.max(55, parseInt($('ms-minconf').value) || 75));
+    if ($('ms-cooldown')) MS.config.cooldownMs = Math.max(3000, (parseInt($('ms-cooldown').value) || 30) * 1000);
+    connect();
+    if (MS.timer) clearInterval(MS.timer);
+    MS.timer = setInterval(scan, 4000);
+    setTimeout(scan, 2000);
+    const st = $('ms-state-txt'); if (st) st.textContent = 'يعمل';
+    const se = $('ms-state'); if (se) se.classList.add('on');
+    const bt = $('ms-btn-txt'); if (bt) bt.textContent = 'إيقاف MULTI';
+    mlog('MULTI-SCANNER يعمل على 5 رموز', 'var(--cyan)');
+    if (window.KZAudio && window.KZAudio.playStart) window.KZAudio.playStart();
+  }
+
+  function stop() {
+    if (!MS.running) return;
+    MS.running = false;
+    if (MS.timer) { clearInterval(MS.timer); MS.timer = null; }
+    if (MS.ws) { try { MS.ws.close(); } catch(e){} MS.ws = null; }
+    const st = $('ms-state-txt'); if (st) st.textContent = 'جاهز';
+    const se = $('ms-state'); if (se) se.classList.remove('on');
+    const bt = $('ms-btn-txt'); if (bt) bt.textContent = 'تشغيل MULTI';
+    mlog('تم إيقاف MULTI-SCANNER', 'var(--gold)');
+    if (window.KZAudio && window.KZAudio.playStop) window.KZAudio.playStop();
+  }
+
+  window._msReset = function () {
+    stop();
+    MS.candles={}; MS.prices={}; MS.results={}; MS.best=null;
+    SYMBOLS.forEach(s => paintRow(s, null));
+    const el = $('ms-log'); if (el) el.innerHTML = '<div style="color:var(--text-dim);text-align:center;">تم التصفير.</div>';
+  };
+  window._msTestSounds = async function () {
+    const seq = ['start','scan','signal','fire','target','win','loss','stop'];
+    for (const s of seq) {
+      if (window.KZAudio) {
+        if (s==='start') window.KZAudio.playStart();
+        if (s==='scan') window.KZAudio.playScanTick();
+        if (s==='signal') window.KZAudio.playSignal();
+        if (s==='fire') window.KZAudio.playTradeFire();
+        if (s==='target') window.KZAudio.playTarget();
+        if (s==='win') window.KZAudio.playWin();
+        if (s==='loss') window.KZAudio.playLoss();
+        if (s==='stop') window.KZAudio.playStop();
+      }
+      await new Promise(r => setTimeout(r, 900));
+    }
+  };
+
+  function boot() {
+    injectPanel();
+    hookSettle();
+    SYMBOLS.forEach(s => paintRow(s, null));
+    console.log('[Kanzer] Multi-Scanner v2.1 clean build loaded');
+  }
+  if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot);
+  else setTimeout(boot, 2000);
+  setInterval(() => { if ($('page-auto') && !$('multi-scanner-panel')) injectPanel(); }, 3000);
 })();
 </script>
 </body>
