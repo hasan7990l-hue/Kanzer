@@ -4036,15 +4036,14 @@ async function handleCallback() {
     const orig = window.settleTradeFromDeriv;
     const wrapper = function (contract) {
       try {
-        const id = window.state && window.state.contractMap && window.state.contractMap[contract.contract_id];
-        const t = id ? (window.state.activeTrades || []).find(x => x.id === id) : null;
         const profit = parseFloat(contract.profit) || 0;
         const won = contract.status === 'won' || (contract.status === 'sold' && profit > 0);
-        if (t && t.scalp && MS.activeTrade) {
+        // Multi هو المنفّذ الوحيد → أي تسوية مع activeTrade = صفقتنا
+        if (MS.activeTrade) {
           MS.activeTrade = null;
-          if (won) { MS.stats.wins++; MS.cooldownUntil = Date.now() + MS.config.cooldownMs; }
-          else     { MS.stats.losses++; MS.cooldownUntil = Date.now() + MS.config.lossCooldownMs; }
-          mlog((won ? '🟢 ربح ' : '🔴 خسارة ') + '$' + Math.abs(profit).toFixed(2), won ? 'var(--green)' : 'var(--red)');
+if (won) { MS.stats.wins++;   MS.cooldownUntil = Date.now() + MS.config.cooldownMs; }
+else     { MS.stats.losses++; MS.cooldownUntil = Date.now() + MS.config.lossCooldownMs; }
+mlog((won ? '🟢 WIN +$' : '🔴 LOSS -$') + Math.abs(profit).toFixed(2), won ? 'var(--green)' : 'var(--red)');
         }
       } catch (e) { console.warn('MS settle hook', e); }
       return orig.apply(this, arguments);
