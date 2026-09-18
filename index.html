@@ -4233,6 +4233,7 @@ const conf = Math.round(agreement * 65 + strength * 34);
   if (upStreak>=3 || dnStreak>=3) fired.push('streak');
   if (bbPos<0.15 || bbPos>0.85) fired.push('bb');
   if (lowerWick>body*1.8 || upperWick>body*1.8) fired.push('wick');
+      if (nearSup || nearRes || brokenRes || brokenSup) fired.push('sr');
   window._awLastFired = fired;   
 // QUALITY FILTER — Streak or strong signal only
 const hasStreak = (upStreak>=3 || dnStreak>=3);
