@@ -4238,7 +4238,8 @@ const conf = Math.round(agreement * 65 + strength * 34);
 // QUALITY FILTER — Streak or strong signal only
 const hasStreak = (upStreak>=3 || dnStreak>=3);
 const firingStrategies = (window._awLastFired || []);
-const hasStrongStrategy = firingStrategies.includes('streak') || firingStrategies.includes('bb');
+const hasSR = firingStrategies.includes('sr');
+const hasStrongStrategy = firingStrategies.includes('streak') || firingStrategies.includes('bb') || hasSR;
 if (!hasStreak && !hasStrongStrategy && conf < 88) {
   dir = 'NEUTRAL';
   }
