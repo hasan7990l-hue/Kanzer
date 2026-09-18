@@ -5034,5 +5034,101 @@ console.log('[E] Correlation guard active');
 })();
 </script>
 <!-- ====== END E ====== -->
+<!-- ====== G: Exhaustion Veto ====== -->
+<script>
+(function(){
+'use strict';
+if (window._kzExhaustionVeto) return;
+window._kzExhaustionVeto = true;
+
+const _origSend = window.sendProposal;
+window.sendProposal = function(opts) {
+  if (!opts || opts.hunter !== true) return _origSend.apply(this, arguments);
+
+  try {
+    const H = window._hunterV3 && _hunterV3.api && _hunterV3.api.state;
+    if (!H || !H.data || !H.data[opts.symbol]) return _origSend.apply(this, arguments);
+    const d = H.data[opts.symbol];
+    if (!d.m1 || d.m1.length < 30) return _origSend.apply(this, arguments);
+
+    const closes = d.m1.map(c => c.close);
+    const r14 = calcRSI(closes, 14);
+    const r = r14[r14.length - 1];
+    const bb = calcBB(closes, 20, 2);
+    if (!bb.upper.length) return _origSend.apply(this, arguments);
+    const up = bb.upper[bb.upper.length - 1].value;
+    const lo = bb.lower[bb.lower.length - 1].value;
+    const p = closes[closes.length - 1];
+    const atr = calcATR(closes, d.m1.map(c=>c.high), d.m1.map(c=>c.low), 14);
+    const atrV = atr[atr.length - 1];
+
+    // === Veto SELL if oversold at BB lower ===
+    if (opts.side === 'SELL') {
+      const nearLower = p <= lo + 0.4 * atrV;
+      if (nearLower && r < 38) {
+        console.warn('[VETO-SELL] oversold exhaustion:', {r: r.toFixed(1), p: p.toFixed(4), lo: lo.toFixed(4)});
+        try {
+          const log = document.getElementById('hunter-log');
+          if (log) {
+            const e = log.querySelector('.hunter-log-empty'); if (e) e.remove();
+            const dl = document.createElement('div');
+            dl.className = 'hunter-log-line';
+            dl.style.color = 'var(--gold)';
+            dl.textContent = '[' + new Date().toLocaleTimeString('ar-EG') + '] 🛑 رفض بيع ' + opts.symbol + ' — إجهاد (RSI ' + r.toFixed(1) + ')';
+            log.prepend(dl);
+          }
+        } catch(e){}
+        return;
+      }
+    }
+
+    // === Veto BUY if overbought at BB upper ===
+    if (opts.side === 'BUY') {
+      const nearUpper = p >= up - 0.4 * atrV;
+      if (nearUpper && r > 62) {
+        console.warn('[VETO-BUY] overbought exhaustion:', {r: r.toFixed(1), p: p.toFixed(4), up: up.toFixed(4)});
+        try {
+          const log = document.getElementById('hunter-log');
+          if (log) {
+            const e = log.querySelector('.hunter-log-empty'); if (e) e.remove();
+            const dl = document.createElement('div');
+            dl.className = 'hunter-log-line';
+            dl.style.color = 'var(--gold)';
+            dl.textContent = '[' + new Date().toLocaleTimeString('ar-EG') + '] 🛑 رفض شراء ' + opts.symbol + ' — إجهاد (RSI ' + r.toFixed(1) + ')';
+            log.prepend(dl);
+          }
+        } catch(e){}
+        return;
+      }
+    }
+  } catch(e) { console.warn('[VETO] err', e.message); }
+
+  return _origSend.apply(this, arguments);
+};
+
+console.log('[G] Exhaustion veto active');
+})();
+</script>
+<!-- ====== END G ====== -->
+<!-- ====== H: Force 1m Duration ====== -->
+<script>
+(function(){
+'use strict';
+if (window._kzForce1m) return;
+window._kzForce1m = true;
+
+const _origSend = window.sendProposal;
+window.sendProposal = function(opts){
+  if (opts && opts.hunter === true && opts.duration !== 1) {
+    console.log('[H] forcing duration: ' + opts.duration + 'm → 1m for ' + opts.symbol);
+    opts.duration = 1;
+  }
+  return _origSend.apply(this, arguments);
+};
+
+console.log('[H] force 1m duration active');
+})();
+</script>
+<!-- ====== END H ====== -->
 </body> 
 </html>
