@@ -2332,9 +2332,6 @@ function settleTradeFromDeriv(contract) {
   if (t.smart && typeof window._apOnSettle === 'function') {
   window._apOnSettle(t, won, profit);
   }
-  if (t.hunter && typeof window._hunterOnSettle === 'function') {
-  window._hunterOnSettle(t, won, profit);
-  }
   state.totalTrades += 1;
   state.history.unshift({ ...t });
   state.activeTrades.splice(idx, 1);
