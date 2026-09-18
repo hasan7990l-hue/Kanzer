@@ -4130,7 +4130,37 @@ const NAME = { 'R_75':'V75', 'R_100':'V100', '1HZ75V':'1HZ75', '1HZ100V':'1HZ100
   function rsiCalc(a,p){ const o=new Array(a.length).fill(50); if(a.length<p+1) return o; let g=0,l=0; for(let i=1;i<=p;i++){const d=a[i]-a[i-1]; d>0?g+=d:l-=d;} let ag=g/p, al=l/p; o[p]=al===0?100:100-100/(1+ag/al); for(let i=p+1;i<a.length;i++){const d=a[i]-a[i-1], gn=d>0?d:0, ls=d<0?-d:0; ag=(ag*(p-1)+gn)/p; al=(al*(p-1)+ls)/p; o[i]=al===0?100:100-100/(1+ag/al);} return o; }
   function atrOf(c,p){ if(c.length<2) return 0; const t=[]; for(let i=1;i<c.length;i++){const x=c[i],y=c[i-1]; t.push(Math.max(x.high-x.low,Math.abs(x.high-y.close),Math.abs(x.low-y.close)));} const e=ema(t,p); return e[e.length-1]||0; }
   const stdev=a=>{ const m=a.reduce((x,y)=>x+y,0)/a.length; return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/a.length); };
-
+  function detectSR(candles, lookback) {
+  lookback = lookback || 5;
+  const highs = candles.map(c => c.high);
+  const lows = candles.map(c => c.low);
+  const resistances = [], supports = [];
+  for (let i = lookback; i < candles.length - lookback; i++) {
+    const hW = highs.slice(i - lookback, i + lookback + 1);
+    const lW = lows.slice(i - lookback, i + lookback + 1);
+    if (highs[i] === Math.max(...hW)) resistances.push({ price: highs[i], idx: i });
+    if (lows[i] === Math.min(...lW)) supports.push({ price: lows[i], idx: i });
+  }
+  const cluster = (arr) => {
+    if (!arr.length) return [];
+    const sorted = [...arr].sort((a, b) => a.price - b.price);
+    const groups = []; let cur = [sorted[0]];
+    for (let i = 1; i < sorted.length; i++) {
+      if (Math.abs(sorted[i].price - cur[cur.length-1].price) / (sorted[i].price || 1) < 0.0015) cur.push(sorted[i]);
+      else { groups.push(cur); cur = [sorted[i]]; }
+    }
+    if (cur.length) groups.push(cur);
+    return groups.map(g => ({
+      price: g.reduce((a,b) => a + b.price, 0) / g.length,
+      tests: g.length,
+      lastIdx: Math.max(...g.map(x => x.idx))
+    })).sort((a, b) => b.price - a.price);
+  };
+  return {
+    resistances: cluster(resistances).slice(0, 3),
+    supports: cluster(supports).slice(0, 3)
+  };
+}
   function analyze(candles) {
     const n = candles.length;
     if (n < 40) return null;
