@@ -2285,7 +2285,6 @@ if (!(amount >= 0.35)) amount = 0.35;
             symbol, side, amount, duration,
             openPrice: state.currentPrice,
             buyPrice: parseFloat(msg.buy.buy_price) || amount,
-            status: 'pending', auto, smart: !!smart, hunter: !!hunter,
             closeTime: Date.now() + duration * 60 * 1000,
           };
           state.activeTrades.push(trade);
