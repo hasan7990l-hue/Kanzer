@@ -4180,6 +4180,19 @@ async function handleCallback() {
     let dir='NEUTRAL';
     if(bull>=4.5 && bull>bear*1.5) dir='BUY';
     else if(bear>=4.5 && bear>bull*1.5) dir='SELL';
+    if (typeof window._awApplyWeights === 'function') {
+  const fired = [];
+  if (e3v>e8v && e8v>e21v) fired.push('ema_align');
+  else if (e3v<e8v && e8v<e21v) fired.push('ema_align');
+  if (prevE3<=prevE8 && e3v>e8v) fired.push('ema_cross');
+  if (prevE3>=prevE8 && e3v<e8v) fired.push('ema_cross');
+  if (Math.abs(vel3) > 0.2) fired.push('momentum');
+  if (rsiV>55 || rsiV<45) fired.push('rsi');
+  if (upStreak>=3 || dnStreak>=3) fired.push('streak');
+  if (bbPos<0.15 || bbPos>0.85) fired.push('bb');
+  if (lowerWick>body*1.8 || upperWick>body*1.8) fired.push('wick');
+  window._awLastFired = fired;
+    }
     return { direction:dir, confidence:conf, bull, bear, price, volRatio, ts:Date.now() };
   }
 
