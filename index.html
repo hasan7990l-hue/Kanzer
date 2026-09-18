@@ -4120,5 +4120,91 @@ async function handleCallback() {
   setInterval(() => { if ($('page-auto') && !$('multi-scanner-panel')) injectPanel(); }, 3000);
 })();
 </script>
+ <script>
+/* ══════════════════════════════════════════════════════════════════
+   KANZER FIX PACK v1 — State Bridge + Audio Unlock
+══════════════════════════════════════════════════════════════════ */
+(function () {
+  /* ─── FIX 1: state bridge ─── */
+  function bridgeState() {
+    try {
+      if (typeof state !== 'undefined' && state && typeof state === 'object') {
+        if (window.state !== state) {
+          Object.defineProperty(window, 'state', {
+            get: function () { return state; },
+            configurable: true
+          });
+          console.log('[KZ-FIX] ✅ state bridged → window.state');
+        }
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+  if (!bridgeState()) {
+    let tries = 0;
+    const iv = setInterval(() => {
+      tries++;
+      if (bridgeState() || tries > 40) clearInterval(iv);
+    }, 250);
+  }
+
+  /* ─── FIX 2: robust audio unlock ─── */
+  function unlockAudio() {
+    if (!window.KZAudio) return;
+    window.KZAudio.enabled = true;  // reset flag every gesture
+    try {
+      const c = window.KZAudio._ensure();
+      if (!c) return;
+      if (c.state === 'suspended') {
+        c.resume().catch(() => {});
+      }
+      // silent buffer trick — forces unlock on Android
+      try {
+        const buf = c.createBuffer(1, 1, 22050);
+        const src = c.createBufferSource();
+        src.buffer = buf;
+        src.connect(c.destination);
+        src.start(0);
+      } catch (e) {}
+    } catch (e) { console.warn('[KZ-FIX] unlock err:', e); }
+  }
+
+  // Fire on EVERY user gesture (not once)
+  ['click', 'touchstart', 'touchend', 'keydown'].forEach(ev =>
+    document.addEventListener(ev, unlockAudio, { passive: true })
+  );
+
+  // Override sound-test button to run unlock first
+  const origTest = window._msTestSounds;
+  window._msTestSounds = async function () {
+    unlockAudio();
+    await new Promise(r => setTimeout(r, 120));
+    if (!window.KZAudio) { alert('KZAudio غير محمّل'); return; }
+    if (!window.KZAudio.enabled) {
+      window.KZAudio.enabled = true;
+      console.log('[KZ-FIX] sound was disabled → re-enabled');
+    }
+    const ctxState = window.KZAudio._ensure()?.state;
+    console.log('[KZ-FIX] AudioContext state:', ctxState);
+    if (typeof origTest === 'function') return origTest.apply(this, arguments);
+  };
+
+  // Debug helper
+  window._kzAudioDebug = function () {
+    console.log('KZAudio:', !!window.KZAudio);
+    if (!window.KZAudio) return;
+    console.log('enabled:', window.KZAudio.enabled);
+    try {
+      const c = window.KZAudio._ensure();
+      console.log('ctx:', c ? 'ok' : 'null');
+      console.log('ctx.state:', c ? c.state : 'n/a');
+      if (c && c.state === 'suspended') c.resume().then(() => console.log('resumed'));
+    } catch (e) { console.log('err:', e); }
+  };
+
+  console.log('[KZ-FIX] loaded — bridge + audio unlock attached');
+})();
+ </script>
 </body>
 </html>
