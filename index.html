@@ -5055,5 +5055,109 @@ else setTimeout(build,1200);
 })();
 </script>
 <!-- ===== END AI BUTTON ===== -->
+  <!-- ===== PATCH J — Use Main WS ===== -->
+<script>
+(function(){
+'use strict';
+if(window._kzPatchJ) return; window._kzPatchJ=true;
+
+const H = window._kzH4;
+const S = window._kzSignal;
+if(!H || !S){console.warn('[J] v4 not loaded');return;}
+
+const ST = H.api.state;
+const SYMS = S.api.SYMS;
+const TFS = S.api.TFS;
+const CFG = S.api.CFG;
+const $ = id => document.getElementById(id);
+
+function pushCandle(arr,tf,p){
+  if(!isFinite(p)||p<=0)return;
+  const bt=Math.floor(Date.now()/1000/tf)*tf;
+  if(!arr.length){arr.push({time:bt,open:p,high:p,low:p,close:p});return;}
+  const l=arr[arr.length-1];
+  if(l.time===bt){l.close=p;l.high=Math.max(l.high,p);l.low=Math.min(l.low,p);}
+  else if(l.time<bt){arr.push({time:bt,open:l.close,high:p,low:p,close:p});if(arr.length>400)arr.shift();}
+}
+
+function routeMain(ev){
+  let m; try{m=JSON.parse(ev.data);}catch(e){return;}
+  if(m.error) return;
+
+  if(m.msg_type === 'candles' && m.echo_req){
+    const s = m.echo_req.ticks_history, g = m.echo_req.granularity;
+    if(!ST.data[s]) return;
+    const arr = (m.candles||[]).map(c=>({time:c.epoch,open:+c.open,high:+c.high,low:+c.low,close:+c.close}));
+    if(g===60){ST.data[s].m1=arr;ST.data[s].r1=arr.length>=CFG.minBars;}
+    else if(g===180){ST.data[s].m3=arr;ST.data[s].r3=arr.length>=CFG.minBars;}
+    else if(g===300){ST.data[s].m5=arr;ST.data[s].r5=arr.length>=CFG.minBars;}
+    // refresh stats
+    try{
+      const ready = SYMS.filter(x=>ST.data[x].r1&&ST.data[x].r3&&ST.data[x].r5).length;
+      if($('hunter-scanned')) $('hunter-scanned').textContent = ready+'/'+SYMS.length;
+    }catch(e){}
+  } else if(m.msg_type === 'tick' && m.tick){
+    const s = m.tick.symbol, p = +m.tick.quote;
+    if(!ST.data[s]) return;
+    pushCandle(ST.data[s].m1, 60, p);
+    pushCandle(ST.data[s].m3, 180, p);
+    pushCandle(ST.data[s].m5, 300, p);
+  }
+}
+
+function sendSubs(){
+  if(!state.ws || state.ws.readyState !== 1) return false;
+  let rid = 50000;
+  SYMS.forEach(sym => {
+    TFS.forEach(g => {
+      try{ state.ws.send(JSON.stringify({
+        ticks_history: sym, count: 300, end: 'latest',
+        style: 'candles', granularity: g, req_id: rid++
+      })); }catch(e){}
+    });
+    try{ state.ws.send(JSON.stringify({ ticks: sym, subscribe: 1, req_id: rid++ })); }catch(e){}
+  });
+  console.log('[J] subscriptions sent for', SYMS.length, 'symbols');
+  return true;
+}
+
+/* انتظر state.ws حتى يصبح جاهزاً */
+let tries = 0;
+function attach(){
+  tries++;
+  if(!state.ws || state.ws.readyState !== 1){
+    if(tries < 60) setTimeout(attach, 1000);
+    return;
+  }
+  // امنع التكرار
+  if(state.ws.__kzJ) { sendSubs(); return; }
+  state.ws.__kzJ = true;
+  state.ws.addEventListener('message', routeMain);
+  sendSubs();
+  console.log('[J] attached to main WS');
+}
+
+/* أغلق v4 WS إن وُجد */
+if(ST.ws && ST.ws !== state.ws){
+  try{ ST.ws.close(); }catch(e){}
+}
+ST.ws = state.ws;
+
+/* ابدأ الالتقاط */
+attach();
+
+/* إعادة الإرسال عند تغيير الاشتراك */
+setInterval(() => {
+  if(!state.ws || state.ws.readyState !== 1) return;
+  const readyCount = SYMS.filter(s=>ST.data[s].m1.length>50).length;
+  if(readyCount === 0 && tries > 0){
+    sendSubs();
+  }
+}, 30000);
+
+console.log('[J] main-WS routing active');
+})();
+</script>
+<!-- ===== END PATCH J ===== -->
 </body>
 </html>
