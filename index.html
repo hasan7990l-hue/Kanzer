@@ -4365,15 +4365,23 @@ async function handleCallback() {
         const profit = parseFloat(contract.profit) || 0;
         const won = contract.status==='won' || (contract.status==='sold' && profit>0);
         if (MS.activeTrade) {
-          MS.activeTrade = null;
-          if (won) {
-            MS.stats.wins++;
-            MS.cooldownUntil = Date.now() + MS.config.cooldownMs;
-          } else {
-            MS.stats.losses++;
-            MS.cooldownUntil = Date.now() + MS.config.lossCooldownMs;
-          }
-          mlog((won?'WIN +$':'LOSS -$') + Math.abs(profit).toFixed(2), won?'var(--green)':'var(--red)');
+  const settledSymbol = MS.activeTrade.symbol;
+  MS.activeTrade = null;
+  if (won) {
+    MS.stats.wins++;
+    MS.cooldownUntil = Date.now() + MS.config.cooldownMs;
+  } else {
+    MS.stats.losses++;
+    MS.cooldownUntil = Date.now() + MS.config.lossCooldownMs;
+  }
+  mlog((won?'WIN +$':'LOSS -$') + Math.abs(profit).toFixed(2), won?'var(--green)':'var(--red)');
+  if (typeof window._awOnSettle === 'function') {
+    window._awOnSettle(settledSymbol, won, profit);
+  }
+  if (typeof window._awRecordStrategies === 'function' && window._awLastFired) {
+    window._awRecordStrategies(window._awLastFired, won);
+    window._awLastFired = null;
+  }
         }
       } catch (e) { console.warn('MS settle hook', e); }
       return orig.apply(this, arguments);
