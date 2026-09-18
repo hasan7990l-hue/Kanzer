@@ -4193,7 +4193,14 @@ const conf = Math.round(agreement * 65 + strength * 34);
   if (upStreak>=3 || dnStreak>=3) fired.push('streak');
   if (bbPos<0.15 || bbPos>0.85) fired.push('bb');
   if (lowerWick>body*1.8 || upperWick>body*1.8) fired.push('wick');
-  window._awLastFired = fired;
+  window._awLastFired = fired;   
+// QUALITY FILTER — Streak or strong signal only
+const hasStreak = (upStreak>=3 || dnStreak>=3);
+const firingStrategies = (window._awLastFired || []);
+const hasStrongStrategy = firingStrategies.includes('streak') || firingStrategies.includes('bb');
+if (!hasStreak && !hasStrongStrategy && conf < 88) {
+  dir = 'NEUTRAL';
+  }
     }
     return { direction:dir, confidence:conf, bull, bear, price, volRatio, ts:Date.now() };
   }
@@ -4672,6 +4679,21 @@ const conf = Math.round(agreement * 65 + strength * 34);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else setTimeout(boot, 3000);
   setInterval(() => { if ($('page-profile') && !$('aw-panel')) injectPanel(); }, 4000);
+})();
+</script>
+ <script>
+/* KANZER DERIV AUTO-RECONNECT */
+(function () {
+  setInterval(() => {
+    if (!window.state || !window.state.derivLinked) return;
+    if (window.state.derivWS) return;
+    const token = localStorage.getItem('deriv_token');
+    if (!token) return;
+    console.log('[RECONNECT] Deriv WS dropped — reconnecting...');
+    if (typeof authorizeToken === 'function') {
+      authorizeToken(token, null, true);
+    }
+  }, 8000);
 })();
 </script>
 </body>
