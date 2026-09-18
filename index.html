@@ -5231,5 +5231,39 @@ console.log('[L] resilient start active');
 })();
 </script>
 <!-- ===== END PATCH L ===== -->
+  <!-- ===== PATCH M — Loosened filters (persistent) ===== -->
+<script>
+(function(){
+'use strict';
+if(window._kzPatchM) return; window._kzPatchM=true;
+
+let tries = 0;
+function apply(){
+  tries++;
+  const S = window._kzSignal;
+  if(!S || !S.api || !S.api.CFG){
+    if(tries < 40) setTimeout(apply, 500);
+    return;
+  }
+  const C = S.api.CFG;
+  C.minFamilies = 2;
+  C.minConfidence = 50;
+  C.maxConcurrent = 3;
+  C.maxSameSide = 3;
+  C.symbolCooldownMs = 60000;
+  C.dailyTradeCap = 50;
+  C.scanMs = 15000;
+  console.log('[M] Loosened filters applied', {
+    minFamilies: C.minFamilies,
+    minConfidence: C.minConfidence,
+    maxConcurrent: C.maxConcurrent,
+    cooldown: C.symbolCooldownMs,
+    dailyCap: C.dailyTradeCap
+  });
+}
+setTimeout(apply, 1500);
+})();
+</script>
+<!-- ===== END PATCH M ===== -->
 </body>
 </html>
