@@ -5179,5 +5179,57 @@ console.log('[J2] ST.ws synced to main WS');
 })();
 </script>
 <!-- ===== END PATCH J2 ===== -->
+  <!-- ===== PATCH L — Resilient start ===== -->
+<script>
+(function(){
+'use strict';
+if(window._kzPatchL) return; window._kzPatchL=true;
+
+const H = window._kzH4;
+if(!H || !H.api || !H.api.start){
+  console.warn('[L] H4 not loaded');
+  return;
+}
+
+const _origStart = H.api.start;
+
+H.api.start = function(){
+  // محاولة إعادة الاتصال بـ Deriv قبل البدء
+  if(!state.derivLinked){
+    alert('اربط Deriv أولاً');
+    return;
+  }
+
+  // إذا derivWS ميت، حاول إعادة الربط
+  if(!state.derivWS || state.derivWS.readyState !== 1){
+    const t = localStorage.getItem('deriv_token');
+    if(t && typeof authorizeToken === 'function'){
+      console.log('[L] derivWS dead, attempting reconnect...');
+      try{ authorizeToken(t, null, true); }catch(e){}
+    }
+    // انتظر حتى 15 ثانية لظهور derivWS
+    let waited = 0;
+    const wait = setInterval(()=>{
+      waited += 500;
+      if(state.derivWS && state.derivWS.readyState === 1){
+        clearInterval(wait);
+        console.log('[L] derivWS ready after', waited, 'ms');
+        _origStart.apply(this, arguments);
+      } else if(waited >= 15000){
+        clearInterval(wait);
+        alert('تعذر الاتصال بـ Deriv Trading WS.\nاذهب لصفحة "ربط Deriv" وأعد الربط، ثم حاول مرة أخرى.');
+      }
+    }, 500);
+    return;
+  }
+
+  // derivWS جاهز — ابدأ مباشرة
+  return _origStart.apply(this, arguments);
+};
+
+console.log('[L] resilient start active');
+})();
+</script>
+<!-- ===== END PATCH L ===== -->
 </body>
 </html>
