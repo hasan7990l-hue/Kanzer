@@ -4644,5 +4644,26 @@ async function handleCallback() {
   console.log('[Kanzer] SCALP AI + Audio Engine loaded');
 })();
 </script>
+  <script>
+/* ═══ KANZER BRIDGE — يجعل state مرئياً لـ window (إصلاح SCALP AI) ═══ */
+(function(){
+  try {
+    if (typeof state !== 'undefined') {
+      // نستخدم getter حيّ حتى يرى كل تحديثات candles / derivWS / activeTrades
+      if (!window.state) {
+        Object.defineProperty(window, 'state', {
+          get: function(){ return state; },
+          configurable: true
+        });
+      }
+      console.log('[Kanzer] ✅ state bridged to window.state');
+    } else {
+      console.warn('[Kanzer] ⚠️ state غير معرّف بعد — تحقق من ترتيب الـ scripts');
+    }
+  } catch (e) {
+    console.warn('[Kanzer] bridge failed:', e);
+  }
+})();
+</script>
 </body>
 </html>
