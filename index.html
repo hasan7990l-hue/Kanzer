@@ -5159,5 +5159,25 @@ console.log('[J] main-WS routing active');
 })();
 </script>
 <!-- ===== END PATCH J ===== -->
+  <!-- ===== PATCH J2 — Sync ST.ws ===== -->
+<script>
+(function(){
+'use strict';
+if(window._kzPatchJ2) return; window._kzPatchJ2=true;
+
+setInterval(()=>{
+  try{
+    const H = window._kzH4;
+    if(!H || !H.api || !H.api.state) return;
+    if(state.ws && state.ws.readyState === 1){
+      H.api.state.ws = state.ws;
+    }
+  }catch(e){}
+}, 3000);
+
+console.log('[J2] ST.ws synced to main WS');
+})();
+</script>
+<!-- ===== END PATCH J2 ===== -->
 </body>
 </html>
