@@ -4326,6 +4326,16 @@ if (!hasStreak && !hasStrongStrategy && conf < 88) {
     conf.style.color=res.confidence>=MS.config.minConfidence?c:'var(--text-dim)';
     bar.style.width=Math.min(100,res.confidence)+'%';
     bar.style.background=isBuy?'linear-gradient(90deg,#26a69a,#00b894)':isSell?'linear-gradient(90deg,#ef5350,#c62828)':'linear-gradient(90deg,#2a2f3d,#1a1d24)';
+    const srEl = $('ms-sr-' + sym);
+    if (srEl && res.sr) {
+      const tags = [];
+      if (res.sr.nearSup) tags.push('↑S');
+      if (res.sr.nearRes) tags.push('↓R');
+      if (res.sr.brokenRes) tags.push('B↑');
+      if (res.sr.brokenSup) tags.push('B↓');
+      srEl.textContent = tags.length ? tags.join(' ') : '—';
+      srEl.style.color = tags.length ? '#d4af37' : 'var(--text-dim)';
+    }
     row.style.borderColor=res.confidence>=MS.config.minConfidence&&(isBuy||isSell)?c:'rgba(255,255,255,0.05)';
   }
 
