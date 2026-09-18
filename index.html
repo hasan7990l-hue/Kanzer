@@ -4176,7 +4176,9 @@ async function handleCallback() {
     if(upperWick>body*1.8 && upperWick>range*0.4) bear+=1.2;
     if(volRatio<0.6){ bull*=0.55; bear*=0.55; } else if(volRatio>1.9){ bull*=0.72; bear*=0.72; }
     const maxScore = Math.max(bull,bear), total = bull+bear;
-    const conf = total>0 ? Math.min(99, Math.round((maxScore/total)*100*(1+Math.min(total/15,0.28)))) : 0;
+    const agreement = total>0 ? maxScore/total : 0;
+const strength = Math.min(1, maxScore/12);
+const conf = Math.round(agreement * 65 + strength * 34);
     let dir='NEUTRAL';
     if(bull>=4.5 && bull>bear*1.5) dir='BUY';
     else if(bear>=4.5 && bear>bull*1.5) dir='SELL';
