@@ -4244,7 +4244,10 @@ if (!hasStreak && !hasStrongStrategy && conf < 88) {
   dir = 'NEUTRAL';
   }
     }
-    return { direction:dir, confidence:conf, bull, bear, price, volRatio, ts:Date.now() };
+    return {
+      direction:dir, confidence:conf, bull, bear, price, volRatio, ts:Date.now(),
+      sr: { nearSup: !!nearSup, nearRes: !!nearRes, brokenRes: !!brokenRes, brokenSup: !!brokenSup }
+    };
   }
 
   function injectPanel() {
