@@ -1188,9 +1188,6 @@ html, body {
     <span class="ap-btn-txt" id="ap-btn-txt">تشغيل النظام</span>
   </button>
 </div>
-<div class="ap-feed" id="ap-feed">
-  <div class="ap-feed-empty">لم ينفّذ النظام أي صفقة بعد.</div>
-</div>
       <div class="panel">
         <div class="panel-title">📊 الرسم البياني والإشارة الحية</div>
         <div class="form-grid" style="margin-bottom:12px;">
@@ -4450,6 +4447,208 @@ async function handleCallback() {
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot);
   else setTimeout(boot, 2000);
   setInterval(() => { if ($('page-auto') && !$('multi-scanner-panel')) injectPanel(); }, 3000);
+})();
+</script>
+ <script>
+/* ══════════════════════════════════════════════════════════════════
+   KANZER ADAPTIVE WEIGHTS v1.0
+   Self-learning: weights per-symbol + per-strategy
+══════════════════════════════════════════════════════════════════ */
+(function () {
+  const $ = id => document.getElementById(id);
+
+  const AW = {
+    symbols: {},
+    strategies: {
+      ema_align: { wins: 0, losses: 0, weight: 1.0 },
+      ema_cross: { wins: 0, losses: 0, weight: 1.0 },
+      momentum:  { wins: 0, losses: 0, weight: 1.0 },
+      rsi:       { wins: 0, losses: 0, weight: 1.0 },
+      streak:    { wins: 0, losses: 0, weight: 1.0 },
+      bb:        { wins: 0, losses: 0, weight: 1.0 },
+      wick:      { wins: 0, losses: 0, weight: 1.0 },
+      engulf:    { wins: 0, losses: 0, weight: 1.0 }
+    },
+    minTradesPerStrategy: 10,
+    symbolBoost: {}
+  };
+  window._adaptive = AW;
+
+  try {
+    const saved = localStorage.getItem('kanzer_adaptive_v1');
+    if (saved) {
+      const d = JSON.parse(saved);
+      if (d.symbols) AW.symbols = d.symbols;
+      if (d.symbolBoost) AW.symbolBoost = d.symbolBoost;
+      if (d.strategies) {
+        for (const k in d.strategies) {
+          if (AW.strategies[k]) {
+            AW.strategies[k].wins = d.strategies[k].wins || 0;
+            AW.strategies[k].losses = d.strategies[k].losses || 0;
+            AW.strategies[k].weight = d.strategies[k].weight || 1.0;
+          }
+        }
+      }
+      console.log('[AW] Loaded from storage');
+    }
+  } catch (e) { console.warn('[AW] load failed', e); }
+
+  function save() {
+    try {
+      localStorage.setItem('kanzer_adaptive_v1', JSON.stringify({
+        symbols: AW.symbols, symbolBoost: AW.symbolBoost,
+        strategies: AW.strategies, ts: Date.now()
+      }));
+    } catch (e) {}
+  }
+
+  window._awOnSettle = function (symbol, won, profit) {
+    if (!symbol) return;
+    if (!AW.symbols[symbol]) AW.symbols[symbol] = { wins: 0, losses: 0, pnl: 0 };
+    const s = AW.symbols[symbol];
+    if (won) s.wins++; else s.losses++;
+    s.pnl += profit || 0;
+    const total = s.wins + s.losses;
+    if (total >= 5) {
+      const wr = s.wins / total;
+      AW.symbolBoost[symbol] = Math.max(0.5, Math.min(2.0, 0.4 + wr * 1.2));
+    }
+    save();
+    paintStats();
+  };
+
+  window._awRecordStrategies = function (firedStrategies, won) {
+    if (!Array.isArray(firedStrategies)) return;
+    for (const key of firedStrategies) {
+      if (!AW.strategies[key]) continue;
+      const st = AW.strategies[key];
+      if (won) st.wins++; else st.losses++;
+      const total = st.wins + st.losses;
+      if (total >= AW.minTradesPerStrategy) {
+        const wr = st.wins / total;
+        st.weight = Math.max(0.5, Math.min(1.6, 0.2 + wr * 1.4));
+      }
+    }
+    save();
+    paintStats();
+  };
+
+  window._awApplyWeights = function (symbol, bull, bear, firedList) {
+    const boost = AW.symbolBoost[symbol] || 1.0;
+    bull *= boost; bear *= boost;
+    if (firedList && firedList.length) {
+      let totalW = 0, count = 0;
+      for (const key of firedList) {
+        const st = AW.strategies[key];
+        if (!st) continue;
+        totalW += st.weight;
+        count++;
+      }
+      if (count) {
+        const avgW = totalW / count;
+        bull *= avgW; bear *= avgW;
+      }
+    }
+    return { bull, bear };
+  };
+
+  function injectPanel() {
+    if ($('aw-panel')) return;
+    const pageProfile = $('page-profile');
+    if (!pageProfile) return;
+
+    const html = `
+<div class="panel" id="aw-panel">
+  <div class="panel-title">🧠 التعلم الذاتي — ADAPTIVE WEIGHTS</div>
+  <div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.3);border-radius:10px;padding:10px;margin-bottom:12px;font-size:12px;color:var(--text-dim);line-height:1.7;">
+    النظام يتعلم من صفقاتك. كل رمز وكل استراتيجية تكسب وزناً أعلى تلقائياً.
+    يبدأ التعديل بعد 5 صفقات لكل رمز و 10 لكل استراتيجية.
+  </div>
+  <div style="font-size:12px;color:var(--gold);margin-bottom:8px;">اداء الرموز</div>
+  <div id="aw-symbols" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;"></div>
+  <div style="font-size:12px;color:var(--gold);margin-bottom:8px;">اوزان الاستراتيجيات</div>
+  <div id="aw-strategies" style="display:flex;flex-direction:column;gap:6px;"></div>
+  <div style="margin-top:12px;display:flex;gap:8px;">
+    <button class="btn btn-outline btn-full" style="font-size:12px;" onclick="window._awReset()">تصفير التعلم</button>
+    <button class="btn btn-outline btn-full" style="font-size:12px;" onclick="window._awExport()">تصدير</button>
+  </div>
+</div>`;
+    pageProfile.insertAdjacentHTML('beforeend', html);
+    paintStats();
+  }
+
+  function paintStats() {
+    const symEl = $('aw-symbols');
+    if (symEl) {
+      const syms = ['R_10','R_50','R_75','R_100','1HZ100V'];
+      symEl.innerHTML = syms.map(sym => {
+        const s = AW.symbols[sym] || { wins:0, losses:0, pnl:0 };
+        const total = s.wins + s.losses;
+        const wr = total ? (s.wins/total*100).toFixed(0) : '-';
+        const boost = (AW.symbolBoost[sym] || 1.0).toFixed(2);
+        const wrColor = total===0 ? 'var(--text-dim)' : (s.wins/total >= 0.55 ? 'var(--green)' : s.wins/total >= 0.45 ? 'var(--gold)' : 'var(--red)');
+        const pnlColor = s.pnl >= 0 ? 'var(--green)' : 'var(--red)';
+        return '<div style="display:grid;grid-template-columns:60px 60px 50px 60px 1fr;gap:6px;align-items:center;padding:6px 8px;background:rgba(0,0,0,0.3);border-radius:6px;font-family:monospace;font-size:11px;">' +
+          '<span style="color:var(--text);font-weight:900;">'+sym+'</span>' +
+          '<span style="color:'+wrColor+';">WR '+wr+(total?'%':'')+'</span>' +
+          '<span style="color:var(--text-dim);">'+s.wins+'/'+s.losses+'</span>' +
+          '<span style="color:'+pnlColor+';">'+(s.pnl>=0?'+':'')+s.pnl.toFixed(1)+'$</span>' +
+          '<span style="color:var(--cyan);font-size:10px;">x'+boost+'</span>' +
+        '</div>';
+      }).join('');
+    }
+
+    const stratEl = $('aw-strategies');
+    if (stratEl) {
+      const names = {
+        ema_align:'EMA align', ema_cross:'EMA cross', momentum:'Momentum',
+        rsi:'RSI', streak:'Streak', bb:'Bollinger', wick:'Wick', engulf:'Engulf'
+      };
+      stratEl.innerHTML = Object.keys(AW.strategies).map(key => {
+        const st = AW.strategies[key];
+        const total = st.wins + st.losses;
+        const wr = total ? (st.wins/total*100).toFixed(0) : '-';
+        const w = st.weight.toFixed(2);
+        const wColor = w > 1.1 ? 'var(--green)' : w < 0.9 ? 'var(--red)' : 'var(--gold)';
+        const barW = ((w - 0.5) / 1.1 * 100).toFixed(0);
+        return '<div style="display:grid;grid-template-columns:70px 45px 45px 1fr;gap:6px;align-items:center;padding:6px 8px;background:rgba(0,0,0,0.3);border-radius:6px;font-family:monospace;font-size:11px;">' +
+          '<span style="color:var(--text);font-size:10px;">'+(names[key]||key)+'</span>' +
+          '<span style="color:var(--text-dim);">'+wr+(total?'%':'')+'</span>' +
+          '<span style="color:'+wColor+';font-weight:900;">x'+w+'</span>' +
+          '<div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;">' +
+            '<div style="height:100%;width:'+barW+'%;background:linear-gradient(90deg,#a8862a,#d4af37);transition:width 0.5s;"></div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+  }
+
+  window._awReset = function () {
+    if (!confirm('تصفير كل بيانات التعلم؟')) return;
+    AW.symbols = {};
+    AW.symbolBoost = {};
+    for (const k in AW.strategies) {
+      AW.strategies[k].wins = 0;
+      AW.strategies[k].losses = 0;
+      AW.strategies[k].weight = 1.0;
+    }
+    save();
+    paintStats();
+  };
+
+  window._awExport = function () {
+    const data = { symbols: AW.symbols, strategies: AW.strategies, boost: AW.symbolBoost };
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+    alert('Copied to clipboard');
+  };
+
+  function boot() {
+    injectPanel();
+    console.log('[AW] Adaptive Weights loaded');
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else setTimeout(boot, 3000);
+  setInterval(() => { if ($('page-profile') && !$('aw-panel')) injectPanel(); }, 4000);
 })();
 </script>
 </body>
