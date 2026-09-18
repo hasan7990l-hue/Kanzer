@@ -3981,491 +3981,15 @@ function toggleLegal(btn) {
   });
 })();
 </script>
-  <script>
-/* ============================================================
-   KANZER AUTO-CONNECT SYSTEM
-   - شريط حالة في الأعلى: أخضر=متصل، أصفر=إعادة اتصال، أحمر=بلا شبكة
-   - استرجاع جلسة Firebase تلقائياً عند فتح الصفحة
-   - إعادة اتصال فورية عند رجوع الشبكة
-   - ping كل 30 ثانية لإبقاء اتصال Deriv حياً
-   - مراقبة دورية وإصلاح تلقائي للاتصالات الساقطة
-   ============================================================ */
-(function(){
-  'use strict';
-
-  const bar = document.createElement('div');
-  bar.id = 'kanzer-conn-bar';
-  bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:3px;z-index:99999;background:#26a69a;opacity:0.6;transition:background 0.3s,opacity 0.3s;pointer-events:none;';
-  document.body.appendChild(bar);
-  const setBar = (color, opacity) => { bar.style.background = color; bar.style.opacity = String(opacity); };
-
-  window.addEventListener('online', () => {
-    setBar('#26a69a', '1');
-    try { connectWS(); } catch(e){}
-    if (state.derivLinked && !state.derivWS) {
-      const t = localStorage.getItem('deriv_token');
-      if (t) authorizeToken(t, null, true);
-    }
-  });
-  window.addEventListener('offline', () => setBar('#ef5350', '1'));
-
-  function restoreSession() {
-    if (!window.firebaseReady || !window.firebaseAuth || !window.firebaseOnAuthChange) return;
-    window.firebaseOnAuthChange(window.firebaseAuth, (user) => {
-      if (!user) return;
-      const app = document.getElementById('app');
-      if (app && app.classList.contains('active')) return;
-      const email = (user.email || '').toLowerCase();
-      const users = getUsers();
-      if (users[email]) {
-        saveSession(email);
-        loadUser(email);
-        showApp();
-      }
-    });
-  }
-
-  setInterval(() => {
-    if (state.derivWS && state.derivWS.readyState === 1) {
-      try { state.derivWS.send(JSON.stringify({ ping: 1 })); } catch(e){}
-    }
-  }, 30000);
-
-  setInterval(() => {
-    if (!navigator.onLine) { setBar('#ef5350', '1'); return; }
-
-    const marketOK = state.wsConnected;
-    const derivOK = !state.derivLinked || !!state.derivWS;
-
-    if (marketOK && derivOK) { setBar('#26a69a', '0.5'); return; }
-    setBar('#ffa726', '1');
-
-    if (!marketOK && (!state.ws || state.ws.readyState === 3)) {
-      try { connectWS(); } catch(e){}
-    }
-    if (!derivOK) {
-      const t = localStorage.getItem('deriv_token');
-      if (t) { try { authorizeToken(t, null, true); } catch(e){} }
-    }
-  }, 7000);
-
-  document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(restoreSession, 800);
-  })();
-</script>
-<script> 
-/* ============================================================
-   KANZER ALERT SOUNDS
-   - صوتان مختلفان: اقتناص + تنفيذ
-   - مُولَّدان بـ Web Audio (لا ملفات خارجية)
-   ============================================================ */
-(function(){
-  var AudioCtx = window.AudioContext || window.webkitAudioContext;
-  if (!AudioCtx) return;
-  var ctx = new AudioCtx();
-
-  function tone(freq, start, dur, vol) {
-    var o = ctx.createOscillator();
-    var g = ctx.createGain();
-    o.type = 'sine';
-    o.frequency.value = freq;
-    g.gain.value = 0;
-    o.connect(g); g.connect(ctx.destination);
-    var t0 = ctx.currentTime + start;
-    g.gain.setValueAtTime(0, t0);
-    g.gain.linearRampToValueAtTime(vol, t0 + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-    o.start(t0);
-    o.stop(t0 + dur + 0.05);
-  }
-
-  window.kzBeepCapture = function(){
-    tone(660, 0, 0.10, 0.15);
-    tone(880, 0.10, 0.15, 0.18);
-  };
-  window.kzBeepExecute = function(){
-    tone(1000, 0, 0.08, 0.20);
-    tone(1200, 0.10, 0.08, 0.20);
-    tone(1500, 0.20, 0.15, 0.22);
-  };
-
-  // يفعّل الصوت عند أول لمسة من المستخدم (سياسة المتصفحات)
-  document.addEventListener('click', function resumeOnce(){
-    if (ctx.state === 'suspended') ctx.resume();
-    document.removeEventListener('click', resumeOnce);
-  }, { once: true });
-})();
-
-// مراقب الإشارة (اقتناص)
-(function(){
-  var prevSignal = 'محايد';
-  var lastAlertAt = 0;
-
-  setInterval(function(){
-    try {
-      var cur = state.lastSignal;
-      var conf = state.lastConfidence || 0;
-      var minEl = document.getElementById('auto-min-conf');
-      var minConf = minEl ? parseInt(minEl.value) : 70;
-      var now = Date.now();
-
-      if (cur !== 'محايد' && conf >= minConf && cur !== prevSignal && (now - lastAlertAt) > 15000) {
-        if (window.kzBeepCapture) window.kzBeepCapture();
-        lastAlertAt = now;
-      }
-      prevSignal = cur;
-    } catch(e){}
-  }, 1000);
-
-  // مراقب التنفيذ (صفقة جديدة ظهرت)
-  var prevActive = 0;
-  setInterval(function(){
-    try {
-      var n = state.activeTrades ? state.activeTrades.length : 0;
-      if (n > prevActive && window.kzBeepExecute) window.kzBeepExecute();
-      prevActive = n;
-    } catch(e){}
-  }, 500);
-})();
-</script> 
-  <script>
-/* ============================================================
-   KANZER AUTOPILOT — محرك مستقل
-   ============================================================ */
-(function(){
-  'use strict';
-
-  const AP = {
-    running: false,
-    timer: null,
-    lastFireAt: 0,
-    minGapMs: 240000,
-    lastSignal: 'NEUTRAL',
-    scanCount: 0,
-    tfSwitchCooldown: 0,
-  };
-
-  window._ap = AP;
-
-  // ============ أدوات الواجهة ============
-  function ui(id) { return document.getElementById(id); }
-
-  function setState(txt, cls) {
-    const s = ui('ap-state');
-    if (!s) return;
-    s.className = 'ap-state' + (cls ? ' ' + cls : '');
-    const t = s.querySelector('.ap-state-txt');
-    if (t) t.textContent = txt;
-  }
-
-  function setScan(txt, cls) {
-    const s = ui('ap-scan');
-    if (!s) return;
-    s.className = 'ap-scan' + (cls ? ' ' + cls : '');
-    const t = s.querySelector('.ap-scan-txt');
-    if (t) t.textContent = txt;
-  }
-
-  function setMeta(key, val) {
-    const el = ui('ap-' + key);
-    if (el) el.textContent = val;
-  }
-
-  function addFeedCard(html, cls) {
-    const feed = ui('ap-feed');
-    if (!feed) return;
-    const empty = feed.querySelector('.ap-feed-empty');
-    if (empty) empty.remove();
-    const card = document.createElement('div');
-    card.className = 'ap-card ' + (cls || '');
-    card.innerHTML = html;
-    feed.prepend(card);
-    while (feed.children.length > 15) feed.removeChild(feed.lastChild);
-  }
-
-  // ============ اختيار الفريم ============
-  function pickTimeframe() {
-  if (!state.candles || state.candles.length < 50) return 60;
-  const closes = state.candles.map(c => c.close);
-  const ema20 = calcEMA(closes, 20);
-  const ema50 = calcEMA(closes, 50);
-  const e20 = ema20[ema20.length - 1];
-  const e50 = ema50[ema50.length - 1];
-  const ratio = e20 / e50;
-
-  if (ratio > 1.003 || ratio < 0.997) return 300;
-  return 60;
-  }
-
-  // ============ اختيار المدة ============
-  function pickDuration(candles) {
-    if (!candles || candles.length < 20) return 1;
-    const closes = candles.map(c => c.close);
-    const highs = candles.map(c => c.high);
-    const lows = candles.map(c => c.low);
-    const atr = calcATR(closes, highs, lows, 14);
-    if (!atr || !atr.length) return 1;
-    const atrVal = atr[atr.length - 1];
-    const price = closes[closes.length - 1];
-    const r = atrVal / price;
-    if (r < 0.0006) return 5;
-    if (r < 0.0010) return 3;
-    if (r < 0.0018) return 2;
-    return 1;
-  }
-
-  // ============ اختيار الحجم (Kelly) ============
-  function pickAmount(balance) {
-    try {
-      if (typeof computeKellyAmount === 'function') {
-        const k = computeKellyAmount(balance);
-        return Math.max(0.35, Math.min(k, balance * 0.02));
-      }
-    } catch(e) {}
-    return Math.max(0.35, balance * 0.01);
-  }
-
-  // ============ المحرك ============
-  function analyze() {
-    if (!state.candles || state.candles.length < 60) {
-      return { signal: 'NEUTRAL', reason: 'بيانات غير كافية (' + (state.candles ? state.candles.length : 0) + '/60)' };
-    }
-    const c = state.candles;
-    const closes = c.map(x => x.close);
-    const highs = c.map(x => x.high);
-    const lows = c.map(x => x.low);
-    const price = closes[closes.length - 1];
-
-    const e9 = calcEMA(closes, 9);
-    const e21 = calcEMA(closes, 21);
-    const e50 = calcEMA(closes, 50);
-    const rsi = calcRSI(closes, 14);
-    const macd = calcMACD(closes);
-    const bb = calcBB(closes);
-    const stoch = calcStoch(closes, highs, lows);
-
-    const E9 = e9[e9.length - 1];
-    const E21 = e21[e21.length - 1];
-    const E50 = e50[e50.length - 1];
-    const R = rsi[rsi.length - 1];
-    const M = macd.macd[macd.macd.length - 1];
-    const MS = macd.signal[macd.signal.length - 1];
-    const UP = bb.upper.length ? bb.upper[bb.upper.length - 1].value : null;
-    const LO = bb.lower.length ? bb.lower[bb.lower.length - 1].value : null;
-    const ST = stoch[stoch.length - 1];
-    const STP = stoch[stoch.length - 2];
-
-    const cur = c[c.length - 1];
-    const prv = c[c.length - 2];
-    const body = Math.abs(cur.close - cur.open);
-    const range = (cur.high - cur.low) || 0.0001;
-    const bodyRatio = body / range;
-
-    // شراء
-    const buyChecks = {
-      'اتجاه صاعد': E9 > E21 && E21 > E50,
-      'MACD إيجابي': M > 0 && M > MS,
-      'RSI متوازن': R >= 42 && R <= 68,
-      'قرب دعم BB': LO !== null && price <= LO * 1.004,
-      'شمعة خضراء': cur.close > cur.open && bodyRatio > 0.45 && cur.close > prv.close,
-      'Stoch صاعد': ST < 70 && ST > STP,
-    };
-
-    // بيع
-    const sellChecks = {
-      'اتجاه هابط': E9 < E21 && E21 < E50,
-      'MACD سلبي': M < 0 && M < MS,
-      'RSI متوازن': R >= 32 && R <= 58,
-      'قرب مقاومة BB': UP !== null && price >= UP * 0.996,
-      'شمعة حمراء': cur.close < cur.open && bodyRatio > 0.45 && cur.close < prv.close,
-      'Stoch هابط': ST > 30 && ST < STP,
-    };
-
-    const buyScore = Object.values(buyChecks).filter(Boolean).length;
-    const sellScore = Object.values(sellChecks).filter(Boolean).length;
-
-    // قرار
-    const strictEl = document.getElementById('ap-strictness');
-const need = strictEl ? parseInt(strictEl.value) : 4;
-
-if (buyScore >= need && buyScore > sellScore) {
-  return { signal: 'BUY', checks: buyChecks, score: buyScore, price, rsi: R, bbUp: UP, bbLo: LO, e9: E9, e21: E21 };
-}
-if (sellScore >= need && sellScore > buyScore) {
-  return { signal: 'SELL', checks: sellChecks, score: sellScore, price, rsi: R, bbUp: UP, bbLo: LO, e9: E9, e21: E21 };
-        }
-    return {
-      signal: 'NEUTRAL',
-      checks: buyScore > sellScore ? buyChecks : sellChecks,
-      buyScore, sellScore,
-      price, rsi: R, bbUp: UP, bbLo: LO, e9: E9, e21: E21,
-      reason: 'شراء ' + buyScore + '/6 — بيع ' + sellScore + '/6'
-    };
-  }
-
-  // ============ التنفيذ ============
-  function fire(signal, analysis) {
-    const balance = parseFloat(state.derivAccount && state.derivAccount.balance) || 0;
-    if (balance <= 0) { setScan('انتظار الرصيد من Deriv...', ''); return; }
-    if (!state.derivLinked || !state.derivWS) { setScan('Deriv غير مربوط', 'sell'); return; }
-    if (state.activeTrades.length > 0) { setScan('صفقة نشطة — انتظار الإغلاق', 'trade'); return; }
-
-    const tf = pickTimeframe();
-    const tfText = tf === 60 ? '1m' : tf === 300 ? '5m' : '15m';
-    const duration = pickDuration(state.candles);
-    const amount = pickAmount(balance);
-    const symbol = document.getElementById('symbol-select').value;
-
-    setMeta('tf', tfText);
-    setMeta('dur', duration + 'm');
-    setMeta('amt', '$' + amount.toFixed(2));
-    setMeta('last', signal === 'BUY' ? 'شراء' : 'بيع');
-
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('ar-EG');
-
-    // بطاقة السبب
-    const rows = Object.keys(analysis.checks).map(function(k){
-      const on = analysis.checks[k];
-      return '<div class="ap-card-row"><span>' + (on ? '✓' : '○') + ' ' + k + '</span><span>' + (on ? 'مطابق' : '—') + '</span></div>';
-    }).join('');
-
-    const card =
-      '<div class="ap-card-head">' +
-        '<div class="ap-card-title ' + signal.toLowerCase() + '">' + (signal === 'BUY' ? '▲ صفقة شراء' : '▼ صفقة بيع') + ' — ' + symbol + '</div>' +
-        '<div class="ap-card-time">' + timeStr + '</div>' +
-      '</div>' +
-      '<div class="ap-card-rows">' +
-        '<div class="ap-card-row"><span>سعر الدخول</span><span>' + analysis.price.toFixed(4) + '</span></div>' +
-        '<div class="ap-card-row"><span>المدة</span><span>' + duration + ' دقيقة</span></div>' +
-        '<div class="ap-card-row"><span>الحجم</span><span>$' + amount.toFixed(2) + '</span></div>' +
-        '<div class="ap-card-row"><span>الفريم</span><span>' + tfText + '</span></div>' +
-        '<div class="ap-card-row"><span>RSI</span><span>' + analysis.rsi.toFixed(1) + '</span></div>' +
-        '<div class="ap-card-row"><span>EMA9 / EMA21</span><span>' + analysis.e9.toFixed(2) + ' / ' + analysis.e21.toFixed(2) + '</span></div>' +
-      '</div>' +
-      '<div class="ap-reasons"><b>أسباب الدخول (6/6):</b><br>' + rows + '</div>';
-
-    addFeedCard(card, signal === 'BUY' ? 'buy' : 'sell');
-
-    AP.lastFireAt = Date.now();
-    AP.lastSignal = signal;
-
-    setScan('تنفيذ ' + (signal === 'BUY' ? 'شراء' : 'بيع') + ' — ' + duration + 'm', signal === 'BUY' ? 'buy' : 'sell');
-
-    // إرسال الطلب
-    if (typeof sendProposal === 'function') {
-      sendProposal({ side: signal, symbol: symbol, amount: amount, duration: duration, auto: false, smart: true });
-    }
-  }
-
-  // ============ الحلقة ============
-  function tick() {
-    if (!AP.running) return;
-    try {
-      AP.scanCount++;
-      const r = analyze();
-
-      if (r.signal === 'NEUTRAL') {
-        setScan(r.reason || 'لا إشارة', 'trade');
-        return;
-      }
-
-      const gap = Date.now() - AP.lastFireAt;
-      if (gap < AP.minGapMs) {
-        setScan(r.signal === 'BUY' ? 'شراء محتمل — فاصل زمني' : 'بيع محتمل — فاصل زمني', 'trade');
-        return;
-      }
-
-      fire(r.signal, r);
-    } catch(e) {
-      console.warn('Autopilot error:', e);
-      setScan('خطأ: ' + e.message, 'sell');
-    }
-  }
-window.kzSetStrict = function(level) {
-  const input = document.getElementById('ap-strictness');
-  if (input) input.value = level;
-  document.querySelectorAll('.kz-strict-btn').forEach(btn => {
-    btn.classList.toggle('active', parseInt(btn.dataset.strict) === level);
-  });
-  try { localStorage.setItem('kanzer_strictness', String(level)); } catch(e){}
-};
-
-setTimeout(() => {
-  try {
-    const saved = localStorage.getItem('kanzer_strictness');
-    if (saved) window.kzSetStrict(parseInt(saved));
-  } catch(e){}
-}, 500);
-
-  // ============ التشغيل/الإيقاف ============
-  window.toggleAutopilot = function() {
-    if (AP.running) return window.stopAutopilot();
-
-    if (!state.derivLinked) { alert('اربط حساب Deriv أولاً'); return; }
-
-    // ضبط الفريم تلقائياً
-    const tf = pickTimeframe();
-    const tfSel = document.getElementById('timeframe-select');
-    if (tfSel && tfSel.value !== String(tf)) {
-      tfSel.value = String(tf);
-      tfSel.dispatchEvent(new Event('change'));
-    }
-
-    AP.running = true;
-    AP.lastFireAt = 0;
-    AP.scanCount = 0;
-    AP.timer = setInterval(tick, 20000);
-
-    const shell = ui('autopilot-shell');
-    if (shell) shell.classList.add('on');
-    const btn = ui('ap-btn-txt');
-    if (btn) btn.textContent = 'إيقاف النظام';
-    setState('يعمل', 'on');
-    setScan('النظام بدأ — فحص كل 20 ثانية', 'trade');
-    tick();
-  };
-
-  window.stopAutopilot = function() {
-    AP.running = false;
-    if (AP.timer) clearInterval(AP.timer);
-    AP.timer = null;
-    const shell = ui('autopilot-shell');
-    if (shell) shell.classList.remove('on');
-    const btn = ui('ap-btn-txt');
-    if (btn) btn.textContent = 'تشغيل النظام';
-    setState('متوقف', '');
-    setScan('النظام متوقف', '');
-  };
-
-  // ============ تسوية الصفقات (بطاقات الفوز/الخسارة) ============
-  window._apOnSettle = function(trade, won, profit) {
-    const timeStr = new Date().toLocaleTimeString('ar-EG');
-    const cls = won ? 'win' : 'loss';
-    const title = won ? '✅ ربح +$' + profit.toFixed(2) : '❌ خسارة $' + Math.abs(profit).toFixed(2);
-    const card =
-      '<div class="ap-card-head">' +
-        '<div class="ap-card-title ' + cls + '">' + title + '</div>' +
-        '<div class="ap-card-time">' + timeStr + '</div>' +
-      '</div>' +
-      '<div class="ap-card-rows">' +
-        '<div class="ap-card-row"><span>النوع</span><span>' + (trade.side === 'BUY' ? 'شراء' : 'بيع') + '</span></div>' +
-        '<div class="ap-card-row"><span>الأصل</span><span>' + (trade.symbol || '—') + '</span></div>' +
-        '<div class="ap-card-row"><span>المدة</span><span>' + (trade.duration || '—') + ' دقيقة</span></div>' +
-        '<div class="ap-card-row"><span>الحجم</span><span>$' + (trade.amount || 0).toFixed(2) + '</span></div>' +
-      '</div>';
-    addFeedCard(card, cls);
-    setScan(won ? 'صفقة رابحة ✓' : 'صفقة خاسرة', won ? 'buy' : 'sell');
-  };
-
-})();
-</script>
-  <!-- ====== A: calcBB Patch + Risk Suite ====== -->
+ <!-- ===== KANZER v4 CORE — calcBB + Risk + Keeper + Multiplier Utils ===== -->
 <script>
 (function(){
-if(window._kzBBFix) return; window._kzBBFix=true;
-window.calcBB = function(closes, p, m){
-  p=p||20; m=m||2;
+'use strict';
+if(window._kzCore4) return; window._kzCore4=true;
+
+/* ============ 1. calcBB safe (works on any candle array) ============ */
+window.calcBB=function(closes,p,m){
+  p=p||20;m=m||2;
   if(!Array.isArray(closes)||closes.length<p) return {upper:[],lower:[]};
   const src=(typeof state!=='undefined'&&state.candles)?state.candles:[];
   const up=[],lo=[];
@@ -4480,364 +4004,107 @@ window.calcBB = function(closes, p, m){
   }
   return {upper:up,lower:lo};
 };
-console.log('[A1] calcBB patched');
-})();
-</script>
 
-<style>
-#kz-cb-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:99998;padding:10px 16px;background:linear-gradient(135deg,#c62828,#8b0000);color:#fff;font-size:13px;font-weight:700;text-align:center;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.5);}
-#kz-cb-banner.show{display:block;}
-#kz-cb-banner button{margin-inline-start:12px;padding:4px 12px;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:700;}
-#kz-payout-badge{position:fixed;bottom:16px;right:16px;z-index:99997;background:rgba(15,18,24,0.92);border:1px solid rgba(0,212,255,0.35);border-radius:10px;padding:8px 14px;font-family:'Courier New',monospace;font-size:12px;color:#e8eaf0;box-shadow:0 4px 20px rgba(0,0,0,0.5);transition:border-color 0.3s,opacity 0.3s;}
-</style>
-
-<script>
-(function(){
-'use strict';
-if(window._kzRiskSuite) return; window._kzRiskSuite=true;
-let _seq=900000; const KZReq={next:()=>++_seq};
-const CBC={dailyLossPct:0.05,weeklyLossPct:0.12,monthlyLossPct:0.20,streakLosses:4,dailyCooldownMs:24*60*60*1000,weeklyCooldownMs:7*24*60*60*1000,monthlyCooldownMs:30*24*60*60*1000,streakCooldownMs:2*60*60*1000,storageKey:'kanzer_cb_v1'};
-const CBS={dayKey:'',weekKey:'',monthKey:'',dayStart:0,weekStart:0,monthStart:0,dayPnl:0,weekPnl:0,monthPnl:0,streak:0,pausedUntil:0,pauseReason:'',pauseScope:'none',history:[],settledIds:new Set()};
+/* ============ 2. Circuit Breaker v4 (2% daily / 5% weekly / 12% monthly) ============ */
+const CBC={dailyLossPct:0.02,weeklyLossPct:0.05,monthlyLossPct:0.12,streakLosses:3,
+  dailyCooldownMs:24*60*60*1000,weeklyCooldownMs:7*24*60*60*1000,
+  monthlyCooldownMs:30*24*60*60*1000,streakCooldownMs:60*60*1000,
+  key:'kanzer_cb_v4'};
+const CBS={dayKey:'',weekKey:'',monthKey:'',dayStart:0,weekStart:0,monthStart:0,
+  dayPnl:0,weekPnl:0,monthPnl:0,streak:0,pausedUntil:0,pauseReason:'',pauseScope:'none',
+  settledIds:new Set()};
 function dkey(){const d=new Date();return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');}
 function wkey(){const d=new Date();const t=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));const day=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-day);const y=t.getUTCFullYear();const w=Math.ceil((((t-new Date(Date.UTC(y,0,1)))/86400000)+1)/7);return y+'-W'+String(w).padStart(2,'0');}
 function mkey(){const d=new Date();return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0');}
-function loadCB(){try{const r=localStorage.getItem(CBC.storageKey);if(!r)return;const p=JSON.parse(r);const s=p.settledIds||[];delete p.settledIds;Object.assign(CBS,p);CBS.settledIds=new Set(s);}catch(e){}}
-function saveCB(){try{localStorage.setItem(CBC.storageKey,JSON.stringify({dayKey:CBS.dayKey,weekKey:CBS.weekKey,monthKey:CBS.monthKey,dayStart:CBS.dayStart,weekStart:CBS.weekStart,monthStart:CBS.monthStart,dayPnl:CBS.dayPnl,weekPnl:CBS.weekPnl,monthPnl:CBS.monthPnl,streak:CBS.streak,pausedUntil:CBS.pausedUntil,pauseReason:CBS.pauseReason,pauseScope:CBS.pauseScope,history:CBS.history.slice(-100),settledIds:Array.from(CBS.settledIds).slice(-500)}));}catch(e){}}
-function rollover(){const dk=dkey(),wk=wkey(),mk=mkey();let c=false;
-  if(CBS.dayKey!==dk){CBS.dayKey=dk;CBS.dayPnl=0;CBS.dayStart=0;c=true;}
-  if(CBS.weekKey!==wk){CBS.weekKey=wk;CBS.weekPnl=0;CBS.weekStart=0;c=true;}
-  if(CBS.monthKey!==mk){CBS.monthKey=mk;CBS.monthPnl=0;CBS.monthStart=0;c=true;}
-  if(c){if(CBS.pauseScope==='daily'||CBS.pauseScope==='weekly'||CBS.pauseScope==='monthly'){CBS.pausedUntil=0;CBS.pauseReason='';CBS.pauseScope='none';}saveCB();renderBanner();}}
+function loadCB(){try{const r=localStorage.getItem(CBC.key);if(!r)return;const p=JSON.parse(r);const s=p.settledIds||[];delete p.settledIds;Object.assign(CBS,p);CBS.settledIds=new Set(s);}catch(e){}}
+function saveCB(){try{localStorage.setItem(CBC.key,JSON.stringify({
+  dayKey:CBS.dayKey,weekKey:CBS.weekKey,monthKey:CBS.monthKey,
+  dayStart:CBS.dayStart,weekStart:CBS.weekStart,monthStart:CBS.monthStart,
+  dayPnl:CBS.dayPnl,weekPnl:CBS.weekPnl,monthPnl:CBS.monthPnl,
+  streak:CBS.streak,pausedUntil:CBS.pausedUntil,pauseReason:CBS.pauseReason,
+  pauseScope:CBS.pauseScope,settledIds:Array.from(CBS.settledIds).slice(-500)
+}));}catch(e){}}
+function rollover(){const d=dkey(),w=wkey(),m=mkey();let c=false;
+  if(CBS.dayKey!==d){CBS.dayKey=d;CBS.dayPnl=0;CBS.dayStart=0;c=true;}
+  if(CBS.weekKey!==w){CBS.weekKey=w;CBS.weekPnl=0;CBS.weekStart=0;c=true;}
+  if(CBS.monthKey!==m){CBS.monthKey=m;CBS.monthPnl=0;CBS.monthStart=0;c=true;}
+  if(c){if(['daily','weekly','monthly'].includes(CBS.pauseScope)){CBS.pausedUntil=0;CBS.pauseReason='';CBS.pauseScope='none';}saveCB();}}
 function bal(){try{return parseFloat(state.derivAccount&&state.derivAccount.balance)||0;}catch(e){return 0;}}
-function record(won,profit){rollover();const b=bal();const pre=b-profit;
+function recordPnl(won,profit){rollover();const b=bal();const pre=b-profit;
   if(CBS.dayStart===0)CBS.dayStart=pre>0?pre:100;
   if(CBS.weekStart===0)CBS.weekStart=pre>0?pre:100;
   if(CBS.monthStart===0)CBS.monthStart=pre>0?pre:100;
   CBS.dayPnl+=profit;CBS.weekPnl+=profit;CBS.monthPnl+=profit;
   if(won)CBS.streak=0;else CBS.streak+=1;
-  CBS.history.push({ts:Date.now(),won,profit,dayPnl:CBS.dayPnl});
-  if(CBS.history.length>200)CBS.history.shift();
   let br=null;
-  if(CBS.dayStart>0&&CBS.dayPnl<=-CBS.dayStart*CBC.dailyLossPct)br={scope:'daily',reason:'خسارة يومية '+((CBS.dayPnl/CBS.dayStart)*100).toFixed(1)+'%',ms:CBC.dailyCooldownMs};
-  else if(CBS.weekStart>0&&CBS.weekPnl<=-CBS.weekStart*CBC.weeklyLossPct)br={scope:'weekly',reason:'خسارة أسبوعية '+((CBS.weekPnl/CBS.weekStart)*100).toFixed(1)+'%',ms:CBC.weeklyCooldownMs};
-  else if(CBS.monthStart>0&&CBS.monthPnl<=-CBS.monthStart*CBC.monthlyLossPct)br={scope:'monthly',reason:'خسارة شهرية '+((CBS.monthPnl/CBS.monthStart)*100).toFixed(1)+'%',ms:CBC.monthlyCooldownMs};
-  else if(CBS.streak>=CBC.streakLosses)br={scope:'streak',reason:CBS.streak+' خسارات متتالية',ms:CBC.streakCooldownMs};
-  if(br){CBS.pausedUntil=Date.now()+br.ms;CBS.pauseReason=br.reason;CBS.pauseScope=br.scope;if(br.scope!=='streak')CBS.streak=0;
-    try{if(typeof window.showToast==='function')window.showToast('⛔ '+br.reason,'red');}catch(e){}}
+  if(CBS.dayStart>0&&CBS.dayPnl<=-CBS.dayStart*CBC.dailyLossPct)br={s:'daily',r:'خسارة يومية '+(CBS.dayPnl/CBS.dayStart*100).toFixed(1)+'%',ms:CBC.dailyCooldownMs};
+  else if(CBS.weekStart>0&&CBS.weekPnl<=-CBS.weekStart*CBC.weeklyLossPct)br={s:'weekly',r:'خسارة أسبوعية '+(CBS.weekPnl/CBS.weekStart*100).toFixed(1)+'%',ms:CBC.weeklyCooldownMs};
+  else if(CBS.monthStart>0&&CBS.monthPnl<=-CBS.monthStart*CBC.monthlyLossPct)br={s:'monthly',r:'خسارة شهرية '+(CBS.monthPnl/CBS.monthStart*100).toFixed(1)+'%',ms:CBC.monthlyCooldownMs};
+  else if(CBS.streak>=CBC.streakLosses)br={s:'streak',r:CBS.streak+' خسارات متتالية',ms:CBC.streakCooldownMs};
+  if(br){CBS.pausedUntil=Date.now()+br.ms;CBS.pauseReason=br.r;CBS.pauseScope=br.s;if(br.s!=='streak')CBS.streak=0;
+    try{if(window.showToast)window.showToast('⛔ '+br.r,'red');}catch(e){}}
   saveCB();renderBanner();}
-function cbCheck(){rollover();if(CBS.pausedUntil>Date.now()){const m=Math.ceil((CBS.pausedUntil-Date.now())/60000);return{ok:false,reason:CBS.pauseReason+' — بعد '+m+'د'};}
-  if(CBS.pausedUntil>0&&CBS.pausedUntil<=Date.now()){CBS.pausedUntil=0;CBS.pauseReason='';CBS.pauseScope='none';saveCB();renderBanner();}
-  return{ok:true};}
-window.kzCB={check:cbCheck,record,state:CBS,config:CBC,
+function cbCheck(){rollover();if(CBS.pausedUntil>Date.now()){const m=Math.ceil((CBS.pausedUntil-Date.now())/60000);return{ok:false,reason:CBS.pauseReason+' — '+m+'د'};}return{ok:true};}
+window.kzCB={check:cbCheck,record:recordPnl,state:CBS,config:CBC,
   stats(){return{dayPnl:CBS.dayPnl,weekPnl:CBS.weekPnl,monthPnl:CBS.monthPnl,streak:CBS.streak,paused:CBS.pausedUntil>Date.now(),scope:CBS.pauseScope,reason:CBS.pauseReason};},
   forceResume(){CBS.pausedUntil=0;CBS.pauseReason='';CBS.pauseScope='none';CBS.streak=0;saveCB();renderBanner();},
-  reset(){CBS.dayPnl=CBS.weekPnl=CBS.monthPnl=0;CBS.streak=0;CBS.pausedUntil=0;CBS.pauseReason='';CBS.pauseScope='none';CBS.dayStart=CBS.weekStart=CBS.monthStart=0;saveCB();renderBanner();}
-};
-const PGC={minRoi:0.86,blacklistAfterSkips:3,blacklistDurationMs:10*60*1000};
-const PGS={blacklist:{},skips:{},stats:{fires:0,skips:0,totalRoi:0,samples:0}};
-window.kzPayout={config:PGC,state:PGS,
-  evaluate(roi,sym){const bl=PGS.blacklist[sym];if(bl&&Date.now()<bl.until)return{mode:'SKIP',reason:'محظور مؤقتاً'};
-    if(roi<PGC.minRoi){PGS.skips[sym]=(PGS.skips[sym]||0)+1;if(PGS.skips[sym]>=PGC.blacklistAfterSkips){PGS.blacklist[sym]={until:Date.now()+PGC.blacklistDurationMs,reason:'payout منخفض'};PGS.skips[sym]=0;}return{mode:'SKIP',reason:'ROI '+(roi*100).toFixed(1)+'%'};}
-    PGS.skips[sym]=0;return{mode:'FIRE',reason:'OK'};},
-  log(sym,roi,d){PGS.stats.samples++;PGS.stats.totalRoi+=roi;if(d.mode==='SKIP')PGS.stats.skips++;else PGS.stats.fires++;updateBadge(roi,d.mode);},
-  stats(){return{...PGS.stats,avgRoi:PGS.stats.samples>0?PGS.stats.totalRoi/PGS.stats.samples:0,fireRate:PGS.stats.samples>0?PGS.stats.fires/PGS.stats.samples:0};}};
-function updateBadge(roi,mode){let el=document.getElementById('kz-payout-badge');if(!el){el=document.createElement('div');el.id='kz-payout-badge';document.body.appendChild(el);}
-  const c=mode==='SKIP'?'#ef5350':(roi>=0.90?'#26a69a':'#d4af37');
-  el.style.borderColor=c+'88';el.innerHTML='<span style="color:#8a90a3;">ROI</span> <span style="color:'+c+';font-weight:900;font-size:14px;">'+(roi*100).toFixed(2)+'%</span>';
-  el.style.opacity='1';clearTimeout(el._t);el._t=setTimeout(()=>{el.style.opacity='0.55';},4000);}
-function renderBanner(){let el=document.getElementById('kz-cb-banner');if(!el){el=document.createElement('div');el.id='kz-cb-banner';document.body.appendChild(el);}
-  if(CBS.pausedUntil>Date.now()){const m=Math.ceil((CBS.pausedUntil-Date.now())/60000);const ra=new Date(CBS.pausedUntil).toLocaleString('ar-EG');
-    el.innerHTML='⛔ <b>Circuit Breaker موقوف</b> ('+CBS.pauseReason+') • بعد '+m+'د ('+ra+')<button onclick="window.kzCB.forceResume()">استئناف</button>';el.classList.add('show');}
-  else el.classList.remove('show');}
-const _oSettle=window.settleTradeFromDeriv;
-if(typeof _oSettle==='function'){window.settleTradeFromDeriv=function(c){try{const F=['won','lost','sold','cancelled'];
-  if(c&&F.includes(c.status)){const cid=c.contract_id;if(!CBS.settledIds.has(cid)){CBS.settledIds.add(cid);
-    if(CBS.settledIds.size>800){const a=Array.from(CBS.settledIds);CBS.settledIds=new Set(a.slice(-500));}
-    const p=parseFloat(c.profit)||0;const w=c.status==='won'||(c.status==='sold'&&p>0);record(w,p);}}}catch(e){}
-  return _oSettle.apply(this,arguments);};}
-window.sendProposal=function(opts){const{side,symbol,duration,auto,smart,hunter}=opts||{};
-  let amount=Number(Number(opts&&opts.amount).toFixed(2));if(!(amount>=0.35))amount=0.35;
-  if(!state.derivWS){if(auto){try{window.addAutoLog('WS غير متصل','var(--red)');}catch(e){}}return;}
-  const cb=cbCheck();if(!cb.ok){if(auto){try{window.addAutoLog('CB: '+cb.reason,'var(--gold)');}catch(e){}}else{try{window.showToast('⛔ '+cb.reason,'red');}catch(e){}}return;}
-  const ct=side==='BUY'?'CALL':'PUT';
-  const pid=KZReq.next(),bid=KZReq.next(),sid=KZReq.next();
-  const cur=(typeof window.currentCurrency==='function')?window.currentCurrency():'USD';
-  let fin=false;const finish=()=>{if(fin)return;fin=true;try{clearTimeout(pto);}catch(e){}try{state.derivWS.removeEventListener('message',onP);}catch(e){}};
-  const pto=setTimeout(()=>{finish();if(auto){try{window.addAutoLog('Probe timeout','var(--gold)');}catch(e){}}},6000);
-  const onP=(ev)=>{let m;try{m=JSON.parse(ev.data);}catch(e){return;}if(m.req_id!==pid)return;finish();
-    if(m.error){if(auto){try{window.addAutoLog('probe: '+(m.error.message||''),'var(--red)');}catch(e){}}return;}
-    if(m.msg_type!=='proposal'||!m.proposal||!m.proposal.id)return;
-    const ask=parseFloat(m.proposal.ask_price)||amount;const pay=parseFloat(m.proposal.payout)||0;
-    const roi=ask>0?(pay-ask)/ask:0;const dec=window.kzPayout.evaluate(roi,symbol);window.kzPayout.log(symbol,roi,dec);
-    if(dec.mode==='SKIP'){if(auto){try{window.addAutoLog('⛔ تخطي '+symbol+' — '+dec.reason,'var(--gold)');}catch(e){}}return;}
-    const onB=(ev2)=>{let m2;try{m2=JSON.parse(ev2.data);}catch(e){return;}if(m2.req_id!==bid)return;
-      try{state.derivWS.removeEventListener('message',onB);}catch(e){}
-      if(m2.error||m2.msg_type!=='buy'||!m2.buy)return;
-      const cid=m2.buy.contract_id;const tid=KZReq.next();
-      const tr={id:tid,contractId:cid,reqId:pid,time:new Date().toLocaleTimeString('ar-EG'),symbol,side,amount,duration,openPrice:state.currentPrice,buyPrice:parseFloat(m2.buy.buy_price)||amount,status:'pending',auto:!!auto,smart:!!smart,hunter:!!hunter,closeTime:Date.now()+duration*60*1000,payoutRoi:roi};
-      state.activeTrades.push(tr);state.contractMap[cid]=tr.id;
-      try{window.renderActiveTrades();}catch(e){}
-      try{state.derivWS.send(JSON.stringify({proposal_open_contract:1,contract_id:cid,subscribe:1,req_id:sid}));}catch(e){}
-      if(auto){try{window.addAutoLog('▲ '+side+' — $'+amount+' @ '+(roi*100).toFixed(1)+'%','var(--green)');}catch(e){}}};
-    state.derivWS.addEventListener('message',onB);setTimeout(()=>{try{state.derivWS.removeEventListener('message',onB);}catch(e){}},20000);
-    try{state.derivWS.send(JSON.stringify({buy:m.proposal.id,price:m.proposal.ask_price,req_id:bid}));}catch(e){}};
-  state.derivWS.addEventListener('message',onP);
-  try{state.derivWS.send(JSON.stringify({proposal:1,amount,basis:'stake',contract_type:ct,currency:cur,duration,duration_unit:'m',underlying_symbol:symbol,req_id:pid}));}
-  catch(e){finish();}};
-loadCB();rollover();renderBanner();
+  reset(){CBS.dayPnl=CBS.weekPnl=CBS.monthPnl=0;CBS.streak=0;CBS.pausedUntil=0;CBS.dayStart=CBS.weekStart=CBS.monthStart=0;saveCB();renderBanner();}};
+
+function renderBanner(){let el=document.getElementById('kz-cb-banner');
+  if(!el){el=document.createElement('div');el.id='kz-cb-banner';
+    el.style.cssText='display:none;position:fixed;top:0;left:0;right:0;z-index:99998;padding:10px;background:linear-gradient(135deg,#c62828,#8b0000);color:#fff;font-size:13px;font-weight:700;text-align:center;font-family:inherit;';
+    el.innerHTML='<span></span><button onclick="window.kzCB.forceResume()" style="margin-inline-start:12px;padding:4px 12px;background:rgba(255,255,255,0.2);border:1px solid #fff;color:#fff;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:700;">استئناف</button>';
+    document.body.appendChild(el);}
+  if(CBS.pausedUntil>Date.now()){el.style.display='block';el.querySelector('span').textContent='⛔ Circuit Breaker — '+CBS.pauseReason;}
+  else el.style.display='none';}
 setInterval(renderBanner,30000);setTimeout(renderBanner,1200);
-console.log('[A2] Risk Suite active');
-})();
-</script> 
-  <!-- ====== B: HUNTER v3 — 3 SYMBOLS × 3 FRAMES ====== -->
-<script>
-(function(){
-'use strict';
-if(window.__kzH) return; window.__kzH={loaded:true};
-const SYMS=['R_25','R_50','R_75'];
-const CFG={minConfidence:65,minFamilies:3,riskPerTrade:0.0015,portfolioCap:0.01,maxConcurrent:2,maxSameSide:2,scanMs:15000,symbolCooldownMs:300000,lossStreakPauseMs:15*60*1000,dailyTradeCap:15,minBars:80};
-const PATS={'Bullish Engulfing':'ابتلاع صاعد','Bearish Engulfing':'ابتلاع هابط','Hammer':'المطرقة','Shooting Star':'الشهاب','Doji':'الدوجي','Morning Star':'نجمة الصباح','Evening Star':'نجمة المساء','Three White Soldiers':'الجنود الثلاثة البيض','Three Black Crows':'الغربان الثلاثة السود','Inside Bar':'شمعة داخلية','Outside Bar':'شمعة خارجية','Bullish Harami':'هارامي صاعد','Bearish Harami':'هارامي هابط','Bullish Marubozu':'ماروبوزو صاعد','Bearish Marubozu':'ماروبوزو هابط','Tweezer Bottom':'قاع الملقط','Tweezer Top':'قمة الملقط','Bullish Pin Bar':'بن بار صاعد','Bearish Pin Bar':'بن بار هابط'};
-const bd=c=>Math.abs(c.close-c.open), rg=c=>Math.max(0.0001,c.high-c.low), uw=c=>c.high-Math.max(c.close,c.open), lw=c=>Math.min(c.close,c.open)-c.low;
-const isB=c=>c.close>c.open, isS=c=>c.close<c.open, isD=c=>bd(c)<rg(c)*0.1, isM=c=>bd(c)>rg(c)*0.9;
-function detectPatterns(c){if(!c||c.length<3)return[];const c3=c[c.length-3],c2=c[c.length-2],c1=c[c.length-1];const o=[];
-  if(isS(c2)&&isB(c1)&&c1.close>c2.open&&c1.open<c2.close&&bd(c1)>bd(c2)*1.2)o.push({name:'Bullish Engulfing',ar:PATS['Bullish Engulfing'],side:'BUY',weight:25});
-  if(isB(c2)&&isS(c1)&&c1.close<c2.open&&c1.open>c2.close&&bd(c1)>bd(c2)*1.2)o.push({name:'Bearish Engulfing',ar:PATS['Bearish Engulfing'],side:'SELL',weight:25});
-  if(lw(c1)>bd(c1)*2&&lw(c1)>rg(c1)*0.6&&uw(c1)<bd(c1)*0.5)o.push({name:'Hammer',ar:PATS['Hammer'],side:'BUY',weight:20});
-  if(uw(c1)>bd(c1)*2&&uw(c1)>rg(c1)*0.6&&lw(c1)<bd(c1)*0.5)o.push({name:'Shooting Star',ar:PATS['Shooting Star'],side:'SELL',weight:20});
-  if(isD(c1))o.push({name:'Doji',ar:PATS['Doji'],side:'NEUTRAL',weight:5});
-  if(isS(c3)&&isD(c2)&&isB(c1)&&c1.close>(c3.open+c3.close)/2)o.push({name:'Morning Star',ar:PATS['Morning Star'],side:'BUY',weight:30});
-  if(isB(c3)&&isD(c2)&&isS(c1)&&c1.close<(c3.open+c3.close)/2)o.push({name:'Evening Star',ar:PATS['Evening Star'],side:'SELL',weight:30});
-  if(isB(c3)&&isB(c2)&&isB(c1)&&c2.close>c3.close&&c1.close>c2.close&&bd(c2)>rg(c2)*0.6&&bd(c1)>rg(c1)*0.6)o.push({name:'3 White Soldiers',ar:PATS['Three White Soldiers'],side:'BUY',weight:35});
-  if(isS(c3)&&isS(c2)&&isS(c1)&&c2.close<c3.close&&c1.close<c2.close&&bd(c2)>rg(c2)*0.6&&bd(c1)>rg(c1)*0.6)o.push({name:'3 Black Crows',ar:PATS['Three Black Crows'],side:'SELL',weight:35});
-  if(c1.high<c2.high&&c1.low>c2.low)o.push({name:'Inside Bar',ar:PATS['Inside Bar'],side:'NEUTRAL',weight:8});
-  if(c1.high>c2.high&&c1.low<c2.low)o.push({name:'Outside Bar',ar:PATS['Outside Bar'],side:isB(c1)?'BUY':'SELL',weight:15});
-  if(isS(c2)&&isB(c1)&&c1.open>c2.close&&c1.close<c2.open&&bd(c1)<bd(c2)*0.6)o.push({name:'Harami B',ar:PATS['Bullish Harami'],side:'BUY',weight:18});
-  if(isB(c2)&&isS(c1)&&c1.open<c2.close&&c1.close>c2.open&&bd(c1)<bd(c2)*0.6)o.push({name:'Harami S',ar:PATS['Bearish Harami'],side:'SELL',weight:18});
-  if(isM(c1))o.push({name:isB(c1)?'Maru B':'Maru S',ar:isB(c1)?PATS['Bullish Marubozu']:PATS['Bearish Marubozu'],side:isB(c1)?'BUY':'SELL',weight:15});
-  if(Math.abs(c2.low-c1.low)/c1.low<0.0005&&isB(c1))o.push({name:'Tweezer B',ar:PATS['Tweezer Bottom'],side:'BUY',weight:20});
-  if(Math.abs(c2.high-c1.high)/c1.high<0.0005&&isS(c1))o.push({name:'Tweezer T',ar:PATS['Tweezer Top'],side:'SELL',weight:20});
-  if(lw(c1)>rg(c1)*0.66)o.push({name:'Pin B',ar:PATS['Bullish Pin Bar'],side:'BUY',weight:22});
-  if(uw(c1)>rg(c1)*0.66)o.push({name:'Pin S',ar:PATS['Bearish Pin Bar'],side:'SELL',weight:22});
-  return o;}
-const Clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const ema=(a,p)=>calcEMA(a,p);
-const atrA=(c,p)=>calcATR(c.map(x=>x.close),c.map(x=>x.high),c.map(x=>x.low),p||14);
 
-function f1(d,sym){
-  if(!d.r1||d.m1.length<60)return null;
-  const cl=d.m1.map(c=>c.close),e20=ema(cl,20),e50=ema(cl,50),a=atrA(d.m1,14),av=a[a.length-1];
-  const p=cl[cl.length-1],e20v=e20[e20.length-1],e50v=e50[e50.length-1],slope=(e20v-e20[e20.length-5])/(av*4);
-  let side=null,conf=0;const rs=[];
-  if(e20v>e50v&&slope>0.10){side='BUY';conf=50+Math.min(30,Math.abs(slope)*100);rs.push('EMA20>EMA50');rs.push('ميل '+slope.toFixed(2));if(p>e20v){conf+=5;rs.push('سعر فوق EMA20');}}
-  else if(e20v<e50v&&slope<-0.10){side='SELL';conf=50+Math.min(30,Math.abs(slope)*100);rs.push('EMA20<EMA50');rs.push('ميل '+slope.toFixed(2));if(p<e20v){conf+=5;rs.push('سعر تحت EMA20');}}
-  else return null;
-  // m5 confluence (3m optional)
-  if(d.r5 && d.m5.length>50){
-    const c5=d.m5.map(c=>c.close);
-    const e5_20=ema(c5,20),e5_50=ema(c5,50);
-    const up5 = e5_20[e5_20.length-1] > e5_50[e5_50.length-1];
-    if(side==='BUY' && !up5) return null;
-    if(side==='SELL' && up5) return null;
-    rs.push('m5 مؤكد');conf+=8;
-  }
-  if(d.r3 && d.m3.length>50){
-    const c3=d.m3.map(c=>c.close);
-    const e3_20=ema(c3,20),e3_50=ema(c3,50);
-    const up3 = e3_20[e3_20.length-1] > e3_50[e3_50.length-1];
-    if((side==='BUY'&&up3)||(side==='SELL'&&!up3)){conf+=5;rs.push('m3 مؤكد');}
-  }
-  return{side,family:'TREND',strategy:'TREND_FOLLOW',confidence:Clamp(conf,0,92),atr:av,entry:p,reasons:rs};}
+/* ============ 3. Multiplier Utils (commission calc + contract query) ============ */
+window.kzMult={
+  /* تحقق أن الرمز يدعم Multipliers */
+  async checkAvailability(symbol){
+    return new Promise((resolve)=>{
+      try{
+        if(!state.derivWS||state.derivWS.readyState!==1){resolve({ok:false,reason:'no ws'});return;}
+        const reqId=Date.now()+Math.floor(Math.random()*1000);
+        const handler=(ev)=>{
+          try{
+            const m=JSON.parse(ev.data);
+            if(m.req_id!==reqId)return;
+            state.derivWS.removeEventListener('message',handler);
+            if(m.error){resolve({ok:false,reason:m.error.message});return;}
+            const mults=(m.contracts_for&&m.contracts_for.available||[]).filter(c=>
+              c.contract_type==='MULTUP'||c.contract_type==='MULTDOWN');
+            resolve({ok:mults.length>0,count:mults.length,contracts:mults});
+          }catch(e){resolve({ok:false,reason:e.message});}
+        };
+        state.derivWS.addEventListener('message',handler);
+        state.derivWS.send(JSON.stringify({contracts_for:symbol,currency:'USD',req_id:reqId}));
+        setTimeout(()=>{try{state.derivWS.removeEventListener('message',handler);resolve({ok:false,reason:'timeout'});}catch(e){}},5000);
+      }catch(e){resolve({ok:false,reason:e.message});}
+    });
+  },
+  /* احسب حجم المركز */
+  size(stake,multiplier){ return Number((stake*multiplier).toFixed(2)); },
+  /* نسبة التعرّض من الرصيد */
+  exposure(stake,multiplier,balance){ return balance>0?(stake*multiplier/balance*100):0; }
+};
 
-function f2(d,sym){
-  if(!d.r1||d.m1.length<80)return null;
-  const cl=d.m1.map(c=>c.close),a=atrA(d.m1,14),av=a[a.length-1],bb=calcBB(cl,20,2);
-  if(!bb.upper.length||bb.upper.length<10)return null;
-  const up=bb.upper[bb.upper.length-1].value,lo=bb.lower[bb.lower.length-1].value;
-  const upP=bb.upper[bb.upper.length-5].value,loP=bb.lower[bb.lower.length-5].value;
-  const p=cl[cl.length-1],w=(up-lo)/p,wP=(upP-loP)/p,exp=w>wP*1.1,nar=w<0.0025;
-  let side=null,conf=0;const rs=[];
-  if(p>up&&exp){side='BUY';conf=55+Math.min(20,(w-wP)*5000);rs.push('اختراق BB علوي');rs.push('نطاق يتوسع');if(nar){conf+=12;rs.push('انفجار ضغط');}}
-  else if(p<lo&&exp){side='SELL';conf=55+Math.min(20,(w-wP)*5000);rs.push('اختراق BB سفلي');rs.push('نطاق يتوسع');if(nar){conf+=12;rs.push('انفجار ضغط');}}
-  else return null;
-  return{side,family:'VOLATILITY',strategy:'VOL_BREAK',confidence:Clamp(conf,0,92),atr:av,entry:p,reasons:rs};}
-
-function f3(d,sym){
-  if(!d.r1||d.m1.length<50)return null;
-  const cl=d.m1.map(c=>c.close),a=atrA(d.m1,14),av=a[a.length-1],p=cl[cl.length-1];
-  const r14=calcRSI(cl,14),r=r14[r14.length-1],rp=r14[r14.length-2],rp3=r14[r14.length-4];
-  const mac=calcMACD(cl),M=mac.macd[mac.macd.length-1],S=mac.signal[mac.signal.length-1];
-  const h=M-S,hp=mac.macd[mac.macd.length-2]-mac.signal[mac.signal.length-2],hp3=mac.macd[mac.macd.length-4]-mac.signal[mac.signal.length-4];
-  let side=null,conf=0;const rs=[];
-  if(r>35&&r<60&&r>rp&&r>rp3&&h>0&&h>hp&&h>hp3){side='BUY';conf=50+Math.min(25,(h-hp3)*2000);rs.push('RSI='+r.toFixed(1));rs.push('MACD+');}
-else if(r<65&&r>40&&r<rp&&r<rp3&&h<0&&h<hp&&h<hp3){side='SELL';conf=50+Math.min(25,Math.abs(h-hp3)*2000);rs.push('RSI='+r.toFixed(1));rs.push('MACD-');}
-  else return null;
-  return{side,family:'MOMENTUM',strategy:'MOM_SHIFT',confidence:Clamp(conf,0,88),atr:av,entry:p,reasons:rs};}
-
-function f4(d,sym){
-  if(!d.r1||d.m1.length<80)return null;
-  const cl=d.m1.map(c=>c.close),a=atrA(d.m1,14),av=a[a.length-1],p=cl[cl.length-1];
-  const pats=detectPatterns(d.m1);let pB=0,pS=0;const pN=[];
-  pats.forEach(x=>{if(x.side==='BUY'){pB+=x.weight;pN.push(x.ar);}if(x.side==='SELL'){pS+=x.weight;pN.push(x.ar);}});
-  let srS=null,srL=null,srT=0;
-  if(typeof calcSR==='function'){const sr=calcSR(d.m1,5);const sup=(sr.supports||[]).find(s=>s.tests>=2),res=(sr.resistances||[]).find(s=>s.tests>=2);
-    if(sup&&Math.abs(p-sup.price)/p<0.0015){srS='BUY';srL=sup.price;srT=sup.tests;}
-    else if(res&&Math.abs(p-res.price)/p<0.0015){srS='SELL';srL=res.price;srT=res.tests;}}
-  let side=null,conf=0;const rs=[];
-  if(srS==='BUY'&&pB>0){side='BUY';conf=55+Math.min(20,srT*5)+Math.min(15,pB/2);rs.push('دعم ×'+srT);rs.push(pN.join(' + '));}
-  else if(srS==='SELL'&&pS>0){side='SELL';conf=55+Math.min(20,srT*5)+Math.min(15,pS/2);rs.push('مقاومة ×'+srT);rs.push(pN.join(' + '));}
-  else if(pB>=30&&!srS){side='BUY';conf=50+Math.min(20,pB/2);rs.push('نمط: '+pN.join(' + '));}
-  else if(pS>=30&&!srS){side='SELL';conf=50+Math.min(20,pS/2);rs.push('نمط: '+pN.join(' + '));}
-  else return null;
-  return{side,family:'STRUCTURE',strategy:'STRUCT_BOUNCE',confidence:Clamp(conf,0,90),atr:av,entry:p,reasons:rs};}
-
-const STRATS=[f1,f2,f3,f4];
-const FAMS=['TREND','VOLATILITY','MOMENTUM','STRUCTURE'];
-const S={running:false,timer:null,ws:null,data:{},scans:0,lastFireAt:{},daily:0,dayKey:dk(),pausedUntil:0,lossStreak:{}};
-SYMS.forEach(s=>S.data[s]={m1:[],m3:[],m5:[],r1:false,r3:false,r5:false});
-function dk(){const d=new Date();return d.getUTCFullYear()+'-'+(d.getUTCMonth()+1)+'-'+d.getUTCDate();}
-const $=id=>document.getElementById(id);
-function setSt(t,c){const e=$('hunter-state');if(!e)return;e.className='hunter-state'+(c?' '+c:'');const x=e.querySelector('.hunter-state-txt');if(x)x.textContent=t;}
-function logL(m,c){const l=$('hunter-log');if(!l)return;const e=l.querySelector('.hunter-log-empty');if(e)e.remove();
-  const d=document.createElement('div');d.className='hunter-log-line';d.style.color=c||'var(--text)';
-  d.textContent='['+new Date().toLocaleTimeString('ar-EG')+'] '+m;l.prepend(d);while(l.children.length>30)l.removeChild(l.lastChild);}
-function chip(s,st){const c=document.querySelector('.hunter-chip[data-sym="'+s+'"]');if(c)c.className='hunter-chip '+(st||'');}
-function stats(){const r=SYMS.filter(s=>S.data[s].r1&&S.data[s].r3&&S.data[s].r5).length;
-  if($('hunter-scanned'))$('hunter-scanned').textContent=r+'/'+SYMS.length;
-  const a=(state.activeTrades||[]).filter(t=>t.hunter).length;if($('hunter-active'))$('hunter-active').textContent=a+'/'+CFG.maxConcurrent;}
-
-function analyze(sym){const d=S.data[sym];if(!d.r1||!d.r3||!d.r5)return null;
-  const rs=[];for(const f of STRATS){try{const r=f(d,sym);if(r)rs.push(r);}catch(e){console.warn('strat',e.message);}}
-  if(!rs.length)return{sym,ens:null};
-  const by={};rs.forEach(r=>{if(!by[r.family]||r.confidence>by[r.family].confidence)by[r.family]=r;});
-  const fa=Object.values(by);const bF=fa.filter(r=>r.side==='BUY'),sF=fa.filter(r=>r.side==='SELL');
-  let side=null;
-  if(bF.length>=CFG.minFamilies&&bF.length>sF.length)side='BUY';
-  else if(sF.length>=CFG.minFamilies&&sF.length>bF.length)side='SELL';
-  else return{sym,ens:null,partial:{b:bF.length,s:sF.length}};
-  const vs=side==='BUY'?bF:sF;const avg=vs.reduce((a,r)=>a+r.confidence,0)/vs.length;
-  return{sym,ens:{side,confidence:Math.min(95,Math.round(avg+(vs.length-3)*5)),voters:vs,voterCount:vs.length}};}
-
-function fire(a){const{sym,ens}=a;const side=ens.side,conf=ens.confidence;
-  if(conf<CFG.minConfidence){chip(sym,'ready');return false;}
-  const act=(state.activeTrades||[]).filter(t=>t.hunter);
-  if(act.length>=CFG.maxConcurrent)return false;
-  if(act.some(t=>t.symbol===sym))return false;
-  if(act.filter(t=>t.side===side).length>=CFG.maxSameSide)return false;
-  if(Date.now()<S.pausedUntil)return false;
-  if(S.daily>=CFG.dailyTradeCap)return false;
-  if(S.lastFireAt[sym]&&Date.now()-S.lastFireAt[sym]<CFG.symbolCooldownMs)return false;
-  const b=parseFloat(state.derivAccount&&state.derivAccount.balance)||0;if(b<=0)return false;
-  const v0=ens.voters[0];const ap=v0.atr/v0.entry;const dur=ap<0.0008?3:ap<0.0015?2:1;
-  const size=Math.max(0.35,Math.min(b*0.01,Number((b*CFG.riskPerTrade*(0.7+conf/100)).toFixed(2))));
-  logL('🔥 '+side+' '+sym+' | '+conf+'% | '+ens.voterCount+'/4 | $'+size+' | '+dur+'m',side==='BUY'?'var(--green)':'var(--red)');
-  const feed=$('ap-feed');
-  if(feed){const em=feed.querySelector('.ap-feed-empty');if(em)em.remove();
-    const cd=document.createElement('div');cd.className='ap-card '+(side==='BUY'?'buy':'sell');
-    const rows=ens.voters.map(v=>'<div style="margin:3px 0;"><b style="color:var(--cyan);">'+v.family+'</b> ('+v.confidence.toFixed(0)+'%) — '+v.reasons.join(' • ')+'</div>').join('');
-    cd.innerHTML='<div style="font-size:11px;line-height:1.6;"><div style="font-weight:900;color:'+(side==='BUY'?'var(--green)':'var(--red)')+';font-size:14px;margin-bottom:4px;">'+(side==='BUY'?'▲ شراء':'▼ بيع')+' '+sym+' — ثقة '+conf+'% ('+ens.voterCount+'/4)</div><div style="border-top:1px dashed var(--border);padding-top:6px;margin-top:6px;">'+rows+'</div></div>';
-    feed.prepend(cd);while(feed.children.length>15)feed.removeChild(feed.lastChild);}
-  try{sendProposal({side,symbol:sym,amount:size,duration:dur,auto:false,smart:false,hunter:true});
-    S.lastFireAt[sym]=Date.now();S.daily++;chip(sym,side==='BUY'?'buy':'sell');}catch(e){logL('send: '+e.message,'var(--red)');return false;}
-  return true;}
-
-function tick(){if(!S.running)return;
-  if(dk()!==S.dayKey){S.dayKey=dk();S.daily=0;S.lossStreak={};}
-  if(Date.now()<S.pausedUntil){setSt('إيقاف '+Math.ceil((S.pausedUntil-Date.now())/60000)+'د','err');return;}
-  if(!state.derivLinked||!state.derivWS){setSt('Deriv غير مربوط','err');return;}
-  S.scans++;const cs=[];
-  for(const s of SYMS){const a=analyze(s);if(!a){chip(s,'');continue;}
-    if(!a.ens){if(a.partial&&(a.partial.b>=2||a.partial.s>=2))chip(s,'ready');else chip(s,'');continue;}
-    chip(s,'ready');cs.push(a);}
-  if(!cs.length){setSt('فحص #'+S.scans+' — لا توافق 3/4','');stats();return;}
-  cs.sort((a,b)=>b.ens.confidence-a.ens.confidence);
-  let f=0;for(const c of cs){if(c.ens.confidence<CFG.minConfidence)continue;if(fire(c))f++;if(f>=2)break;}
-  setSt(f?'أطلق '+f:'مرشح محجوب',f?'on':'');stats();}
-
-function push(arr,tf,p){if(!isFinite(p)||p<=0)return;const bt=Math.floor(Date.now()/1000/tf)*tf;
-  if(!arr.length){arr.push({time:bt,open:p,high:p,low:p,close:p});return;}
-  const l=arr[arr.length-1];if(l.time===bt){l.close=p;l.high=Math.max(l.high,p);l.low=Math.min(l.low,p);}
-  else if(l.time<bt){arr.push({time:bt,open:l.close,high:p,low:p,close:p});if(arr.length>400)arr.shift();}}
-
-function openWS(){if(S.ws&&S.ws.readyState===1)return;if(S.ws){try{S.ws.close();}catch(e){}}
-  S.ws=new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
-  S.ws.onopen=()=>{logL('WS متصل — '+SYMS.length+' رموز × 3 فريمات','var(--cyan)');
-    SYMS.forEach((s,i)=>{try{
-      S.ws.send(JSON.stringify({ticks_history:s,count:300,end:'latest',style:'candles',granularity:60,req_id:100+i}));
-      S.ws.send(JSON.stringify({ticks_history:s,count:300,end:'latest',style:'candles',granularity:180,req_id:200+i}));
-      S.ws.send(JSON.stringify({ticks_history:s,count:300,end:'latest',style:'candles',granularity:300,req_id:300+i}));
-      S.ws.send(JSON.stringify({ticks:s,subscribe:1,req_id:400+i}));}catch(e){}});};
-  S.ws.onmessage=ev=>{let m;try{m=JSON.parse(ev.data);}catch(e){return;}if(m.error)return;
-    if(m.msg_type==='candles'&&m.echo_req){const s=m.echo_req.ticks_history,g=m.echo_req.granularity;if(!S.data[s])return;
-      const arr=(m.candles||[]).map(c=>({time:c.epoch,open:+c.open,high:+c.high,low:+c.low,close:+c.close}));
-      if(g===60){S.data[s].m1=arr;S.data[s].r1=arr.length>=CFG.minBars;}
-      else if(g===180){S.data[s].m3=arr;S.data[s].r3=arr.length>=CFG.minBars;}
-      else if(g===300){S.data[s].m5=arr;S.data[s].r5=arr.length>=CFG.minBars;}stats();}
-    else if(m.msg_type==='tick'&&m.tick){const s=m.tick.symbol,p=+m.tick.quote;if(!S.data[s])return;
-      push(S.data[s].m1,60,p);push(S.data[s].m3,180,p);push(S.data[s].m5,300,p);}};
-  S.ws.onclose=()=>{if(S.running)setTimeout(openWS,5000);};}
-
-function buildChips(){const el=$('hunter-chips');if(!el)return;el.innerHTML='';
-  SYMS.forEach(s=>{const c=document.createElement('div');c.className='hunter-chip';c.dataset.sym=s;c.textContent=s.replace('_','');el.appendChild(c);});}
-
-function injectSlider(){const p=$('hunter-panel');if(!p||$('kz3-conf-slider'))return;
-  const w=document.createElement('div');w.id='kz3-conf-slider';
-  w.style.cssText='display:flex;align-items:center;gap:10px;margin:10px 0;padding:10px 12px;background:rgba(0,0,0,0.35);border-radius:10px;border:1px solid rgba(155,109,255,0.3);';
-  w.innerHTML='<span style="color:var(--text-dim);font-size:11px;">حد الثقة</span><input id="kz3-conf-range" type="range" min="50" max="90" step="5" value="'+CFG.minConfidence+'" style="flex:1;"><span id="kz3-conf-val" style="color:var(--purple);font-family:monospace;font-weight:900;min-width:44px;">'+CFG.minConfidence+'%</span><span style="color:var(--text-dim);font-size:10px;">| 3/4 عائلات</span>';
-  const btn=$('hunter-toggle');if(btn&&btn.parentNode)btn.parentNode.insertBefore(w,btn);else p.appendChild(w);
-  const r=$('kz3-conf-range'),v=$('kz3-conf-val');
-  r.addEventListener('input',()=>{CFG.minConfidence=parseInt(r.value);v.textContent=CFG.minConfidence+'%';
-    try{localStorage.setItem('kanzer_v3_minconf',String(CFG.minConfidence));}catch(e){}});
-  try{const sv=localStorage.getItem('kanzer_v3_minconf');if(sv){CFG.minConfidence=parseInt(sv);r.value=CFG.minConfidence;v.textContent=CFG.minConfidence+'%';}}catch(e){}}
-
-function guard(){['hunter-scanned','hunter-active'].forEach(id=>{const el=document.getElementById(id);if(!el||el.__g)return;el.__g=true;
-  const d=Object.getOwnPropertyDescriptor(Node.prototype,'textContent');let last=d.get.call(el);
-  Object.defineProperty(el,'textContent',{configurable:true,get(){return last;},set(v){const s=String(v);if(/^0\//.test(s)&&last&&!/^0\//.test(last))return;last=s;d.set.call(el,s);}});});}
-
-function start(){if(S.running)return;if(!state.derivLinked){alert('اربط Deriv أولاً');return;}
-  S.running=true;S.scans=0;S.pausedUntil=0;openWS();S.timer=setInterval(tick,CFG.scanMs);
-  const p=$('hunter-panel');if(p)p.classList.add('on');if($('hunter-btn-txt'))$('hunter-btn-txt').textContent='إيقاف HUNTER v3';
-  setSt('يعمل','on');logL('HUNTER v3 — 3 رموز × 3 فريمات | حد '+CFG.minConfidence+'%','var(--purple)');setTimeout(tick,4000);}
-function stop(){S.running=false;if(S.timer){clearInterval(S.timer);S.timer=null;}if(S.ws){try{S.ws.close();}catch(e){}S.ws=null;}
-  const p=$('hunter-panel');if(p)p.classList.remove('on');if($('hunter-btn-txt'))$('hunter-btn-txt').textContent='تشغيل HUNTER v3';
-  setSt('متوقف','');logL('HUNTER v3 توقف','var(--text-dim)');}
-
-window.hunterToggle=()=>S.running?stop():start();
-const _pS=window._hunterOnSettle;
-window._hunterOnSettle=function(t,w,p){const sym=t.symbol;
-  if(w)S.lossStreak[sym]=0;else{S.lossStreak[sym]=(S.lossStreak[sym]||0)+1;
-    if(S.lossStreak[sym]>=2){S.pausedUntil=Date.now()+CFG.lossStreakPauseMs;logL('توقف 15د — خسارتان '+sym,'var(--gold)');setSt('إيقاف','err');}}
-  logL((w?'ربح ':'خسارة ')+sym+' '+(p>=0?'+':'')+'$'+p.toFixed(2),w?'var(--green)':'var(--red)');stats();
-  if(typeof _pS==='function'){try{_pS.apply(this,arguments);}catch(e){}};};
-
-setTimeout(buildChips,1500);setTimeout(injectSlider,2000);
-setInterval(guard,2000);setTimeout(guard,2500);setInterval(stats,3000);
-
-window._hunterV3={api:{start,stop,state:S,config:CFG,status:()=>({running:S.running,scans:S.scans,daily:S.daily,minConf:CFG.minConfidence,minFamilies:CFG.minFamilies,ready:SYMS.filter(s=>S.data[s].r1&&S.data[s].r3&&S.data[s].r5).length,active:(state.activeTrades||[]).filter(t=>t.hunter).length,paused:S.pausedUntil>Date.now()})}};
-console.log('[B] HUNTER v3 active — 3 syms × 3 frames');
-})();
-</script>
-<!-- ====== END B ====== -->
-<script>
-(function(){
-'use strict';
-if(window._kzKeeper) return; window._kzKeeper=true;
+/* ============ 4. KZ Keeper (anti-throttle + WS keepalive) ============ */
 const K={audioCtx:null,osc:null,enabled:false,drift:0,samples:[],lastVisible:Date.now()};
 function initAudio(){if(K.audioCtx)return true;try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
   K.audioCtx=new AC();K.osc=K.audioCtx.createOscillator();const g=K.audioCtx.createGain();
   K.osc.type='sine';K.osc.frequency.value=20000;g.gain.value=0.0001;
   K.osc.connect(g);g.connect(K.audioCtx.destination);K.osc.start();return true;}catch(e){return false;}}
-function resume(){if(!K.audioCtx)initAudio();if(!K.audioCtx)return;
+function resumeAudio(){if(!K.audioCtx)initAudio();if(!K.audioCtx)return;
   if(K.audioCtx.state==='suspended')K.audioCtx.resume().then(()=>{K.enabled=true;badge();}).catch(()=>{});
   else{K.enabled=true;badge();}}
-function watchdog(){let last=performance.now();setInterval(()=>{const n=performance.now();const d=(n-last)-1000;last=n;
-  K.samples.push(d);if(K.samples.length>20)K.samples.shift();
-  K.drift=K.samples.reduce((a,b)=>a+b,0)/K.samples.length;badge();},1000);}
 setInterval(()=>{try{if(state.derivWS&&state.derivWS.readyState===1)state.derivWS.send(JSON.stringify({ping:1}));}catch(e){}
   try{if(state.ws&&state.ws.readyState===1)state.ws.send(JSON.stringify({ping:1}));}catch(e){}},25000);
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'){
-    if(window._hunterV3&&_hunterV3.api&&_hunterV3.api.state){const H=_hunterV3.api.state;
-      if(H.running&&(!H.ws||H.ws.readyState!==1)){try{_hunterV3.api.stop();_hunterV3.api.start();}catch(e){}}}
+    if(window._kzH4&&_kzH4.api&&_kzH4.api.state){const H=_kzH4.api.state;
+      if(H.running&&(!H.ws||H.ws.readyState!==1)){try{_kzH4.api.stop();_kzH4.api.start();}catch(e){}}}
     if(state.derivLinked&&!state.derivWS){const t=localStorage.getItem('deriv_token');
       if(t&&typeof authorizeToken==='function'){try{authorizeToken(t,null,true);}catch(e){}}}
     if(!state.wsConnected&&typeof connectWS==='function'){try{connectWS();}catch(e){}}badge();}
@@ -4853,282 +4120,940 @@ function badge(){let el=document.getElementById('kz-keeper-badge');
   else{c='#9b6dff';l='KEEPER ON';}
   el.style.borderColor=c+'88';
   el.innerHTML='<span style="width:8px;height:8px;border-radius:50%;background:'+c+';box-shadow:0 0 8px '+c+';"></span><span style="color:'+c+';font-weight:700;">'+l+'</span><span style="color:#8a90a3;">drift '+K.drift.toFixed(0)+'ms</span>';}
-function init(){document.addEventListener('click',function once(){resume();document.removeEventListener('click',once);},{once:true});
+function watchdog(){let last=performance.now();setInterval(()=>{const n=performance.now();const d=(n-last)-1000;last=n;
+  K.samples.push(d);if(K.samples.length>20)K.samples.shift();
+  K.drift=K.samples.reduce((a,b)=>a+b,0)/K.samples.length;badge();},1000);}
+function initKeeper(){document.addEventListener('click',function once(){resumeAudio();document.removeEventListener('click',once);},{once:true});
   watchdog();setInterval(badge,2000);badge();}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
-console.log('[C] KZ Keeper active');
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initKeeper);else initKeeper();
+
+/* ============ 5. Init ============ */
+loadCB();rollover();renderBanner();
+console.log('[CORE v4] calcBB + Risk + Multiplier Utils + Keeper active');
 })();
 </script>
-<!-- ====== END C ====== -->
-  <!-- ====== D: derivWS Watchdog + tick fix ====== -->
+<!-- ===== END CORE v4 ===== -->
+  <!-- ===== KANZER v4 SIGNAL ENGINE ===== -->
 <script>
 (function(){
 'use strict';
-if (window._kzWsFix) return;
-window._kzWsFix = true;
+if(window._kzSignal) return; window._kzSignal={loaded:true};
 
-/* --- 1. Watchdog: أعِد تشغيل derivWS كل 8 ثوانٍ إن كان ميتاً --- */
-let reconnectAttempts = 0;
-setInterval(() => {
-  try {
-    if (!state.derivLinked) return;
-    if (state.derivWS && state.derivWS.readyState === 1) { reconnectAttempts = 0; return; }
-    // WS ميت — أعِد التشغيل
-    const t = localStorage.getItem('deriv_token');
-    if (!t) return;
-    if (typeof authorizeToken !== 'function') return;
-    if (reconnectAttempts > 20) return;  // حد أقصى: 20 محاولة متتالية
-    reconnectAttempts++;
-    console.log('[WS-FIX] reconnecting...', reconnectAttempts);
-    try { authorizeToken(t, null, true); } catch(e) { console.warn('[WS-FIX]', e.message); }
-  } catch(e) {}
-}, 8000);
+/* ============ CONFIG ============ */
+const SYMS=['R_10','R_25','R_50','R_75','R_100','JD50','JD75'];
+const TFS=[60,180,300];
+const CFG={
+  minConfidence:65,
+  minFamilies:3,
+  scanMs:20000,
+  minBars:80,
+  riskPerTrade:0.005,       // 0.5% من الرصيد
+  maxConcurrent:2,
+  maxSameSide:2,
+  portfolioCapPerSide:0.006, // 0.6% لكل جانب
+  symbolCooldownMs:180000,   // 3 دقائق
+  dailyTradeCap:20,
+  multiplier:100,            // رافعة 100x
+  slAtrMult:1.5,             // SL = 1.5 × ATR
+  tpAtrMult:3.0,             // TP = 3.0 × ATR
+  timeExitMs:30*60*1000      // إغلاق قسري بعد 30 دقيقة
+};
 
-/* --- 2. Diagnostics badge --- */
-function wsBadge() {
-  let el = document.getElementById('kz-ws-badge');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'kz-ws-badge';
-    el.style.cssText = 'position:fixed;top:60px;left:16px;z-index:99995;background:rgba(15,18,24,0.92);border:1px solid rgba(0,212,255,0.35);border-radius:8px;padding:6px 12px;font-family:Courier New,monospace;font-size:11px;color:#e8eaf0;box-shadow:0 2px 12px rgba(0,0,0,0.5);display:flex;align-items:center;gap:8px;';
-    document.body.appendChild(el);
-  }
-  const r = state.derivWS ? state.derivWS.readyState : -1;
-  let c, l;
-  if (r === 1)      { c='#26a69a'; l='WS:OPEN'; }
-  else if (r === 0) { c='#d4af37'; l='WS:CONNECTING'; }
-  else if (r === 2) { c='#d4af37'; l='WS:CLOSING'; }
-  else if (r === 3) { c='#ef5350'; l='WS:CLOSED'; }
-  else              { c='#ef5350'; l='WS:NULL'; }
-  el.style.borderColor = c + '88';
-  el.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:' + c + ';box-shadow:0 0 6px ' + c + ';"></span>' +
-                 '<span style="color:' + c + ';font-weight:700;">' + l + '</span>' +
-                 '<span style="color:#8a90a3;">linked:' + (state.derivLinked ? 'Y' : 'N') + '</span>';
+/* ============ PATTERNS (19) ============ */
+const PATS={
+  'Bullish Engulfing':'ابتلاع صاعد','Bearish Engulfing':'ابتلاع هابط',
+  'Hammer':'المطرقة','Shooting Star':'الشهاب','Doji':'الدوجي',
+  'Morning Star':'نجمة الصباح','Evening Star':'نجمة المساء',
+  '3 White Soldiers':'الجنود الثلاثة','3 Black Crows':'الغربان الثلاثة',
+  'Inside Bar':'شمعة داخلية','Outside Bar':'شمعة خارجية',
+  'Bullish Harami':'هارامي صاعد','Bearish Harami':'هارامي هابط',
+  'Bullish Marubozu':'ماروبوزو صاعد','Bearish Marubozu':'ماروبوزو هابط',
+  'Tweezer Bottom':'قاع الملقط','Tweezer Top':'قمة الملقط',
+  'Bullish Pin Bar':'بن بار صاعد','Bearish Pin Bar':'بن بار هابط'
+};
+const bd=c=>Math.abs(c.close-c.open), rg=c=>Math.max(0.0001,c.high-c.low),
+      uw=c=>c.high-Math.max(c.close,c.open), lw=c=>Math.min(c.close,c.open)-c.low;
+const isB=c=>c.close>c.open, isS=c=>c.close<c.open, isD=c=>bd(c)<rg(c)*0.1, isM=c=>bd(c)>rg(c)*0.9;
+
+function detectPatterns(c){
+  if(!c||c.length<3)return[];
+  const c3=c[c.length-3],c2=c[c.length-2],c1=c[c.length-1],o=[];
+  if(isS(c2)&&isB(c1)&&c1.close>c2.open&&c1.open<c2.close&&bd(c1)>bd(c2)*1.2)o.push({name:'Bullish Engulfing',ar:PATS['Bullish Engulfing'],side:'BUY',weight:25});
+  if(isB(c2)&&isS(c1)&&c1.close<c2.open&&c1.open>c2.close&&bd(c1)>bd(c2)*1.2)o.push({name:'Bearish Engulfing',ar:PATS['Bearish Engulfing'],side:'SELL',weight:25});
+  if(lw(c1)>bd(c1)*2&&lw(c1)>rg(c1)*0.6&&uw(c1)<bd(c1)*0.5)o.push({name:'Hammer',ar:PATS['Hammer'],side:'BUY',weight:20});
+  if(uw(c1)>bd(c1)*2&&uw(c1)>rg(c1)*0.6&&lw(c1)<bd(c1)*0.5)o.push({name:'Shooting Star',ar:PATS['Shooting Star'],side:'SELL',weight:20});
+  if(isD(c1))o.push({name:'Doji',ar:PATS['Doji'],side:'NEUTRAL',weight:5});
+  if(isS(c3)&&isD(c2)&&isB(c1)&&c1.close>(c3.open+c3.close)/2)o.push({name:'Morning Star',ar:PATS['Morning Star'],side:'BUY',weight:30});
+  if(isB(c3)&&isD(c2)&&isS(c1)&&c1.close<(c3.open+c3.close)/2)o.push({name:'Evening Star',ar:PATS['Evening Star'],side:'SELL',weight:30});
+  if(isB(c3)&&isB(c2)&&isB(c1)&&c2.close>c3.close&&c1.close>c2.close&&bd(c2)>rg(c2)*0.6&&bd(c1)>rg(c1)*0.6)o.push({name:'3 White Soldiers',ar:PATS['3 White Soldiers'],side:'BUY',weight:35});
+  if(isS(c3)&&isS(c2)&&isS(c1)&&c2.close<c3.close&&c1.close<c2.close&&bd(c2)>rg(c2)*0.6&&bd(c1)>rg(c1)*0.6)o.push({name:'3 Black Crows',ar:PATS['3 Black Crows'],side:'SELL',weight:35});
+  if(c1.high<c2.high&&c1.low>c2.low)o.push({name:'Inside Bar',ar:PATS['Inside Bar'],side:'NEUTRAL',weight:8});
+  if(c1.high>c2.high&&c1.low<c2.low)o.push({name:'Outside Bar',ar:PATS['Outside Bar'],side:isB(c1)?'BUY':'SELL',weight:15});
+  if(isS(c2)&&isB(c1)&&c1.open>c2.close&&c1.close<c2.open&&bd(c1)<bd(c2)*0.6)o.push({name:'Bullish Harami',ar:PATS['Bullish Harami'],side:'BUY',weight:18});
+  if(isB(c2)&&isS(c1)&&c1.open<c2.close&&c1.close>c2.open&&bd(c1)<bd(c2)*0.6)o.push({name:'Bearish Harami',ar:PATS['Bearish Harami'],side:'SELL',weight:18});
+  if(isM(c1))o.push({name:isB(c1)?'Marubozu B':'Marubozu S',ar:PATS[isB(c1)?'Bullish Marubozu':'Bearish Marubozu'],side:isB(c1)?'BUY':'SELL',weight:15});
+  if(Math.abs(c2.low-c1.low)/c1.low<0.0005&&isB(c1))o.push({name:'Tweezer B',ar:PATS['Tweezer Bottom'],side:'BUY',weight:20});
+  if(Math.abs(c2.high-c1.high)/c1.high<0.0005&&isS(c1))o.push({name:'Tweezer T',ar:PATS['Tweezer Top'],side:'SELL',weight:20});
+  if(lw(c1)>rg(c1)*0.66)o.push({name:'Pin B',ar:PATS['Bullish Pin Bar'],side:'BUY',weight:22});
+  if(uw(c1)>rg(c1)*0.66)o.push({name:'Pin S',ar:PATS['Bearish Pin Bar'],side:'SELL',weight:22});
+  return o;
 }
-setInterval(wsBadge, 1500);
-setTimeout(wsBadge, 2000);
 
-/* --- 3. Patch tick behavior: فقط إذا derivWS مات، استمر في التحليل --- */
-/* هذا لا يمكن تعديله داخل closure v3، لكن watchdog أعلاه يُبقي derivWS حياً */
-/* كطبقة ثانية: دفع v3 لـ scan عند عودة WS */
-let wasDead = false;
-setInterval(() => {
-  const r = state.derivWS ? state.derivWS.readyState : -1;
-  const isDead = r !== 1;
-  if (wasDead && !isDead) {
-    console.log('[WS-FIX] WS restored — resuming');
-    try {
-      if (window._hunterV3 && _hunterV3.api && _hunterV3.api.state) {
-        const H = _hunterV3.api.state;
-        if (H.running) {
-          // H.timer يعمل بالفعل، لا حاجة لإعادة التشغيل
-          // فقط سجل الحدث
+/* ============ HELPERS ============ */
+const Clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ema=(a,p)=>calcEMA(a,p);
+const atrArr=(c,p)=>calcATR(c.map(x=>x.close),c.map(x=>x.high),c.map(x=>x.low),p||14);
+
+/* ============ FAMILY 1 — TREND_FOLLOW (EMA only) ============ */
+function famTrend(d){
+  if(!d.r1||d.m1.length<60)return null;
+  const cl=d.m1.map(c=>c.close),e20=ema(cl,20),e50=ema(cl,50),e200=ema(cl,200);
+  const a=atrArr(d.m1,14),av=a[a.length-1];
+  const p=cl[cl.length-1],e20v=e20[e20.length-1],e50v=e50[e50.length-1];
+  const e200v=e200.length?e200[e200.length-1]:null;
+  const slope=(e20v-e20[e20.length-5])/(av*4);
+  let side=null,conf=0;const rs=[];
+  if(e20v>e50v&&slope>0.10){
+    side='BUY';conf=50+Math.min(30,Math.abs(slope)*100);
+    rs.push('EMA20>EMA50');rs.push('ميل +'+slope.toFixed(2));
+    if(p>e20v){conf+=5;rs.push('سعر فوق EMA20');}
+    if(e200v&&p>e200v){conf+=8;rs.push('فوق EMA200');}
+  } else if(e20v<e50v&&slope<-0.10){
+    side='SELL';conf=50+Math.min(30,Math.abs(slope)*100);
+    rs.push('EMA20<EMA50');rs.push('ميل '+slope.toFixed(2));
+    if(p<e20v){conf+=5;rs.push('سعر تحت EMA20');}
+    if(e200v&&p<e200v){conf+=8;rs.push('تحت EMA200');}
+  } else return null;
+  return{side,family:'TREND',strategy:'TREND_FOLLOW',confidence:Clamp(conf,0,92),atr:av,entry:p,reasons:rs};
+}
+
+/* ============ FAMILY 2 — VOLATILITY_BREAK (BB only) ============ */
+function famVolatility(d){
+  if(!d.r1||d.m1.length<80)return null;
+  const cl=d.m1.map(c=>c.close),a=atrArr(d.m1,14),av=a[a.length-1],bb=calcBB(cl,20,2);
+  if(!bb.upper.length||bb.upper.length<10)return null;
+  const up=bb.upper[bb.upper.length-1].value,lo=bb.lower[bb.lower.length-1].value;
+  const upP=bb.upper[bb.upper.length-5].value,loP=bb.lower[bb.lower.length-5].value;
+  const p=cl[cl.length-1],w=(up-lo)/p,wP=(upP-loP)/p;
+  const exp=w>wP*1.1,nar=w<0.0025;
+  let side=null,conf=0;const rs=[];
+  if(p>up&&exp){side='BUY';conf=55+Math.min(20,(w-wP)*5000);rs.push('اختراق BB علوي');rs.push('نطاق يتوسع');if(nar){conf+=12;rs.push('انفجار ضغط');}}
+  else if(p<lo&&exp){side='SELL';conf=55+Math.min(20,(w-wP)*5000);rs.push('اختراق BB سفلي');rs.push('نطاق يتوسع');if(nar){conf+=12;rs.push('انفجار ضغط');}}
+  else return null;
+  return{side,family:'VOLATILITY',strategy:'VOL_BREAK',confidence:Clamp(conf,0,92),atr:av,entry:p,reasons:rs};
+}
+
+/* ============ FAMILY 3 — MOMENTUM_SHIFT (RSI + MACD only) ============ */
+function famMomentum(d){
+  if(!d.r1||d.m1.length<50)return null;
+  const cl=d.m1.map(c=>c.close),a=atrArr(d.m1,14),av=a[a.length-1],p=cl[cl.length-1];
+  const r14=calcRSI(cl,14),r=r14[r14.length-1],rp=r14[r14.length-2],rp3=r14[r14.length-4];
+  const mac=calcMACD(cl),M=mac.macd[mac.macd.length-1],S=mac.signal[mac.signal.length-1];
+  const h=M-S,hp=mac.macd[mac.macd.length-2]-mac.signal[mac.signal.length-2];
+  const hp3=mac.macd[mac.macd.length-4]-mac.signal[mac.signal.length-4];
+  let side=null,conf=0;const rs=[];
+  if(r>35&&r<60&&r>rp&&r>rp3&&h>0&&h>hp&&h>hp3){
+    side='BUY';conf=50+Math.min(25,(h-hp3)*2000);
+    rs.push('RSI='+r.toFixed(1));rs.push('MACD+');
+  } else if(r<65&&r>40&&r<rp&&r<rp3&&h<0&&h<hp&&h<hp3){
+    side='SELL';conf=50+Math.min(25,Math.abs(h-hp3)*2000);
+    rs.push('RSI='+r.toFixed(1));rs.push('MACD-');
+  } else return null;
+  return{side,family:'MOMENTUM',strategy:'MOM_SHIFT',confidence:Clamp(conf,0,88),atr:av,entry:p,reasons:rs};
+}
+
+/* ============ FAMILY 4 — STRUCTURE_BOUNCE (S/R + Patterns) ============ */
+function famStructure(d){
+  if(!d.r1||d.m1.length<80)return null;
+  const cl=d.m1.map(c=>c.close),a=atrArr(d.m1,14),av=a[a.length-1],p=cl[cl.length-1];
+  const pats=detectPatterns(d.m1);
+  let pB=0,pS=0;const pN=[];
+  pats.forEach(x=>{if(x.side==='BUY'){pB+=x.weight;pN.push(x.ar);}if(x.side==='SELL'){pS+=x.weight;pN.push(x.ar);}});
+  let srS=null,srL=null,srT=0;
+  if(typeof calcSR==='function'){
+    const sr=calcSR(d.m1,5);
+    const sup=(sr.supports||[]).find(s=>s.tests>=2);
+    const res=(sr.resistances||[]).find(s=>s.tests>=2);
+    if(sup&&Math.abs(p-sup.price)/p<0.0015){srS='BUY';srL=sup.price;srT=sup.tests;}
+    else if(res&&Math.abs(p-res.price)/p<0.0015){srS='SELL';srL=res.price;srT=res.tests;}
+  }
+  let side=null,conf=0;const rs=[];
+  if(srS==='BUY'&&pB>0){side='BUY';conf=55+Math.min(20,srT*5)+Math.min(15,pB/2);rs.push('دعم ×'+srT);rs.push(pN.join(' + '));}
+  else if(srS==='SELL'&&pS>0){side='SELL';conf=55+Math.min(20,srT*5)+Math.min(15,pS/2);rs.push('مقاومة ×'+srT);rs.push(pN.join(' + '));}
+  else if(pB>=30&&!srS){side='BUY';conf=50+Math.min(20,pB/2);rs.push('نمط: '+pN.join(' + '));}
+  else if(pS>=30&&!srS){side='SELL';conf=50+Math.min(20,pS/2);rs.push('نمط: '+pN.join(' + '));}
+  else return null;
+  return{side,family:'STRUCTURE',strategy:'STRUCT_BOUNCE',confidence:Clamp(conf,0,90),atr:av,entry:p,reasons:rs};
+}
+
+const FAMILIES=[famTrend,famVolatility,famMomentum,famStructure];
+
+/* ============ VOTING ============ */
+function analyze(sym,d){
+  if(!d.r1||!d.r3||!d.r5)return null;
+  const results=[];
+  for(const f of FAMILIES){
+    try{const r=f(d);if(r)results.push(r);}catch(e){console.warn('[SIG]',sym,e.message);}
+  }
+  if(!results.length)return{sym,ens:null};
+  const by={};
+  results.forEach(r=>{if(!by[r.family]||r.confidence>by[r.family].confidence)by[r.family]=r;});
+  const fa=Object.values(by);
+  const bF=fa.filter(r=>r.side==='BUY'),sF=fa.filter(r=>r.side==='SELL');
+  let side=null;
+  if(bF.length>=CFG.minFamilies&&bF.length>sF.length)side='BUY';
+  else if(sF.length>=CFG.minFamilies&&sF.length>bF.length)side='SELL';
+  else return{sym,ens:null,partial:{b:bF.length,s:sF.length}};
+  const vs=side==='BUY'?bF:sF;
+  const avg=vs.reduce((a,r)=>a+r.confidence,0)/vs.length;
+  const conf=Math.min(95,Math.round(avg+(vs.length-3)*5));
+  const atr=vs[0].atr||0, entry=vs[0].entry||0;
+  return{sym,ens:{side,confidence:conf,voters:vs,voterCount:vs.length,atr,entry}};
+}
+
+/* ============ EXPOSE ============ */
+window._kzSignal.api={
+  SYMS,TFS,CFG,FAMILIES,
+  detectPatterns,analyze,
+  PATS
+};
+
+console.log('[SIGNAL v4] 7 symbols × 3 frames × 4 families ready');
+})();
+</script>
+<!-- ===== END SIGNAL v4 ===== -->
+  <!-- ===== KANZER v4 ENGINE ===== -->
+<script>
+(function(){
+'use strict';
+if(window._kzH4) return; window._kzH4={loaded:true};
+
+const S=window._kzSignal;
+if(!S){console.error('[H4] SIGNAL missing');return;}
+const {SYMS,TFS,CFG,analyze,detectPatterns}=S.api;
+const $=id=>document.getElementById(id);
+
+/* ============ STATE ============ */
+const ST={
+  running:false, timer:null, ws:null,
+  data:{}, cooldown:{}, lossStreak:{},
+  scans:0, daily:0, dayKey:dk(),
+  pausedUntil:0,
+  contractMap:{}, positions:{}  // id -> { contractId, sl, tp, entryAtr, openedAt, ... }
+};
+function dk(){const d=new Date();return d.getUTCFullYear()+'-'+(d.getUTCMonth()+1)+'-'+d.getUTCDate();}
+SYMS.forEach(s=>ST.data[s]={m1:[],m3:[],m5:[],r1:false,r3:false,r5:false});
+
+/* ============ UI ============ */
+function setState(t,c){
+  const e=$('hunter-state');if(!e)return;
+  e.className='hunter-state'+(c?' '+c:'');
+  const x=e.querySelector('.hunter-state-txt');if(x)x.textContent=t;
+}
+function log(msg,color){
+  const l=$('hunter-log');if(!l)return;
+  const e=l.querySelector('.hunter-log-empty');if(e)e.remove();
+  const d=document.createElement('div');d.className='hunter-log-line';
+  d.style.color=color||'var(--text)';
+  d.textContent='['+new Date().toLocaleTimeString('ar-EG')+'] '+msg;
+  l.prepend(d);while(l.children.length>40)l.removeChild(l.lastChild);
+}
+function chip(s,st){
+  const c=document.querySelector('.hunter-chip[data-sym="'+s+'"]');
+  if(c)c.className='hunter-chip '+(st||'');
+}
+function stats(){
+  const ready=SYMS.filter(s=>ST.data[s].r1&&ST.data[s].r3&&ST.data[s].r5).length;
+  const sc=$('hunter-scanned');if(sc)sc.textContent=ready+'/'+SYMS.length;
+  const act=(state.activeTrades||[]).filter(t=>t.hunter).length;
+  const ac=$('hunter-active');if(ac)ac.textContent=act+'/'+CFG.maxConcurrent;
+}
+function buildChips(){
+  const el=$('hunter-chips');if(!el)return;el.innerHTML='';
+  SYMS.forEach(s=>{
+    const c=document.createElement('div');
+    c.className='hunter-chip';c.dataset.sym=s;
+    c.textContent=s.replace('_','');
+    el.appendChild(c);
+  });
+}
+function injectSlider(){
+  const p=$('hunter-panel');
+  if(!p||$('kz4-conf-slider'))return;
+  const w=document.createElement('div');w.id='kz4-conf-slider';
+  w.style.cssText='display:flex;align-items:center;gap:10px;margin:10px 0;padding:10px 12px;background:rgba(0,0,0,0.35);border-radius:10px;border:1px solid rgba(155,109,255,0.3);';
+  w.innerHTML='<span style="color:var(--text-dim);font-size:11px;">حد الثقة</span>'+
+    '<input id="kz4-conf-range" type="range" min="55" max="90" step="5" value="'+CFG.minConfidence+'" style="flex:1;">'+
+    '<span id="kz4-conf-val" style="color:var(--purple);font-family:monospace;font-weight:900;min-width:44px;">'+CFG.minConfidence+'%</span>'+
+    '<span style="color:var(--text-dim);font-size:10px;">| 3/4 | 100x</span>';
+  const btn=$('hunter-toggle');
+  if(btn&&btn.parentNode)btn.parentNode.insertBefore(w,btn);else p.appendChild(w);
+  const r=$('kz4-conf-range'),v=$('kz4-conf-val');
+  r.addEventListener('input',()=>{
+    CFG.minConfidence=parseInt(r.value);v.textContent=CFG.minConfidence+'%';
+    try{localStorage.setItem('kanzer_v4_minconf',String(CFG.minConfidence));}catch(e){}
+  });
+  try{const sv=localStorage.getItem('kanzer_v4_minconf');
+    if(sv){CFG.minConfidence=parseInt(sv);r.value=CFG.minConfidence;v.textContent=CFG.minConfidence+'%';}}catch(e){}
+}
+
+/* ============ WS PIPELINE ============ */
+function pushCandle(arr,tf,p){
+  if(!isFinite(p)||p<=0)return;
+  const bt=Math.floor(Date.now()/1000/tf)*tf;
+  if(!arr.length){arr.push({time:bt,open:p,high:p,low:p,close:p});return;}
+  const l=arr[arr.length-1];
+  if(l.time===bt){l.close=p;l.high=Math.max(l.high,p);l.low=Math.min(l.low,p);}
+  else if(l.time<bt){arr.push({time:bt,open:l.close,high:p,low:p,close:p});if(arr.length>400)arr.shift();}
+}
+function openWS(){
+  if(ST.ws&&ST.ws.readyState===1)return;
+  if(ST.ws){try{ST.ws.close();}catch(e){}}
+  ST.ws=new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
+  ST.ws.onopen=()=>{
+    log('WS متصل — '+SYMS.length+' رموز × 3 فريمات','var(--cyan)');
+    let rid=100;
+    SYMS.forEach(sym=>{
+      TFS.forEach(g=>{
+        try{ST.ws.send(JSON.stringify({ticks_history:sym,count:300,end:'latest',
+          style:'candles',granularity:g,req_id:rid++}));}catch(e){}
+      });
+      try{ST.ws.send(JSON.stringify({ticks:sym,subscribe:1,req_id:rid++}));}catch(e){}
+    });
+  };
+  ST.ws.onmessage=ev=>{
+    let m;try{m=JSON.parse(ev.data);}catch(e){return;}
+    if(m.error)return;
+    if(m.msg_type==='candles'&&m.echo_req){
+      const s=m.echo_req.ticks_history,g=m.echo_req.granularity;
+      if(!ST.data[s])return;
+      const arr=(m.candles||[]).map(c=>({time:c.epoch,open:+c.open,high:+c.high,low:+c.low,close:+c.close}));
+      if(g===60){ST.data[s].m1=arr;ST.data[s].r1=arr.length>=CFG.minBars;}
+      else if(g===180){ST.data[s].m3=arr;ST.data[s].r3=arr.length>=CFG.minBars;}
+      else if(g===300){ST.data[s].m5=arr;ST.data[s].r5=arr.length>=CFG.minBars;}
+      stats();
+    } else if(m.msg_type==='tick'&&m.tick){
+      const s=m.tick.symbol,p=+m.tick.quote;
+      if(!ST.data[s])return;
+      pushCandle(ST.data[s].m1,60,p);
+      pushCandle(ST.data[s].m3,180,p);
+      pushCandle(ST.data[s].m5,300,p);
+    }
+  };
+  ST.ws.onclose=()=>{if(ST.running)setTimeout(openWS,5000);};
+}
+
+/* ============ EXECUTION — MULTIPLIERS ============ */
+function activeHunter(){return (state.activeTrades||[]).filter(t=>t.hunter);}
+function bal(){return parseFloat(state.derivAccount&&state.derivAccount.balance)||0;}
+
+function riskCheck(c){
+  const b=bal();
+  if(b<=0)return{ok:false,why:'no bal'};
+  const act=activeHunter();
+  if(act.length>=CFG.maxConcurrent)return{ok:false,why:'max conc'};
+  if(act.some(t=>t.symbol===c.sym))return{ok:false,why:'busy'};
+  if(act.filter(t=>t.side===c.side).length>=CFG.maxSameSide)return{ok:false,why:'same side'};
+  if(Date.now()<ST.pausedUntil)return{ok:false,why:'paused'};
+  if(ST.daily>=CFG.dailyTradeCap)return{ok:false,why:'daily cap'};
+  if(ST.cooldown[c.sym]&&Date.now()-ST.cooldown[c.sym]<CFG.symbolCooldownMs)return{ok:false,why:'cooldown'};
+  const sameSide=act.filter(t=>t.side===c.side);
+  const expo=sameSide.reduce((s,t)=>s+(t.amount||0)*(t.multiplier||CFG.multiplier),0);
+  const newExpo=c.stake*CFG.multiplier;
+  if(b>0&&(expo+newExpo)>b*CFG.portfolioCapPerSide*4)return{ok:false,why:'exposure'};
+  return{ok:true};
+}
+function sizeStake(){
+  const b=bal();
+  if(b<=0)return 0.35;
+  return Math.max(0.35,Number((b*CFG.riskPerTrade).toFixed(2)));
+}
+
+function fire(c){
+  const chk=riskCheck(c);
+  if(!chk.ok){chip(c.sym,'ready');return false;}
+  const stake=sizeStake();
+  const entry=c.ens.entry;
+  const atr=c.ens.atr||0;
+  let sl,tp;
+  if(c.side==='BUY'){sl=entry-CFG.slAtrMult*atr;tp=entry+CFG.tpAtrMult*atr;}
+  else{sl=entry+CFG.slAtrMult*atr;tp=entry-CFG.tpAtrMult*atr;}
+  const pid=Date.now()+Math.floor(Math.random()*1000);
+  const bid=pid+1;
+  const ct=c.side==='BUY'?'MULTUP':'MULTDOWN';
+  const cur=(typeof window.currentCurrency==='function')?window.currentCurrency():'USD';
+
+  log('🔥 '+c.side+' '+c.sym+' | ثقة '+c.ens.confidence+'% | $'+stake+' | SL '+sl.toFixed(4)+' | TP '+tp.toFixed(4),
+    c.side==='BUY'?'var(--green)':'var(--red)');
+
+  // attach probe handler
+  const onProp=(ev)=>{
+    let m;try{m=JSON.parse(ev.data);}catch(e){return;}
+    if(m.req_id!==pid)return;
+    try{ST.ws.removeEventListener('message',onProp);}catch(e){}
+    if(m.error){log('probe: '+(m.error.message||''),'var(--red)');return;}
+    if(m.msg_type!=='proposal'||!m.proposal||!m.proposal.id)return;
+    const ask=parseFloat(m.proposal.ask_price)||stake;
+
+    // payout/ROI check (Multipliers: roi is on center size — we just accept if not blocked)
+    const onBuy=(ev2)=>{
+      let m2;try{m2=JSON.parse(ev2.data);}catch(e){return;}
+      if(m2.req_id!==bid)return;
+      try{ST.ws.removeEventListener('message',onBuy);}catch(e){}
+      if(m2.error||m2.msg_type!=='buy'||!m2.buy){
+        log('buy: '+((m2.error&&m2.error.message)||'failed'),'var(--red)');return;}
+      const cid=m2.buy.contract_id;
+      const tid=Date.now()+Math.floor(Math.random()*1000);
+      const trade={
+        id:tid, contractId:cid, hunter:true, smart:true,
+        symbol:c.sym, side:c.side,
+        amount:stake, multiplier:CFG.multiplier,
+        centerSize:stake*CFG.multiplier,
+        openPrice:entry, buyPrice:parseFloat(m2.buy.buy_price)||ask,
+        slInitial:sl, tpInitial:tp, slCurrent:sl, tpCurrent:tp,
+        entryAtr:atr, confidence:c.ens.confidence,
+        voters:c.ens.voters.map(v=>({family:v.family,confidence:v.confidence,reasons:v.reasons})),
+        status:'pending', openedAt:Date.now(),
+        time:new Date().toLocaleTimeString('ar-EG')
+      };
+      state.activeTrades.push(trade);
+      state.contractMap[cid]=tid;
+      try{window.renderActiveTrades&&window.renderActiveTrades();}catch(e){}
+      try{ST.ws.send(JSON.stringify({proposal_open_contract:1,contract_id:cid,subscribe:1,req_id:bid+1}));}catch(e){}
+      ST.daily++;ST.cooldown[c.sym]=Date.now();
+      chip(c.sym,c.side==='BUY'?'buy':'sell');
+      log('✅ فُتح مركز '+c.sym+' — #'+cid,'var(--green)');
+    };
+    ST.ws.addEventListener('message',onBuy);
+    setTimeout(()=>{try{ST.ws.removeEventListener('message',onBuy);}catch(e){}},20000);
+    try{ST.ws.send(JSON.stringify({buy:m.proposal.id,price:m.proposal.ask_price,req_id:bid}));}catch(e){}
+  };
+  ST.ws.addEventListener('message',onProp);
+  setTimeout(()=>{try{ST.ws.removeEventListener('message',onProp);}catch(e){}},8000);
+
+  try{
+    ST.ws.send(JSON.stringify({
+      proposal:1, amount:stake, basis:'stake', contract_type:ct,
+      currency:cur, multiplier:CFG.multiplier,
+      underlying_symbol:c.sym,
+      limit_order:{ stop_loss:Number(sl.toFixed(6)), take_profit:Number(tp.toFixed(6)) },
+      req_id:pid
+    }));
+  }catch(e){log('proposal send: '+e.message,'var(--red)');return false;}
+  return true;
+}
+
+/* ============ SCAN LOOP ============ */
+function tick(){
+  if(!ST.running)return;
+  if(dk()!==ST.dayKey){ST.dayKey=dk();ST.daily=0;ST.lossStreak={};}
+  if(Date.now()<ST.pausedUntil){setState('إيقاف '+Math.ceil((ST.pausedUntil-Date.now())/60000)+'د','err');return;}
+  if(!state.derivLinked||!state.derivWS){setState('Deriv غير مربوط','err');return;}
+  ST.scans++;
+  const cands=[];
+  for(const s of SYMS){
+    const a=analyze(s,ST.data[s]);
+    if(!a){chip(s,'');continue;}
+    if(!a.ens){chip(s,a.partial&&(a.partial.b>=2||a.partial.s>=2)?'ready':'');continue;}
+    chip(s,'ready');
+    cands.push({...a,stake:sizeStake()});
+  }
+  if(!cands.length){setState('فحص #'+ST.scans+' — لا توافق 3/4','');stats();return;}
+  cands.sort((a,b)=>b.ens.confidence-a.ens.confidence);
+  let f=0;
+  for(const c of cands){
+    if(c.ens.confidence<CFG.minConfidence)continue;
+    if(fire(c))f++;
+    if(f>=2)break;
+  }
+  setState(f?'أطلق '+f:'مرشح محجوب',f?'on':'');stats();
+}
+
+/* ============ POSITION MANAGER ============ */
+setInterval(()=>{
+  if(!ST.running)return;
+  const now=Date.now();
+  const trades=(state.activeTrades||[]).filter(t=>t.hunter);
+  for(const t of trades){
+    // time exit
+    if(now-t.openedAt>CFG.timeExitMs){
+      closePosition(t,'time exit');
+      continue;
+    }
+    // trailing stop: if liveProfit > 1.5 * atr * multiplier effect, move SL to break-even
+    if(typeof t.liveProfit==='number'&&typeof t.entryAtr==='number'&&t.entryAtr>0){
+      const stake=t.amount||1;
+      const beThreshold=stake*0.5;  // ربح يعادل 50% من المخاطرة
+      if(t.liveProfit>=beThreshold&&!t.slMoved){
+        const newSL=t.openPrice;
+        try{
+          ST.ws.send(JSON.stringify({
+            contract_update:1, contract_id:t.contractId,
+            limit_order:{ stop_loss:Number(newSL.toFixed(6)) },
+            req_id:Date.now()
+          }));
+          t.slCurrent=newSL;t.slMoved=true;
+          log('🔒 SL → break-even '+t.symbol,'var(--gold)');
+        }catch(e){}
+      }
+    }
+  }
+},5000);
+
+function closePosition(t,reason){
+  if(!t||!t.contractId)return;
+  try{
+    ST.ws.send(JSON.stringify({sell:t.contractId,price:0,req_id:Date.now()}));
+    log('🔻 إغلاق '+t.symbol+' — '+(reason||'manual'),'var(--gold)');
+  }catch(e){log('close fail: '+e.message,'var(--red)');}
+}
+
+/* ============ SETTLEMENT ============ */
+const _prevSettle=window.settleTradeFromDeriv;
+window.settleTradeFromDeriv=function(contract){
+  try{
+    const FINAL=['sold','won','lost','cancelled'];
+    if(contract&&FINAL.includes(contract.status)&&contract.contract_id){
+      const tid=state.contractMap[contract.contract_id];
+      if(tid){
+        const idx=(state.activeTrades||[]).findIndex(x=>x.id===tid);
+        if(idx>=0){
+          const t=state.activeTrades[idx];
+          const profit=parseFloat(contract.profit)||0;
+          const won=profit>0;
+          t.status=won?'win':'loss';
+          t.pnl=profit;
+          t.exitPrice=parseFloat(contract.exit_tick)||parseFloat(contract.current_spot)||null;
+          t.exitReason=contract.status;
+          // CB
+          if(window.kzCB&&kzCB.record)kzCB.record(won,profit);
+          // loss streak
+          if(won)ST.lossStreak[t.symbol]=0;
+          else{
+            ST.lossStreak[t.symbol]=(ST.lossStreak[t.symbol]||0)+1;
+            if(ST.lossStreak[t.symbol]>=3){
+              ST.pausedUntil=Date.now()+60*60*1000;
+              log('⏸ إيقاف ساعة — 3 خسارات على '+t.symbol,'var(--gold)');
+            }
+          }
+          state.history.unshift({...t});
+          state.activeTrades.splice(idx,1);
+          delete state.contractMap[contract.contract_id];
+          if(won){state.wins=(state.wins||0)+1;state.profit=(state.profit||0)+profit;}
+          else{state.loss=(state.loss||0)+Math.abs(profit);}
+          state.totalTrades=(state.totalTrades||0)+1;
+          try{window.renderActiveTrades&&window.renderActiveTrades();}catch(e){}
+          try{window.renderHistory&&window.renderHistory();}catch(e){}
+          log((won?'✓ ربح ':'✗ خسارة ')+t.symbol+' '+(profit>=0?'+':'')+'$'+profit.toFixed(2),
+            won?'var(--green)':'var(--red)');
+          try{if(window.saveCurrentUser)window.saveCurrentUser();}catch(e){}
         }
       }
-    } catch(e) {}
-  }
-  wasDead = isDead;
-}, 2000);
-
-console.log('[D] WS watchdog + badge active');
-})();
-</script>
-<!-- ====== END D ====== -->
-  <!-- ====== E: Correlation Guard + Momentum fix ====== -->
-<script>
-(function(){
-'use strict';
-if (window._kzCorrFix) return;
-window._kzCorrFix = true;
-
-/* --- 1. رصد آخر صفقتين — إن كانتا نفس الاتجاه خلال 90 ثانية، ارفض الثالثة --- */
-const recentFires = [];  // { sym, side, ts, amount }
-
-const _origSend = window.sendProposal;
-window.sendProposal = function(opts) {
-  if (!opts || opts.hunter !== true) return _origSend.apply(this, arguments);
-
-  const now = Date.now();
-  // نظّف القديم
-  while (recentFires.length && now - recentFires[0].ts > 90000) recentFires.shift();
-
-  // احسب التعرض الحالي على نفس الاتجاه
-  const sameSide = recentFires.filter(f => f.side === opts.side);
-  const sameSideAmt = sameSide.reduce((s, f) => s + f.amount, 0);
-
-  // بوابة 1: لا تفتح أكثر من صفقتين على نفس الاتجاه في 90 ثانية
-  if (sameSide.length >= 2) {
-    console.warn('[CORR] blocked: 2 same-side fires in 90s', opts.side);
-    try {
-      const log = document.getElementById('hunter-log');
-      if (log) {
-        const e = log.querySelector('.hunter-log-empty'); if (e) e.remove();
-        const d = document.createElement('div');
-        d.className = 'hunter-log-line';
-        d.style.color = 'var(--gold)';
-        d.textContent = '[' + new Date().toLocaleTimeString('ar-EG') + '] ⛔ حجب ' + opts.symbol + ' — تعرض مترابط';
-        log.prepend(d);
-      }
-    } catch(e){}
-    return;
-  }
-
-  // بوابة 2: لا تفتح أكثر من 1.2% من الرصيد على نفس الاتجاه
-  const bal = parseFloat(state.derivAccount && state.derivAccount.balance) || 0;
-  if (bal > 0 && (sameSideAmt + opts.amount) > bal * 0.012) {
-    const remaining = Math.max(0.35, bal * 0.012 - sameSideAmt);
-    if (remaining < 0.35) {
-      console.warn('[CORR] blocked: side exposure cap');
-      return;
     }
-    opts.amount = Number(remaining.toFixed(2));
-  }
-
-  // بوابة 3: توزيع زمني — لا صفقتان خلال 20 ثانية
-  const lastFire = recentFires[recentFires.length - 1];
-  if (lastFire && now - lastFire.ts < 20000) {
-    console.warn('[CORR] blocked: too fast (', (now-lastFire.ts)/1000, 's)');
-    return;
-  }
-
-  recentFires.push({ sym: opts.symbol, side: opts.side, ts: now, amount: opts.amount });
-  return _origSend.apply(this, arguments);
+  }catch(e){console.warn('[H4 settle]',e);}
+  if(typeof _prevSettle==='function'){try{return _prevSettle.apply(this,arguments);}catch(e){}}
 };
 
-/* --- 2. إصلاح MOMENTUM: لا SELL و RSI < 40 (سكين ساقطة) --- */
-/* نعرّض دالة patch لـ STRATS عبر اعتراض calculateSignal */
-const _origH3 = window._hunterV3;
-if (_origH3 && _origH3.api && _origH3.api.state) {
-  // موجود، لكن F3 مغلقة داخل closure. الحل: طبقة حماية فوق fire
-  // عبر فحص حالة السوق قبل التنفيذ — محاكاة
-  const _origTick = setInterval;  // لا نستبدل tick، نراقب بدلاً
+/* Manual close button listener */
+document.addEventListener('click',(e)=>{
+  const btn=e.target.closest&&e.target.closest('[data-close-contract]');
+  if(!btn)return;
+  const cid=btn.getAttribute('data-close-contract');
+  const t=(state.activeTrades||[]).find(x=>String(x.contractId)===String(cid));
+  if(t)closePosition(t,'manual');
+});
+
+/* ============ CONTROL ============ */
+function start(){
+  if(ST.running)return;
+  if(!state.derivLinked||!state.derivWS){alert('اربط Deriv أولاً');return;}
+  ST.running=true;ST.scans=0;ST.pausedUntil=0;
+  openWS();
+  ST.timer=setInterval(tick,CFG.scanMs);
+  const p=$('hunter-panel');if(p)p.classList.add('on');
+  if($('hunter-btn-txt'))$('hunter-btn-txt').textContent='إيقاف HUNTER v4';
+  setState('يعمل','on');
+  log('HUNTER v4 — 7 رموز × 3 فريمات × 4 عائلات | '+CFG.multiplier+'x | SL '+CFG.slAtrMult+' ATR | TP '+CFG.tpAtrMult+' ATR','var(--purple)');
+  setTimeout(tick,5000);
 }
-// بديل: نراقب activeTrades ونغلق يدوياً إذا RSI كان متطرفاً
-// (لكن Deriv لا يدعم الإغلاق المبكر في binary options — لا يمكن)
-
-/* --- 3. Reduced size للصفقات المتزامنة --- */
-// size في v3 ثابت. نُصغّره في sendProposal أعلاه عبر cap.
-
-/* --- 4. Badge جديد --- */
-function corrBadge() {
-  let el = document.getElementById('kz-corr-badge');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'kz-corr-badge';
-    el.style.cssText = 'position:fixed;top:100px;left:16px;z-index:99995;background:rgba(15,18,24,0.92);border:1px solid rgba(212,175,55,0.35);border-radius:8px;padding:6px 12px;font-family:Courier New,monospace;font-size:11px;color:#e8eaf0;box-shadow:0 2px 12px rgba(0,0,0,0.5);';
-    document.body.appendChild(el);
-  }
-  const now = Date.now();
-  const recent = recentFires.filter(f => now - f.ts < 90000);
-  const b = recent.filter(f => f.side === 'BUY').length;
-  const s = recent.filter(f => f.side === 'SELL').length;
-  el.style.borderColor = (b >= 2 || s >= 2) ? '#ef535088' : '#d4af5588';
-  el.innerHTML = '<span style="color:#8a90a3;">CORR</span> ' +
-                 '<span style="color:' + (b>=2?'#ef5350':'#26a69a') + ';">BUY ' + b + '</span> ' +
-                 '<span style="color:' + (s>=2?'#ef5350':'#26a69a') + ';">SELL ' + s + '</span>';
+function stop(){
+  ST.running=false;
+  if(ST.timer){clearInterval(ST.timer);ST.timer=null;}
+  if(ST.ws){try{ST.ws.close();}catch(e){}ST.ws=null;}
+  const p=$('hunter-panel');if(p)p.classList.remove('on');
+  if($('hunter-btn-txt'))$('hunter-btn-txt').textContent='تشغيل HUNTER v4';
+  setState('متوقف','');log('HUNTER v4 توقف','var(--text-dim)');
 }
-setInterval(corrBadge, 2000);
-setTimeout(corrBadge, 1500);
+window.hunterToggle=()=>ST.running?stop():start();
 
-console.log('[E] Correlation guard active');
-})();
-</script>
-<!-- ====== END E ====== -->
-<!-- ====== G: Exhaustion Veto ====== -->
-<script>
-(function(){
-'use strict';
-if (window._kzExhaustionVeto) return;
-window._kzExhaustionVeto = true;
+/* ============ INIT ============ */
+setTimeout(buildChips,1500);
+setTimeout(injectSlider,2000);
+setInterval(stats,3000);
+setTimeout(stats,2500);
 
-const _origSend = window.sendProposal;
-window.sendProposal = function(opts) {
-  if (!opts || opts.hunter !== true) return _origSend.apply(this, arguments);
-
-  try {
-    const H = window._hunterV3 && _hunterV3.api && _hunterV3.api.state;
-    if (!H || !H.data || !H.data[opts.symbol]) return _origSend.apply(this, arguments);
-    const d = H.data[opts.symbol];
-    if (!d.m1 || d.m1.length < 30) return _origSend.apply(this, arguments);
-
-    const closes = d.m1.map(c => c.close);
-    const r14 = calcRSI(closes, 14);
-    const r = r14[r14.length - 1];
-    const bb = calcBB(closes, 20, 2);
-    if (!bb.upper.length) return _origSend.apply(this, arguments);
-    const up = bb.upper[bb.upper.length - 1].value;
-    const lo = bb.lower[bb.lower.length - 1].value;
-    const p = closes[closes.length - 1];
-    const atr = calcATR(closes, d.m1.map(c=>c.high), d.m1.map(c=>c.low), 14);
-    const atrV = atr[atr.length - 1];
-
-    // === Veto SELL if oversold at BB lower ===
-    if (opts.side === 'SELL') {
-      const nearLower = p <= lo + 0.4 * atrV;
-      if (nearLower && r < 38) {
-        console.warn('[VETO-SELL] oversold exhaustion:', {r: r.toFixed(1), p: p.toFixed(4), lo: lo.toFixed(4)});
-        try {
-          const log = document.getElementById('hunter-log');
-          if (log) {
-            const e = log.querySelector('.hunter-log-empty'); if (e) e.remove();
-            const dl = document.createElement('div');
-            dl.className = 'hunter-log-line';
-            dl.style.color = 'var(--gold)';
-            dl.textContent = '[' + new Date().toLocaleTimeString('ar-EG') + '] 🛑 رفض بيع ' + opts.symbol + ' — إجهاد (RSI ' + r.toFixed(1) + ')';
-            log.prepend(dl);
-          }
-        } catch(e){}
-        return;
-      }
-    }
-
-    // === Veto BUY if overbought at BB upper ===
-    if (opts.side === 'BUY') {
-      const nearUpper = p >= up - 0.4 * atrV;
-      if (nearUpper && r > 62) {
-        console.warn('[VETO-BUY] overbought exhaustion:', {r: r.toFixed(1), p: p.toFixed(4), up: up.toFixed(4)});
-        try {
-          const log = document.getElementById('hunter-log');
-          if (log) {
-            const e = log.querySelector('.hunter-log-empty'); if (e) e.remove();
-            const dl = document.createElement('div');
-            dl.className = 'hunter-log-line';
-            dl.style.color = 'var(--gold)';
-            dl.textContent = '[' + new Date().toLocaleTimeString('ar-EG') + '] 🛑 رفض شراء ' + opts.symbol + ' — إجهاد (RSI ' + r.toFixed(1) + ')';
-            log.prepend(dl);
-          }
-        } catch(e){}
-        return;
-      }
-    }
-  } catch(e) { console.warn('[VETO] err', e.message); }
-
-  return _origSend.apply(this, arguments);
+window._kzH4.api={
+  start,stop,state:ST,config:CFG,
+  closePosition,
+  status:()=>({
+    running:ST.running,scans:ST.scans,daily:ST.daily,
+    minConf:CFG.minConfidence,minFamilies:CFG.minFamilies,
+    ready:SYMS.filter(s=>ST.data[s].r1&&ST.data[s].r3&&ST.data[s].r5).length,
+    active:(state.activeTrades||[]).filter(t=>t.hunter).length,
+    paused:ST.pausedUntil>Date.now()
+  })
 };
 
-console.log('[G] Exhaustion veto active');
+console.log('[HUNTER v4] part 3/3 — engine + Multipliers execution active');
 })();
 </script>
-<!-- ====== END G ====== -->
-<!-- ====== H: Force 1m Duration ====== -->
+<!-- ===== END HUNTER v4 ===== -->
+ <!-- ===== KANZER SOUNDS ===== -->
 <script>
 (function(){
 'use strict';
-if (window._kzForce1m) return;
-window._kzForce1m = true;
+if(window._kzSounds) return; window._kzSounds=true;
 
-const _origSend = window.sendProposal;
-window.sendProposal = function(opts){
-  if (opts && opts.hunter === true && opts.duration !== 1) {
-    console.log('[H] forcing duration: ' + opts.duration + 'm → 1m for ' + opts.symbol);
-    opts.duration = 1;
+let ctx=null;
+function ensure(){
+  if(ctx) return true;
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC) return false;
+    ctx=new AC();
+    return true;
+  }catch(e){return false;}
+}
+function resume(){
+  if(!ensure()) return;
+  if(ctx.state==='suspended') ctx.resume().catch(()=>{});
+}
+document.addEventListener('click',resume,{once:true});
+
+function tone(freq,start,dur,vol,type){
+  if(!ctx) return;
+  const o=ctx.createOscillator();
+  const g=ctx.createGain();
+  o.type=type||'sine';
+  o.frequency.value=freq;
+  g.gain.value=0;
+  o.connect(g); g.connect(ctx.destination);
+  const t0=ctx.currentTime+start;
+  g.gain.setValueAtTime(0,t0);
+  g.gain.linearRampToValueAtTime(vol,t0+0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.start(t0);
+  o.stop(t0+dur+0.05);
+}
+
+/* 1 — صوت الفرصة القادمة: نغمتان تصاعديتان (دينغ دينغ) */
+window.kzSoundOpportunity=function(){
+  resume();
+  tone(880,0,0.12,0.20);
+  tone(1175,0.14,0.18,0.22);
+};
+
+/* 2 — صوت الربح: ثلاث نغمات صاعدة (فانفير) */
+window.kzSoundWin=function(){
+  resume();
+  tone(784,0,0.10,0.20);   // G
+  tone(1047,0.10,0.10,0.22); // C
+  tone(1319,0.20,0.22,0.25); // E
+  tone(1568,0.32,0.30,0.22); // G (octave)
+};
+
+/* 3 — صوت الخسارة: نغمة هابطة واحدة (buzz خفيف) */
+window.kzSoundLoss=function(){
+  resume();
+  tone(330,0,0.18,0.18,'triangle');
+  tone(220,0.16,0.30,0.20,'triangle');
+};
+
+/* 4 — صوت بدء التشغيل: نغمة صاعدة قوية */
+window.kzSoundStart=function(){
+  resume();
+  tone(523,0,0.12,0.18);   // C
+  tone(659,0.12,0.12,0.20); // E
+  tone(880,0.24,0.30,0.24); // A
+};
+
+/* ============ HOOKS ============ */
+/* Hook 4: عند تشغيل HUNTER */
+const _origToggle=window.hunterToggle;
+if(typeof _origToggle==='function'){
+  window.hunterToggle=function(){
+    const wasRunning=window._kzH4&&_kzH4.api&&_kzH4.api.state&&_kzH4.api.state.running;
+    const r=_origToggle.apply(this,arguments);
+    const isRunning=window._kzH4&&_kzH4.api&&_kzH4.api.state&&_kzH4.api.state.running;
+    if(!wasRunning&&isRunning) try{window.kzSoundStart();}catch(e){}
+    return r;
+  };
+}
+
+/* Hook 1: عند ظهور فرصة (صفقة جديدة) */
+const _origRender=window.renderActiveTrades;
+let lastActiveCount=0;
+setInterval(()=>{
+  try{
+    const n=(state.activeTrades||[]).filter(t=>t.hunter).length;
+    if(n>lastActiveCount){
+      // صفقة جديدة ظهرت
+      try{window.kzSoundOpportunity();}catch(e){}
+    }
+    lastActiveCount=n;
+  }catch(e){}
+},700);
+
+/* Hook 2 & 3: عند التسوية (ربح/خسارة) */
+const _origSettle2=window.settleTradeFromDeriv;
+if(typeof _origSettle2==='function'){
+  window.settleTradeFromDeriv=function(contract){
+    let played=false;
+    try{
+      const FINAL=['sold','won','lost','cancelled'];
+      if(contract&&FINAL.includes(contract.status)&&contract.contract_id){
+        const profit=parseFloat(contract.profit)||0;
+        const won=profit>0;
+        if(won){try{window.kzSoundWin();}catch(e){}}
+        else{try{window.kzSoundLoss();}catch(e){}}
+        played=true;
+      }
+    }catch(e){}
+    return _origSettle2.apply(this,arguments);
+  };
+}
+
+console.log('[SOUNDS] 4 alerts loaded');
+})();
+</script>
+<!-- ===== END SOUNDS ===== -->
+  <!-- ===== KANZER v4 — AI BUTTON ===== -->
+<style>
+#kz-ai-btn-wrap{
+  display:flex;align-items:center;justify-content:center;
+  padding:30px 0 20px;position:relative;
+}
+#kz-ai-btn{
+  position:relative;width:160px;height:160px;border-radius:50%;
+  border:none;cursor:pointer;background:transparent;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform 0.3s;
+}
+#kz-ai-btn:active{transform:scale(0.94);}
+
+/* الحلقة الخارجية */
+#kz-ai-ring-outer{
+  position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(from 0deg,
+    rgba(155,109,255,0.0) 0deg,
+    rgba(155,109,255,0.9) 90deg,
+    rgba(0,212,255,0.9) 180deg,
+    rgba(155,109,255,0.0) 270deg,
+    rgba(155,109,255,0.0) 360deg);
+  animation:spin-ring 3s linear infinite;
+  filter:blur(0.5px);
+  opacity:0.9;
+  transition:opacity 0.4s;
+}
+#kz-ai-btn.idle #kz-ai-ring-outer{opacity:0.35;animation-duration:8s;}
+#kz-ai-btn.active #kz-ai-ring-outer{opacity:1;animation-duration:1.6s;}
+
+/* الحلقة الوسطى */
+#kz-ai-ring-mid{
+  position:absolute;inset:8px;border-radius:50%;
+  background:conic-gradient(from 180deg,
+    rgba(0,212,255,0.9),
+    rgba(155,109,255,0.6),
+    rgba(212,175,55,0.9),
+    rgba(0,212,255,0.9));
+  animation:spin-ring-rev 5s linear infinite;
+  filter:blur(4px);
+  opacity:0.6;
+}
+#kz-ai-btn.active #kz-ai-ring-mid{animation-duration:2s;opacity:0.9;}
+
+/* القلب — مركز الزر */
+#kz-ai-core{
+  position:relative;width:120px;height:120px;border-radius:50%;
+  background:radial-gradient(circle at 30% 30%,
+    rgba(155,109,255,0.9) 0%,
+    rgba(90,60,180,0.8) 45%,
+    rgba(15,18,24,0.98) 100%);
+  border:1.5px solid rgba(155,109,255,0.6);
+  box-shadow:
+    inset 0 0 30px rgba(155,109,255,0.4),
+    inset 0 0 60px rgba(0,212,255,0.15),
+    0 0 40px rgba(155,109,255,0.5);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:all 0.4s;
+  z-index:2;
+}
+#kz-ai-btn.active #kz-ai-core{
+  background:radial-gradient(circle at 30% 30%,
+    rgba(38,166,154,0.95) 0%,
+    rgba(0,180,140,0.8) 45%,
+    rgba(15,18,24,0.98) 100%);
+  border-color:rgba(38,166,154,0.8);
+  box-shadow:
+    inset 0 0 40px rgba(38,166,154,0.6),
+    inset 0 0 80px rgba(38,166,154,0.25),
+    0 0 60px rgba(38,166,154,0.7);
+  animation:core-pulse 1.4s ease-in-out infinite;
+}
+
+/* نص داخل القلب */
+#kz-ai-icon{
+  font-size:32px;line-height:1;
+  margin-bottom:6px;
+  filter:drop-shadow(0 0 8px rgba(255,255,255,0.6));
+  transition:transform 0.4s;
+}
+#kz-ai-btn.active #kz-ai-icon{animation:icon-breathe 1.4s ease-in-out infinite;}
+
+#kz-ai-label{
+  font-size:11px;font-weight:900;letter-spacing:1.5px;
+  color:#e8eaf0;text-transform:uppercase;
+  font-family:'Courier New',monospace;
+  text-shadow:0 0 6px rgba(255,255,255,0.5);
+}
+#kz-ai-btn.active #kz-ai-label{color:#26a69a;text-shadow:0 0 8px rgba(38,166,154,0.8);}
+
+/* نقاط النشاط (مثل الذكاء الاصطناعي يتكلم) */
+#kz-ai-dots{
+  position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
+  display:none;gap:4px;z-index:3;
+}
+#kz-ai-btn.active #kz-ai-dots{display:flex;}
+#kz-ai-dots span{
+  width:5px;height:5px;border-radius:50%;background:#26a69a;
+  box-shadow:0 0 6px #26a69a;
+  animation:dot-bounce 1.2s ease-in-out infinite;
+}
+#kz-ai-dots span:nth-child(2){animation-delay:0.15s;}
+#kz-ai-dots span:nth-child(3){animation-delay:0.3s;}
+#kz-ai-dots span:nth-child(4){animation-delay:0.45s;}
+
+/* هالة خارجية تنبض عند التشغيل */
+#kz-ai-halo{
+  position:absolute;inset:-20px;border-radius:50%;
+  background:radial-gradient(circle,rgba(38,166,154,0.35) 0%,transparent 65%);
+  opacity:0;pointer-events:none;z-index:0;
+}
+#kz-ai-btn.active #kz-ai-halo{animation:halo-pulse 1.8s ease-in-out infinite;}
+
+/* حالة "التفكير" — تحليل نشط */
+#kz-ai-btn.thinking #kz-ai-ring-outer{animation-duration:0.8s;opacity:1;}
+
+/* ============ ANIMATIONS ============ */
+@keyframes spin-ring{to{transform:rotate(360deg);}}
+@keyframes spin-ring-rev{to{transform:rotate(-360deg);}}
+@keyframes core-pulse{
+  0%,100%{transform:scale(1);}
+  50%{transform:scale(1.05);}
+}
+@keyframes icon-breathe{
+  0%,100%{transform:scale(1);opacity:1;}
+  50%{transform:scale(1.15);opacity:0.85;}
+}
+@keyframes dot-bounce{
+  0%,80%,100%{transform:translateY(0);opacity:0.4;}
+  40%{transform:translateY(-6px);opacity:1;}
+}
+@keyframes halo-pulse{
+  0%,100%{opacity:0.4;transform:scale(1);}
+  50%{opacity:0.9;transform:scale(1.15);}
+}
+
+/* نص صغير أسفل الزر */
+#kz-ai-status{
+  position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);
+  font-size:10px;font-family:'Courier New',monospace;letter-spacing:1.5px;
+  color:var(--text-dim);text-transform:uppercase;white-space:nowrap;
+}
+#kz-ai-btn.active ~ #kz-ai-status{color:#26a69a;}
+
+@media(max-width:500px){
+  #kz-ai-btn{width:140px;height:140px;}
+  #kz-ai-core{width:104px;height:104px;}
+  #kz-ai-icon{font-size:26px;}
+  #kz-ai-label{font-size:10px;}
+}
+</style>
+
+<script>
+(function(){
+'use strict';
+if(window._kzAiBtn) return; window._kzAiBtn=true;
+
+function build(){
+  const oldBtn=document.getElementById('hunter-toggle');
+  if(!oldBtn) return setTimeout(build,800);
+
+  // احذف الزر القديم وحافظ على المعرّف
+  const parent=oldBtn.parentNode;
+  const oldTxt=document.getElementById('hunter-btn-txt');
+
+  // اكتشف الحالة
+  const isRunning=window._kzH4&&_kzH4.api&&_kzH4.api.state&&_kzH4.api.state.running;
+
+  const wrap=document.createElement('div');
+  wrap.id='kz-ai-btn-wrap';
+
+  const btn=document.createElement('button');
+  btn.id='kz-ai-btn';
+  btn.className=isRunning?'active':'idle';
+  btn.setAttribute('aria-label','HUNTER v4 AI Toggle');
+  btn.innerHTML=
+    '<div id="kz-ai-halo"></div>'+
+    '<div id="kz-ai-ring-outer"></div>'+
+    '<div id="kz-ai-ring-mid"></div>'+
+    '<div id="kz-ai-core">'+
+      '<div id="kz-ai-icon">🤖</div>'+
+      '<div id="kz-ai-label">START</div>'+
+      '<div id="kz-ai-dots"><span></span><span></span><span></span><span></span></div>'+
+    '</div>';
+
+  const status=document.createElement('div');
+  status.id='kz-ai-status';
+  status.textContent=isRunning?'AI RUNNING':'AI IDLE';
+
+  wrap.appendChild(btn);
+  wrap.appendChild(status);
+
+  // استبدل
+  oldBtn.replaceWith(wrap);
+
+  // استمع للنقر
+  btn.addEventListener('click',()=>{
+    try{ if(typeof window.hunterToggle==='function') window.hunterToggle(); }catch(e){}
+    // حالة التفكير الفورية
+    btn.classList.add('thinking');
+    setTimeout(()=>btn.classList.remove('thinking'),600);
+    setTimeout(sync,300);
+  });
+
+  // مزامنة الحالة دورياً
+  function sync(){
+    const running=window._kzH4&&_kzH4.api&&_kzH4.api.state&&_kzH4.api.state.running;
+    if(running){
+      btn.classList.add('active');btn.classList.remove('idle');
+      btn.querySelector('#kz-ai-label').textContent='STOP';
+      status.textContent='AI RUNNING';
+    } else {
+      btn.classList.add('idle');btn.classList.remove('active');
+      btn.querySelector('#kz-ai-label').textContent='START';
+      status.textContent='AI IDLE';
+    }
   }
-  return _origSend.apply(this, arguments);
-};
+  setInterval(sync,1000);
+  sync();
 
-console.log('[H] force 1m duration active');
+  console.log('[AI BTN] built');
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(build,1200));
+else setTimeout(build,1200);
 })();
 </script>
-<!-- ====== END H ====== -->
-</body> 
+<!-- ===== END AI BUTTON ===== -->
+</body>
 </html>
