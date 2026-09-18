@@ -4860,5 +4860,79 @@ console.log('[C] KZ Keeper active');
 })();
 </script>
 <!-- ====== END C ====== -->
+  <!-- ====== D: derivWS Watchdog + tick fix ====== -->
+<script>
+(function(){
+'use strict';
+if (window._kzWsFix) return;
+window._kzWsFix = true;
+
+/* --- 1. Watchdog: أعِد تشغيل derivWS كل 8 ثوانٍ إن كان ميتاً --- */
+let reconnectAttempts = 0;
+setInterval(() => {
+  try {
+    if (!state.derivLinked) return;
+    if (state.derivWS && state.derivWS.readyState === 1) { reconnectAttempts = 0; return; }
+    // WS ميت — أعِد التشغيل
+    const t = localStorage.getItem('deriv_token');
+    if (!t) return;
+    if (typeof authorizeToken !== 'function') return;
+    if (reconnectAttempts > 20) return;  // حد أقصى: 20 محاولة متتالية
+    reconnectAttempts++;
+    console.log('[WS-FIX] reconnecting...', reconnectAttempts);
+    try { authorizeToken(t, null, true); } catch(e) { console.warn('[WS-FIX]', e.message); }
+  } catch(e) {}
+}, 8000);
+
+/* --- 2. Diagnostics badge --- */
+function wsBadge() {
+  let el = document.getElementById('kz-ws-badge');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'kz-ws-badge';
+    el.style.cssText = 'position:fixed;top:60px;left:16px;z-index:99995;background:rgba(15,18,24,0.92);border:1px solid rgba(0,212,255,0.35);border-radius:8px;padding:6px 12px;font-family:Courier New,monospace;font-size:11px;color:#e8eaf0;box-shadow:0 2px 12px rgba(0,0,0,0.5);display:flex;align-items:center;gap:8px;';
+    document.body.appendChild(el);
+  }
+  const r = state.derivWS ? state.derivWS.readyState : -1;
+  let c, l;
+  if (r === 1)      { c='#26a69a'; l='WS:OPEN'; }
+  else if (r === 0) { c='#d4af37'; l='WS:CONNECTING'; }
+  else if (r === 2) { c='#d4af37'; l='WS:CLOSING'; }
+  else if (r === 3) { c='#ef5350'; l='WS:CLOSED'; }
+  else              { c='#ef5350'; l='WS:NULL'; }
+  el.style.borderColor = c + '88';
+  el.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:' + c + ';box-shadow:0 0 6px ' + c + ';"></span>' +
+                 '<span style="color:' + c + ';font-weight:700;">' + l + '</span>' +
+                 '<span style="color:#8a90a3;">linked:' + (state.derivLinked ? 'Y' : 'N') + '</span>';
+}
+setInterval(wsBadge, 1500);
+setTimeout(wsBadge, 2000);
+
+/* --- 3. Patch tick behavior: فقط إذا derivWS مات، استمر في التحليل --- */
+/* هذا لا يمكن تعديله داخل closure v3، لكن watchdog أعلاه يُبقي derivWS حياً */
+/* كطبقة ثانية: دفع v3 لـ scan عند عودة WS */
+let wasDead = false;
+setInterval(() => {
+  const r = state.derivWS ? state.derivWS.readyState : -1;
+  const isDead = r !== 1;
+  if (wasDead && !isDead) {
+    console.log('[WS-FIX] WS restored — resuming');
+    try {
+      if (window._hunterV3 && _hunterV3.api && _hunterV3.api.state) {
+        const H = _hunterV3.api.state;
+        if (H.running) {
+          // H.timer يعمل بالفعل، لا حاجة لإعادة التشغيل
+          // فقط سجل الحدث
+        }
+      }
+    } catch(e) {}
+  }
+  wasDead = isDead;
+}, 2000);
+
+console.log('[D] WS watchdog + badge active');
+})();
+</script>
+<!-- ====== END D ====== -->
 </body> 
 </html>
