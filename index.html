@@ -3749,697 +3749,290 @@ async function handleCallback() {
     setTimeout(() => { updateDerivUI(); connectWS(); authorizeToken(token); }, 1500);
   }
 })();
+</script>  
+  
 </script>
   <script>
 /* ══════════════════════════════════════════════════════════════════
-   KANZER AUDIO ENGINE v1.0 — Web Audio API, zero external files
-   6 distinct sounds: START · STOP · TARGET · WIN · LOSS · ANALYSIS
+   KANZER MULTI-SYMBOL SCANNER v2.0 — Self-Contained
+   5 symbols · highest-confidence auto-fire · no external deps
 ══════════════════════════════════════════════════════════════════ */
 (function () {
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC) { console.warn('[Audio] WebAudio unsupported'); return; }
-  let ctx = null, master = null, analysis = null;
+  'use strict';
+  const $ = id => document.getElementById(id);
 
-  function ensure() {
-    if (!ctx) {
-      ctx = new AC();
-      master = ctx.createGain();
-      master.gain.value = 0.32;
-      master.connect(ctx.destination);
-    }
-    if (ctx.state === 'suspended') ctx.resume();
-    return ctx;
-  }
+  const SYMBOLS = ['R_10', 'R_50', 'R_75', 'R_100', '1HZ100V'];
+  const NAME = { 'R_10':'V10','R_50':'V50','R_75':'V75','R_100':'V100','1HZ100V':'1HZ100' };
+  const GRAN = 60;
 
-  function tone(o) {
-    const c = ensure();
-    const osc = c.createOscillator();
-    const g = c.createGain();
-    osc.type = o.type || 'sine';
-    const t0 = c.currentTime + (o.when || 0);
-    const dur = o.dur || 0.2;
-    osc.frequency.setValueAtTime(o.freq, t0);
-    if (o.sweepTo) osc.frequency.exponentialRampToValueAtTime(o.sweepTo, t0 + dur);
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.linearRampToValueAtTime(o.vol || 0.25, t0 + 0.012);
-    g.gain.setValueAtTime(o.vol || 0.25, t0 + dur - 0.05);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    osc.connect(g); g.connect(master);
-    osc.start(t0); osc.stop(t0 + dur + 0.03);
-  }
-
-  function noise(dur, vol) {
-    const c = ensure();
-    const buf = c.createBuffer(1, c.sampleRate * dur, c.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
-    const src = c.createBufferSource(); src.buffer = buf;
-    const g = c.createGain(); g.gain.value = vol;
-    src.connect(g); g.connect(master);
-    src.start(c.currentTime);
-  }
-
-  const KZAudio = {
-    enabled: true,
-
-    /* 1 ─ START · power-up sweep */
-    playStart() {
-      if (!this.enabled) return;
-      tone({ freq: 196, sweepTo: 880, dur: 0.55, type: 'sawtooth', vol: 0.20 });
-      tone({ freq: 330, sweepTo: 1320, dur: 0.50, type: 'triangle', vol: 0.16, when: 0.08 });
-      tone({ freq: 880, dur: 0.18, type: 'sine', vol: 0.28, when: 0.55 });
-      tone({ freq: 1320, dur: 0.22, type: 'sine', vol: 0.20, when: 0.62 });
-    },
-
-    /* 2 ─ STOP · power-down */
-    playStop() {
-      if (!this.enabled) return;
-      tone({ freq: 880, sweepTo: 196, dur: 0.45, type: 'sawtooth', vol: 0.20 });
-      tone({ freq: 660, sweepTo: 110, dur: 0.55, type: 'triangle', vol: 0.16, when: 0.12 });
-      noise(0.35, 0.06);
-      tone({ freq: 220, dur: 0.30, type: 'sine', vol: 0.15, when: 0.55 });
-    },
-
-    /* 3 ─ TARGET HIT · triple high ping */
-    playTarget() {
-      if (!this.enabled) return;
-      [0, 0.11, 0.22].forEach((w, i) => {
-        tone({ freq: 1320 + i * 260, dur: 0.10, type: 'square', vol: 0.22, when: w });
-      });
-      tone({ freq: 2640, dur: 0.18, type: 'sine', vol: 0.12, when: 0.34 });
-    },
-
-    /* 4 ─ WIN · major arpeggio (C-E-G-C) */
-    playWin() {
-      if (!this.enabled) return;
-      const notes = [523.25, 659.25, 783.99, 1046.50];
-      notes.forEach((f, i) =>
-        tone({ freq: f, dur: 0.32, type: 'triangle', vol: 0.24, when: i * 0.095 })
-      );
-      tone({ freq: 523.25, dur: 0.55, type: 'sine', vol: 0.13, when: 0.38 });
-      tone({ freq: 783.99, dur: 0.55, type: 'sine', vol: 0.10, when: 0.38 });
-      tone({ freq: 1046.50, dur: 0.65, type: 'sine', vol: 0.09, when: 0.42 });
-    },
-
-    /* 5 ─ LOSS · descending minor 2nd + low drone */
-    playLoss() {
-      if (!this.enabled) return;
-      tone({ freq: 466.16, sweepTo: 440.00, dur: 0.28, type: 'triangle', vol: 0.22 });
-      tone({ freq: 440.00, sweepTo: 349.23, dur: 0.55, type: 'triangle', vol: 0.22, when: 0.26 });
-      tone({ freq: 261.63, dur: 0.55, type: 'sine', vol: 0.16, when: 0.75 });
-      tone({ freq: 130.81, dur: 0.85, type: 'sine', vol: 0.14, when: 0.78 });
-    },
-
-    /* 6 ─ ANALYSIS · continuous ambient pulse */
-    startAnalysis() {
-      if (!this.enabled || analysis) return;
-      const c = ensure();
-      const gain = c.createGain(); gain.gain.value = 0.0001; gain.connect(master);
-
-      const o1 = c.createOscillator(); o1.type = 'sine'; o1.frequency.value = 220;
-      const o2 = c.createOscillator(); o2.type = 'sine'; o2.frequency.value = 329.63;
-      const lfo = c.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 1.4;
-      const lfoGain = c.createGain(); lfoGain.gain.value = 0.05;
-      const modGain = c.createGain(); modGain.gain.value = 0.055;
-
-      lfo.connect(lfoGain); lfoGain.connect(modGain.gain);
-      o1.connect(modGain); o2.connect(modGain); modGain.connect(gain);
-
-      lfo.start(); o1.start(); o2.start();
-      gain.gain.linearRampToValueAtTime(0.085, c.currentTime + 0.4);
-      analysis = { o1, o2, lfo, gain };
-    },
-
-    stopAnalysis() {
-      if (!analysis || !ctx) return;
-      const a = analysis; analysis = null;
-      a.gain.gain.cancelScheduledValues(ctx.currentTime);
-      a.gain.gain.setValueAtTime(a.gain.gain.value, ctx.currentTime);
-      a.gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
-      setTimeout(() => {
-        try { a.o1.stop(); a.o2.stop(); a.lfo.stop(); a.gain.disconnect(); } catch (e) {}
-      }, 450);
-    },
-
-    /* Short blips */
-    playScanTick() { if (this.enabled) tone({ freq: 1760, dur: 0.035, type: 'sine', vol: 0.05 }); },
-    playSignal() {
-      if (!this.enabled) return;
-      tone({ freq: 880, dur: 0.07, type: 'square', vol: 0.14 });
-      tone({ freq: 1174.66, dur: 0.10, type: 'square', vol: 0.14, when: 0.07 });
-    },
-    playTradeFire() {
-      if (!this.enabled) return;
-      tone({ freq: 740, dur: 0.06, type: 'square', vol: 0.16 });
-      tone({ freq: 988, dur: 0.10, type: 'square', vol: 0.16, when: 0.06 });
-    },
-
-    setEnabled(v) { this.enabled = !!v; if (!v) this.stopAnalysis(); },
-    _ensure: ensure
-  };
-  window.KZAudio = KZAudio;
-
-  // Unlock on first gesture (browser autoplay policy)
-  ['click', 'touchstart', 'keydown'].forEach(evt =>
-    window.addEventListener(evt, () => ensure(), { once: true, passive: true })
-  );
-})();
-
-
-/* ══════════════════════════════════════════════════════════════════
-   KANZER SCALPING AI ENGINE v1.0
-   Micro-timeframe directional prediction for 1-minute binary options
-══════════════════════════════════════════════════════════════════ */
-(function () {
-  const $ = (id) => document.getElementById(id);
-
-  const SCAP = {
-    running: false,
+  const MS = {
+    running: false, ws: null,
+    candles: {}, prices: {}, results: {},
+    best: null, timer: null, activeTrade: null,
     cooldownUntil: 0,
-    lastFireTs: 0,
-    consecLosses: 0,
-    consecWins: 0,
-    dailyStart: Date.now(),
-    dailyStartBalance: 0,
-    pausedReason: null,
-    scanTimer: null,
-    activeTrade: null,
-    stats: { scans: 0, signals: 0, fired: 0, wins: 0, losses: 0 },
-    config: {
-      symbol: 'R_100',
-      granularity: 60,          // 1-minute candles
-      duration: 1, durationUnit: 'm',
-      stake: 1,
-      minConfidence: 68,
-      cooldownMs: 8000,         // min gap between entries
-      lossCooldownMs: 180000,   // 3min after a loss
-      maxConsecLosses: 3,
-      dailyLossCapPct: 5,       // % of start balance
-      lookback: 40,
-      emaFast: 3, emaMid: 8, emaSlow: 21,
-      rsiPeriod: 7,
-      atrPeriod: 14,
-      requireAlign: true,
-      minVolRatio: 0.6,
-      maxVolRatio: 1.9
-    },
-    last: null
+    stats: { scans:0, fired:0, wins:0, losses:0 },
+    config: { minConfidence: 68, cooldownMs: 8000, lossCooldownMs: 180000, stake: 1 }
   };
-  window._scap = SCAP;
+  window._multiScanner = MS;
 
-  /* ─── Math ─── */
-  function ema(a, p) {
-    if (!a.length) return [];
-    const k = 2 / (p + 1), out = [a[0]];
-    for (let i = 1; i < a.length; i++) out.push(a[i] * k + out[i - 1] * (1 - k));
-    return out;
-  }
-  function rsiCalc(a, p) {
-    const out = new Array(a.length).fill(50);
-    if (a.length < p + 1) return out;
-    let g = 0, l = 0;
-    for (let i = 1; i <= p; i++) { const d = a[i] - a[i - 1]; d > 0 ? g += d : l -= d; }
-    let ag = g / p, al = l / p;
-    out[p] = al === 0 ? 100 : 100 - 100 / (1 + ag / al);
-    for (let i = p + 1; i < a.length; i++) {
-      const d = a[i] - a[i - 1], gn = d > 0 ? d : 0, ls = d < 0 ? -d : 0;
-      ag = (ag * (p - 1) + gn) / p; al = (al * (p - 1) + ls) / p;
-      out[i] = al === 0 ? 100 : 100 - 100 / (1 + ag / al);
-    }
-    return out;
-  }
-  function atrOf(candles, p) {
-    if (candles.length < 2) return 0;
-    const trs = [];
-    for (let i = 1; i < candles.length; i++) {
-      const c = candles[i], pr = candles[i - 1];
-      trs.push(Math.max(c.high - c.low, Math.abs(c.high - pr.close), Math.abs(c.low - pr.close)));
-    }
-    const e = ema(trs, p);
-    return e[e.length - 1] || 0;
-  }
-  function stdev(a) {
-    const m = a.reduce((x, y) => x + y, 0) / a.length;
-    return Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / a.length);
-  }
+  const ema = (a,p) => { if(!a.length) return []; const k=2/(p+1), o=[a[0]]; for(let i=1;i<a.length;i++) o.push(a[i]*k+o[i-1]*(1-k)); return o; };
+  function rsiCalc(a,p){ const o=new Array(a.length).fill(50); if(a.length<p+1) return o; let g=0,l=0; for(let i=1;i<=p;i++){const d=a[i]-a[i-1]; d>0?g+=d:l-=d;} let ag=g/p, al=l/p; o[p]=al===0?100:100-100/(1+ag/al); for(let i=p+1;i<a.length;i++){const d=a[i]-a[i-1], gn=d>0?d:0, ls=d<0?-d:0; ag=(ag*(p-1)+gn)/p; al=(al*(p-1)+ls)/p; o[i]=al===0?100:100-100/(1+ag/al);} return o; }
+  function atrOf(c,p){ if(c.length<2) return 0; const t=[]; for(let i=1;i<c.length;i++){const x=c[i],y=c[i-1]; t.push(Math.max(x.high-x.low,Math.abs(x.high-y.close),Math.abs(x.low-y.close)));} const e=ema(t,p); return e[e.length-1]||0; }
+  const stdev = a => { const m=a.reduce((x,y)=>x+y,0)/a.length; return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/a.length); };
 
-  /* ─── Core Analysis ─── */
   function analyze(candles) {
-    const cfg = SCAP.config;
     const n = candles.length;
-    if (n < cfg.lookback) return null;
-
+    if (n < 40) return null;
     const closes = candles.map(c => c.close);
-    const opens = candles.map(c => c.open);
-    const price = closes[n - 1];
-
-    const e3 = ema(closes, cfg.emaFast);
-    const e8 = ema(closes, cfg.emaMid);
-    const e21 = ema(closes, cfg.emaSlow);
-    const r = rsiCalc(closes, cfg.rsiPeriod);
-    const atr = atrOf(candles, cfg.atrPeriod);
-
-    // avg ATR for regime detection
+    const opens  = candles.map(c => c.open);
+    const price  = closes[n-1];
+    const e3 = ema(closes,3), e8 = ema(closes,8), e21 = ema(closes,21);
+    const r = rsiCalc(closes,7);
+    const atr = atrOf(candles,14);
     const trs = [];
-    for (let i = 1; i < n; i++) {
-      const c = candles[i], pr = candles[i - 1];
-      trs.push(Math.max(c.high - c.low, Math.abs(c.high - pr.close), Math.abs(c.low - pr.close)));
-    }
-    const avgAtr = trs.slice(-30).reduce((a, b) => a + b, 0) / Math.min(30, trs.length);
-    const volRatio = avgAtr > 0 ? atr / avgAtr : 1;
-
-    const e3v = e3[n - 1], e8v = e8[n - 1], e21v = e21[n - 1];
-    const prevE3 = e3[n - 2], prevE8 = e8[n - 2];
-    const rsiV = r[n - 1], rsiPrev = r[n - 2] || rsiV, rsiSlope = rsiV - rsiPrev;
-
-    const microUp = e3v > e8v, microDn = e3v < e8v;
-    const macroUp = e8v > e21v, macroDn = e8v < e21v;
-
-    // momentum / velocity in ATR units
-    const vel3 = (closes[n - 1] - closes[n - 4]) / (atr || 1);
-    const vel5 = (closes[n - 1] - closes[n - 6]) / (atr || 1);
-
-    // candle streak
-    let upStreak = 0, dnStreak = 0;
-    for (let i = n - 1; i >= Math.max(0, n - 10); i--) {
-      if (closes[i] > opens[i]) { if (dnStreak > 0) break; upStreak++; }
-      else if (closes[i] < opens[i]) { if (upStreak > 0) break; dnStreak++; }
+    for (let i=1;i<n;i++){ const x=candles[i],y=candles[i-1]; trs.push(Math.max(x.high-x.low,Math.abs(x.high-y.close),Math.abs(x.low-y.close))); }
+    const avgAtr = trs.slice(-30).reduce((a,b)=>a+b,0)/Math.min(30,trs.length);
+    const volRatio = avgAtr>0 ? atr/avgAtr : 1;
+    const e3v=e3[n-1], e8v=e8[n-1], e21v=e21[n-1];
+    const prevE3=e3[n-2], prevE8=e8[n-2];
+    const rsiV=r[n-1], rsiPrev=r[n-2]||rsiV, rsiSlope=rsiV-rsiPrev;
+    const vel3 = (closes[n-1]-closes[n-4])/(atr||1);
+    let bull=0, bear=0;
+    if (e3v>e8v && e8v>e21v) bull += 2;
+    else if (e3v<e8v && e8v<e21v) bear += 2;
+    else if (e3v>e8v) bull += 0.5;
+    else if (e3v<e8v) bear += 0.5;
+    if (prevE3<=prevE8 && e3v>e8v) bull += 1.6;
+    if (prevE3>=prevE8 && e3v<e8v) bear += 1.6;
+    if (vel3>0.5) bull += 1.5;
+    else if (vel3>0.2) bull += 0.7;
+    else if (vel3<-0.5) bear += 1.5;
+    else if (vel3<-0.2) bear += 0.7;
+    if (rsiV>55 && rsiSlope>1) bull += 1;
+    else if (rsiV<45 && rsiSlope<-1) bear += 1;
+    else if (rsiV<25) bull += 0.8;
+    else if (rsiV>75) bear += 0.8;
+    let upStreak=0, dnStreak=0;
+    for (let i=n-1;i>=Math.max(0,n-10);i--){
+      if (closes[i]>opens[i]) { if(dnStreak>0) break; upStreak++; }
+      else if (closes[i]<opens[i]) { if(upStreak>0) break; dnStreak++; }
       else break;
     }
-
-    // BB position (mean reversion)
+    if (upStreak>=3) bull += 1;
+    if (dnStreak>=3) bear += 1;
     const win = closes.slice(-20);
-    const bbMid = win.reduce((a, b) => a + b, 0) / 20;
+    const bbMid = win.reduce((a,b)=>a+b,0)/20;
     const bbStd = stdev(win);
-    const bbU = bbMid + 2 * bbStd, bbL = bbMid - 2 * bbStd;
+    const bbU = bbMid + 2*bbStd, bbL = bbMid - 2*bbStd;
     const bbPos = (price - bbL) / ((bbU - bbL) || 1);
-
-    // ── SCORING ──
-    let bull = 0, bear = 0;
-    const reasons = [];
-
-    // 1) EMA alignment
-    if (e3v > e8v && e8v > e21v) { bull += 2; reasons.push({ t: 'EMA (3>8>21) صاعد كامل', s: 'bull' }); }
-    else if (e3v < e8v && e8v < e21v) { bear += 2; reasons.push({ t: 'EMA (3<8<21) هابط كامل', s: 'bear' }); }
-    else if (e3v > e8v) { bull += 0.5; reasons.push({ t: 'EMA 3>8 (اتجاه قصير صاعد)', s: 'bull' }); }
-    else if (e3v < e8v) { bear += 0.5; reasons.push({ t: 'EMA 3<8 (اتجاه قصير هابط)', s: 'bear' }); }
-
-    // 2) Fresh cross — highest-value scalp signal
-    if (prevE3 <= prevE8 && e3v > e8v) { bull += 1.6; reasons.push({ t: '⚡ تقاطع EMA 3/8 صاعد حديث', s: 'bull' }); }
-    if (prevE3 >= prevE8 && e3v < e8v) { bear += 1.6; reasons.push({ t: '⚡ تقاطع EMA 3/8 هابط حديث', s: 'bear' }); }
-
-    // 3) Momentum
-    if (vel3 > 0.5) { bull += 1.5; reasons.push({ t: `زخم صاعد (${vel3.toFixed(2)}×ATR)`, s: 'bull' }); }
-    else if (vel3 > 0.2) { bull += 0.7; reasons.push({ t: `زخم صاعد معتدل`, s: 'bull' }); }
-    else if (vel3 < -0.5) { bear += 1.5; reasons.push({ t: `زخم هابط (${vel3.toFixed(2)}×ATR)`, s: 'bear' }); }
-    else if (vel3 < -0.2) { bear += 0.7; reasons.push({ t: `زخم هابط معتدل`, s: 'bear' }); }
-
-    // 4) RSI
-    if (rsiV > 55 && rsiSlope > 1) { bull += 1; reasons.push({ t: `RSI=${rsiV.toFixed(1)} صاعد`, s: 'bull' }); }
-    else if (rsiV < 45 && rsiSlope < -1) { bear += 1; reasons.push({ t: `RSI=${rsiV.toFixed(1)} هابط`, s: 'bear' }); }
-    else if (rsiV < 25) { bull += 0.8; reasons.push({ t: `RSI=${rsiV.toFixed(1)} تشبع بيعي`, s: 'bull' }); }
-    else if (rsiV > 75) { bear += 0.8; reasons.push({ t: `RSI=${rsiV.toFixed(1)} تشبع شرائي`, s: 'bear' }); }
-
-    // 5) Streak
-    if (upStreak >= 3) { bull += 1; reasons.push({ t: `${upStreak} شموع صاعدة متتالية`, s: 'bull' }); }
-    if (dnStreak >= 3) { bear += 1; reasons.push({ t: `${dnStreak} شموع هابطة متتالية`, s: 'bear' }); }
-
-    // 6) Bollinger
-    if (bbPos < 0.15) { bull += 1; reasons.push({ t: 'السعر عند BB السفلي', s: 'bull' }); }
-    else if (bbPos > 0.85) { bear += 1; reasons.push({ t: 'السعر عند BB العلوي', s: 'bear' }); }
-
-    // 7) Rejection wicks
-    const c1 = candles[n - 1];
+    if (bbPos<0.15) bull += 1;
+    else if (bbPos>0.85) bear += 1;
+    const c1 = candles[n-1];
     const body = Math.abs(c1.close - c1.open);
     const range = (c1.high - c1.low) || 0.0001;
     const upperWick = c1.high - Math.max(c1.close, c1.open);
     const lowerWick = Math.min(c1.close, c1.open) - c1.low;
-    if (lowerWick > body * 1.8 && lowerWick > range * 0.4) { bull += 1.2; reasons.push({ t: 'شمعة انعكاس صاعدة (ذيل سفلي)', s: 'bull' }); }
-    if (upperWick > body * 1.8 && upperWick > range * 0.4) { bear += 1.2; reasons.push({ t: 'شمعة انعكاس هابطة (ذيل علوي)', s: 'bear' }); }
-
-    // 8) Engulfing
-    const c2 = candles[n - 2];
-    const c1B = c1.close > c1.open, c1S = c1.close < c1.open;
-    const c2B = c2.close > c2.open, c2S = c2.close < c2.open;
-    if (c2S && c1B && c1.close > c2.open && c1.open < c2.close) { bull += 1.3; reasons.push({ t: 'شمعة ابتلاعية صاعدة', s: 'bull' }); }
-    if (c2B && c1S && c1.close < c2.open && c1.open > c2.close) { bear += 1.3; reasons.push({ t: 'شمعة ابتلاعية هابطة', s: 'bear' }); }
-
-    // Volatility regime filter
-    if (volRatio < cfg.minVolRatio) {
-      reasons.push({ t: `⚠️ تقلب منخفض (${volRatio.toFixed(2)})`, s: 'warn' });
-      bull *= 0.55; bear *= 0.55;
-    } else if (volRatio > cfg.maxVolRatio) {
-      reasons.push({ t: `⚠️ تقلب مرتفع (${volRatio.toFixed(2)})`, s: 'warn' });
-      bull *= 0.72; bear *= 0.72;
-    }
-
-    // Direction + confidence
+    if (lowerWick>body*1.8 && lowerWick>range*0.4) bull += 1.2;
+    if (upperWick>body*1.8 && upperWick>range*0.4) bear += 1.2;
+    if (volRatio < 0.6) { bull *= 0.55; bear *= 0.55; }
+    else if (volRatio > 1.9) { bull *= 0.72; bear *= 0.72; }
     const maxScore = Math.max(bull, bear);
     const total = bull + bear;
-    const conf = total > 0
-      ? Math.min(99, Math.round((maxScore / total) * 100 * (1 + Math.min(total / 15, 0.28))))
-      : 0;
-
+    const conf = total > 0 ? Math.min(99, Math.round((maxScore/total)*100*(1+Math.min(total/15,0.28)))) : 0;
     let dir = 'NEUTRAL';
-    if (bull >= 4.5 && bull > bear * 1.5) dir = 'BUY';
-    else if (bear >= 4.5 && bear > bull * 1.5) dir = 'SELL';
-
-    if (dir === 'BUY' && cfg.requireAlign && !macroUp && !microUp) {
-      dir = 'NEUTRAL'; reasons.push({ t: '🚫 رفض: شراء ضد الاتجاه', s: 'warn' });
-    }
-    if (dir === 'SELL' && cfg.requireAlign && !macroDn && !microDn) {
-      dir = 'NEUTRAL'; reasons.push({ t: '🚫 رفض: بيع ضد الاتجاه', s: 'warn' });
-    }
-    if (dir !== 'NEUTRAL' && conf < cfg.minConfidence) {
-      dir = 'NEUTRAL'; reasons.push({ t: `🚫 ثقة ${conf}% أقل من ${cfg.minConfidence}%`, s: 'warn' });
-    }
-
-    return {
-      ts: Date.now(),
-      direction: dir,
-      confidence: conf,
-      netScore: bull - bear,
-      bull, bear,
-      price,
-      atr,
-      volRatio,
-      reasons,
-      indicators: {
-        ema3: e3v, ema8: e8v, ema21: e21v,
-        rsi: rsiV, rsiSlope,
-        bbPos,
-        upStreak, dnStreak,
-        vel3, vel5
-      }
-    };
+    if (bull >= 4.5 && bull > bear*1.5) dir = 'BUY';
+    else if (bear >= 4.5 && bear > bull*1.5) dir = 'SELL';
+    return { direction: dir, confidence: conf, bull, bear, price, volRatio, ts: Date.now() };
   }
 
-  /* ─── UI ─── */
   function injectPanel() {
+    if ($('multi-scanner-panel')) return;
     const pageAuto = $('page-auto');
-    if (!pageAuto || $('scalp-panel')) return;
+    if (!pageAuto) return;
+
     const html = `
-<div class="hunter-panel" id="scalp-panel" style="border-color:rgba(0,212,255,0.35);">
-  <div class="hunter-glow" style="background:radial-gradient(ellipse,rgba(0,212,255,0.22),transparent 70%);"></div>
+<div class="hunter-panel" id="multi-scanner-panel" style="border-color:rgba(212,175,55,0.4);">
   <div class="hunter-head">
-    <div class="hunter-title" style="background:linear-gradient(135deg,#00d4ff,#26a69a);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">SCALP AI · 1M</div>
-    <div class="hunter-state" id="scap-state">
-      <span class="hunter-dot"></span>
-      <span class="hunter-state-txt" id="scap-state-txt">جاهز</span>
-    </div>
+    <div class="hunter-title" style="background:linear-gradient(135deg,#d4af37,#00d4ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">MULTI-SCANNER · 5 SYMBOLS</div>
+    <div class="hunter-state" id="ms-state"><span class="hunter-dot"></span><span id="ms-state-txt">جاهز</span></div>
   </div>
-
-  <div class="ap-meta" style="margin-bottom:12px;">
-    <div class="ap-meta-item"><span class="ap-meta-lbl">الاتجاه</span><span class="ap-meta-val" id="scap-dir">—</span></div>
-    <div class="ap-meta-item"><span class="ap-meta-lbl">الثقة</span><span class="ap-meta-val" id="scap-conf">—</span></div>
-    <div class="ap-meta-item"><span class="ap-meta-lbl">التقلب</span><span class="ap-meta-val" id="scap-vol">—</span></div>
-    <div class="ap-meta-item"><span class="ap-meta-lbl">الحالة</span><span class="ap-meta-val" id="scap-status">—</span></div>
+  <div id="ms-table" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;"></div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
+    <div class="field"><label style="font-size:10px;">المبلغ ($)</label><input type="number" id="ms-stake" value="1" min="0.35" step="0.5"></div>
+    <div class="field"><label style="font-size:10px;">حد الثقة (%)</label><input type="number" id="ms-minconf" value="68" min="55" max="95"></div>
+    <div class="field"><label style="font-size:10px;">المؤقت (ث)</label><input type="number" id="ms-cooldown" value="8" min="3" max="60"></div>
   </div>
-
-  <div class="kz-conf" id="scap-conf-bar" data-tone="low">
-    <div class="kz-conf-head">
-      <span class="kz-conf-label">SIGNAL CONFIDENCE</span>
-      <span class="kz-conf-value low" id="scap-conf-val">0.00%</span>
-    </div>
-    <div class="kz-conf-track" id="scap-conf-track"></div>
-    <div class="kz-conf-foot"><span>NO SIGNAL</span><span>AUTO-FIRE @ ${68}%</span></div>
-  </div>
-
-  <div class="hunter-log" id="scap-log" style="max-height:140px;">
-    <div class="hunter-log-empty">في انتظار أول فحص...</div>
-  </div>
-
-  <div class="form-grid" style="margin:12px 0;grid-template-columns:repeat(3,1fr);gap:8px;">
-    <div class="field"><label>المبلغ ($)</label><input type="number" id="scap-stake" value="1" min="0.35" step="0.5"></div>
-    <div class="field"><label>حد الثقة (%)</label><input type="number" id="scap-minconf" value="68" min="55" max="95"></div>
-    <div class="field"><label>المؤقت (ثانية)</label><input type="number" id="scap-cooldown" value="8" min="3" max="60"></div>
-  </div>
-
-  <div style="display:flex;gap:8px;">
-    <button class="hunter-btn" id="scap-toggle" style="flex:2;" onclick="window._scapToggle()">
-      <span class="hunter-btn-ico">◆</span>
-      <span id="scap-btn-txt">تشغيل SCALP AI</span>
+  <div style="display:flex;gap:8px;margin-bottom:10px;">
+    <button class="hunter-btn" id="ms-toggle" style="flex:2;background:linear-gradient(135deg,#d4af37,#a8862a);">
+      <span>◆</span><span id="ms-btn-txt">تشغيل MULTI</span>
     </button>
-    <button class="btn btn-outline" style="flex:1;" onclick="window._scapReset()">تصفير</button>
+    <button class="btn btn-outline" style="flex:1;font-size:12px;" onclick="window._msReset()">تصفير</button>
   </div>
-
-  <div style="display:flex;gap:8px;margin-top:8px;">
-    <button class="btn btn-outline btn-full" style="font-size:12px;" onclick="window.KZAudio.setEnabled(!window.KZAudio.enabled);showToast(window.KZAudio.enabled?'🔊 الأصوات مفعّلة':'🔇 الأصوات معطّلة')" id="scap-audio-btn">🔊 الصوت</button>
-    <button class="btn btn-outline btn-full" style="font-size:12px;" onclick="window._scapTestSounds()">🎵 تجربة الأصوات</button>
+  <div style="display:flex;gap:8px;margin-bottom:10px;">
+    <button class="btn btn-outline btn-full" style="font-size:12px;" onclick="window.KZAudio.setEnabled(!window.KZAudio.enabled);showToast(window.KZAudio.enabled?'🔊 الأصوات مفعّلة':'🔇 الأصوات معطّلة')">🔊 الصوت</button>
+    <button class="btn btn-outline btn-full" style="font-size:12px;" onclick="window._msTestSounds()">🎵 تجربة الأصوات</button>
+  </div>
+  <div id="ms-log" style="max-height:100px;overflow-y:auto;font-size:11px;font-family:'Courier New',monospace;line-height:1.7;padding:8px;border-radius:8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.04);">
+    <div style="color:var(--text-dim);text-align:center;">في انتظار...</div>
   </div>
 </div>`;
-    // Insert before the autopilot shell
-    const anchor = $('autopilot-shell');
-    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(
-      document.createRange().createContextualFragment(html), anchor
-    );
-    else pageAuto.insertAdjacentHTML('afterbegin', html);
 
-    // build conf bar segments
-    const track = $('scap-conf-track');
-    if (track) for (let i = 0; i < 12; i++) {
-      const d = document.createElement('div');
-      d.className = 'kz-conf-seg';
-      track.appendChild(d);
+    pageAuto.insertAdjacentHTML('afterbegin', html);
+
+    const table = $('ms-table');
+    if (table) {
+      table.innerHTML = SYMBOLS.map(sym => `
+<div id="ms-row-${sym}" style="display:grid;grid-template-columns:60px 60px 70px 1fr;gap:8px;align-items:center;padding:8px 10px;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.05);border-radius:8px;transition:all 0.3s;">
+  <div style="font-family:monospace;font-size:13px;font-weight:900;color:var(--text);">${NAME[sym]}</div>
+  <div id="ms-dir-${sym}" style="font-size:12px;font-weight:900;color:var(--text-dim);text-align:center;">—</div>
+  <div id="ms-conf-${sym}" style="font-size:13px;font-weight:900;color:var(--text-dim);text-align:center;font-family:monospace;">0%</div>
+  <div style="height:8px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden;">
+    <div id="ms-bar-${sym}" style="height:100%;width:0%;background:linear-gradient(90deg,#00d4ff,#26a69a);transition:width 0.4s;"></div>
+  </div>
+</div>`).join('');
     }
-  }
+    $('ms-toggle').addEventListener('click', () => MS.running ? stop() : start());
 
-  /* ─── Logging ─── */
-  function log(msg, color) {
-    const el = $('scap-log'); if (!el) return;
-    const line = document.createElement('div');
-    line.className = 'hunter-log-line';
-    line.style.color = color || 'var(--text)';
-    line.textContent = `[${new Date().toLocaleTimeString('ar-EG')}] ${msg}`;
-    if (el.firstChild && el.firstChild.classList && el.firstChild.classList.contains('hunter-log-empty')) {
-      el.innerHTML = '';
-    }
-    el.prepend(line);
-    while (el.children.length > 40) el.removeChild(el.lastChild);
-  }
-
-  /* ─── UI Update ─── */
-  function paint(res) {
-    if (!res) return;
-    $('scap-dir') && setText('scap-dir', res.direction === 'BUY' ? 'شراء' : res.direction === 'SELL' ? 'بيع' : 'محايد',
-      res.direction === 'BUY' ? 'var(--green)' : res.direction === 'SELL' ? 'var(--red)' : 'var(--text-dim)');
-    $('scap-conf') && setText('scap-conf', res.confidence + '%',
-      res.confidence >= 70 ? 'var(--green)' : res.confidence >= 50 ? 'var(--gold)' : 'var(--text-dim)');
-    $('scap-vol') && setText('scap-vol', res.volRatio.toFixed(2));
-
-    // Confidence bar
-    const conf = res.confidence;
-    const onCount = Math.round(conf / 100 * 12);
-    const track = $('scap-conf-track');
-    if (track) Array.from(track.children).forEach((seg, i) => seg.classList.toggle('on', i < onCount));
-    let tone = 'low';
-    if (conf >= 80) tone = 'max';
-    else if (conf >= 60) tone = 'hi';
-    else if (conf >= 40) tone = 'good';
-    else if (conf >= 15) tone = 'mid';
-    const box = $('scap-conf-bar'); if (box) box.dataset.tone = tone;
-    const v = $('scap-conf-val');
-    if (v) { v.textContent = conf.toFixed(2) + '%'; v.className = 'kz-conf-value ' + tone; }
-  }
-
-  function setText(id, t, c) {
-    const el = $(id); if (!el) return;
-    el.textContent = t; if (c) el.style.color = c;
-  }
-
-  /* ─── Engine loop ─── */
-  function tick() {
-    if (!SCAP.running) return;
-    const candles = window.state && window.state.candles;
-    if (!candles || candles.length < SCAP.config.lookback) return;
-
-    SCAP.stats.scans++;
-    KZAudio.playScanTick();
-
-    const res = analyze(candles);
-    if (!res) return;
-    SCAP.last = res;
-    paint(res);
-
-    // Update status
-    if (SCAP.pausedReason) {
-      setText('scap-status', SCAP.pausedReason, 'var(--red)');
-      return;
-    }
-    setText('scap-status', SCAP.activeTrade ? 'صفقة نشطة' : 'يراقب',
-      SCAP.activeTrade ? 'var(--gold)' : 'var(--cyan)');
-
-    // Signal detected
-    if (res.direction !== 'NEUTRAL') {
-      SCAP.stats.signals++;
-      KZAudio.playSignal();
-      const key = res.direction + '|' + res.confidence;
-      if (key !== SCAP._lastSigKey) {
-        log(`🎯 إشارة ${res.direction} — ثقة ${res.confidence}%`, res.direction === 'BUY' ? 'var(--green)' : 'var(--red)');
-        SCAP._lastSigKey = key;
-      }
-    }
-
-    // Fire conditions
-    const now = Date.now();
-    if (res.direction === 'NEUTRAL') return;
-    if (SCAP.activeTrade) return;
-    if (now < SCAP.cooldownUntil) return;
-    if (!window.state || !window.state.derivWS || !window.state.derivLinked) {
-      log('❌ Deriv غير مربوط', 'var(--red)');
-      SCAP.cooldownUntil = now + 30000;
-      return;
-    }
-    if (typeof window.sendProposal !== 'function') {
-      log('❌ sendProposal غير متاح', 'var(--red)');
-      return;
-    }
-
-    fire(res);
-  }
-
-  function fire(res) {
-    const cfg = SCAP.config;
-    const stakeEl = $('scap-stake');
-    const amount = stakeEl ? Math.max(0.35, parseFloat(stakeEl.value) || 1) : 1;
-    const symbol = ($('symbol-select')?.value) || 'R_100';
-
-    SCAP.stats.fired++;
-    SCAP.activeTrade = { ts: Date.now(), direction: res.direction, amount, symbol, confidence: res.confidence };
-    KZAudio.playTradeFire();
-    log(`▶ تنفيذ ${res.direction} $${amount} — ثقة ${res.confidence}%`, 'var(--cyan)');
-
-    try {
-      window.sendProposal({
-        side: res.direction,
-        symbol,
-        amount,
-        duration: cfg.duration,
-        auto: true,
-        smart: false,
-        hunter: false,
-        scalp: true
+    ['ms-stake','ms-minconf','ms-cooldown'].forEach(id => {
+      const el = $(id);
+      if (el) el.addEventListener('change', () => {
+        MS.config.stake = Math.max(0.35, parseFloat($('ms-stake').value) || 1);
+        MS.config.minConfidence = Math.min(95, Math.max(55, parseInt($('ms-minconf').value) || 68));
+        MS.config.cooldownMs = Math.max(3000, (parseInt($('ms-cooldown').value) || 8) * 1000);
       });
-      // Mark last trade for settlement hook
-      SCAP._lastFireTs = Date.now();
-    } catch (e) {
-      log('❌ فشل التنفيذ: ' + e.message, 'var(--red)');
-      SCAP.activeTrade = null;
-    }
+    });
   }
 
-  /* ─── Settlement hook (called from patched settleTradeFromDeriv) ─── */
-  window._scapOnSettle = function (trade, won, profit) {
-    SCAP.activeTrade = null;
-    const now = Date.now();
-    SCAP.lastFireTs = now;
-
-    if (won) {
-      SCAP.stats.wins++;
-      SCAP.consecWins++;
-      SCAP.consecLosses = 0;
-      SCAP.cooldownUntil = now + SCAP.config.cooldownMs;
-      KZAudio.playWin();
-      // Check target hit (profit >= 80% of stake)
-      if (Math.abs(profit) >= trade.amount * 0.75) KZAudio.playTarget();
-      log(`🟢 ربح +$${profit.toFixed(2)}`, 'var(--green)');
-    } else {
-      SCAP.stats.losses++;
-      SCAP.consecLosses++;
-      SCAP.consecWins = 0;
-      SCAP.cooldownUntil = now + SCAP.config.lossCooldownMs;
-      KZAudio.playLoss();
-      log(`🔴 خسارة -$${Math.abs(profit).toFixed(2)}`, 'var(--red)');
-
-      if (SCAP.consecLosses >= SCAP.config.maxConsecLosses) {
-        SCAP.pausedReason = `⏸ توقف احترازي — ${SCAP.consecLosses} خسارات`;
-        log(SCAP.pausedReason, 'var(--red)');
-        stop();
-        setTimeout(() => {
-          if (SCAP.running) return;
-          SCAP.consecLosses = 0;
-          SCAP.pausedReason = null;
-          log('▶ استئناف تلقائي بعد فترة التهدئة', 'var(--gold)');
-        }, 15 * 60 * 1000);
-      }
-    }
-    updateStatsUI();
-  };
-
-  function updateStatsUI() {
-    const s = SCAP.stats;
-    const el = $('scap-state-txt');
-    if (el) el.textContent = SCAP.running ? 'يعمل' : 'متوقف';
-    const panel = $('scalp-panel');
-    if (panel) panel.classList.toggle('on', SCAP.running);
+  function mlog(msg, color) {
+    const el = $('ms-log'); if (!el) return;
+    if (el.firstChild && el.firstChild.style && el.firstChild.style.textAlign === 'center') el.innerHTML = '';
+    const line = document.createElement('div');
+    line.style.color = color || 'var(--text)';
+    line.textContent = '[' + new Date().toLocaleTimeString('ar-EG') + '] ' + msg;
+    el.prepend(line);
+    while (el.children.length > 20) el.removeChild(el.lastChild);
   }
 
-  /* ─── Public controls ─── */
-  function start() {
-    if (SCAP.running) return;
-    KZAudio._ensure();
-    SCAP.running = true;
-    SCAP.pausedReason = null;
-    SCAP.consecLosses = 0;
-    SCAP.lastFireTs = Date.now();
-    SCAP.stats = { scans: 0, signals: 0, fired: 0, wins: 0, losses: 0 };
-    const st = $('scap-state');
-    if (st) st.classList.add('on');
-    KZAudio.playStart();
-    KZAudio.startAnalysis();
-    if (SCAP.scanTimer) clearInterval(SCAP.scanTimer);
-    SCAP.scanTimer = setInterval(tick, 4000); // every 4s
-    setTimeout(tick, 500);
-    log('▶ SCALP AI يعمل — 1 دقيقة، تحليل كل 4 ثواني', 'var(--cyan)');
-    updateStatsUI();
-    const btn = $('scap-btn-txt'); if (btn) btn.textContent = 'إيقاف SCALP AI';
-  }
-
-  function stop() {
-    if (!SCAP.running) return;
-    SCAP.running = false;
-    if (SCAP.scanTimer) { clearInterval(SCAP.scanTimer); SCAP.scanTimer = null; }
-    const st = $('scap-state');
-    if (st) st.classList.remove('on');
-    KZAudio.stopAnalysis();
-    KZAudio.playStop();
-    log('■ تم إيقاف SCALP AI', 'var(--gold)');
-    updateStatsUI();
-    const btn = $('scap-btn-txt'); if (btn) btn.textContent = 'تشغيل SCALP AI';
-  }
-
-  window._scapToggle = function () { SCAP.running ? stop() : start(); };
-  window._scapReset = function () {
-    stop();
-    SCAP.stats = { scans: 0, signals: 0, fired: 0, wins: 0, losses: 0 };
-    SCAP.consecLosses = 0;
-    SCAP.cooldownUntil = 0;
-    SCAP.activeTrade = null;
-    const el = $('scap-log'); if (el) el.innerHTML = '<div class="hunter-log-empty">تم التصفير.</div>';
-    paint({ direction: 'NEUTRAL', confidence: 0, volRatio: 0 });
-  };
-  window._scapTestSounds = async function () {
-    const seq = ['start', 'scan', 'signal', 'fire', 'target', 'win', 'loss', 'stop'];
-    for (const s of seq) {
-      if (s === 'start') KZAudio.playStart();
-      if (s === 'scan') KZAudio.playScanTick();
-      if (s === 'signal') KZAudio.playSignal();
-      if (s === 'fire') KZAudio.playTradeFire();
-      if (s === 'target') KZAudio.playTarget();
-      if (s === 'win') KZAudio.playWin();
-      if (s === 'loss') KZAudio.playLoss();
-      if (s === 'stop') KZAudio.playStop();
-      await new Promise(r => setTimeout(r, 900));
-    }
-  };
-
-  /* ─── Patch settleTradeFromDeriv for audio + scalp hook ─── */
-  function patchSettle() {
-    if (typeof window.settleTradeFromDeriv !== 'function') {
-      setTimeout(patchSettle, 800);
+  function paintRow(sym, res) {
+    const row  = $('ms-row-' + sym);
+    const dir  = $('ms-dir-' + sym);
+    const conf = $('ms-conf-' + sym);
+    const bar  = $('ms-bar-' + sym);
+    if (!row || !dir || !conf || !bar) return;
+    if (!res) {
+      dir.textContent = '—'; dir.style.color = 'var(--text-dim)';
+      conf.textContent = '0%'; conf.style.color = 'var(--text-dim)';
+      bar.style.width = '0%';
+      row.style.borderColor = 'rgba(255,255,255,0.05)';
       return;
     }
-    if (window.settleTradeFromDeriv.__patched) return;
+    const isBuy = res.direction === 'BUY';
+    const isSell = res.direction === 'SELL';
+    const c = isBuy ? '#26a69a' : isSell ? '#ef5350' : '#8a90a3';
+    dir.textContent = isBuy ? 'BUY' : isSell ? 'SELL' : '—';
+    dir.style.color = c;
+    conf.textContent = res.confidence + '%';
+    conf.style.color = res.confidence >= MS.config.minConfidence ? c : 'var(--text-dim)';
+    bar.style.width = Math.min(100, res.confidence) + '%';
+    bar.style.background = isBuy  ? 'linear-gradient(90deg,#26a69a,#00b894)'
+                         : isSell ? 'linear-gradient(90deg,#ef5350,#c62828)'
+                         : 'linear-gradient(90deg,#2a2f3d,#1a1d24)';
+    row.style.borderColor = res.confidence >= MS.config.minConfidence && (isBuy||isSell) ? c : 'rgba(255,255,255,0.05)';
+  }
+
+  function connect() {
+    if (MS.ws && MS.ws.readyState === 1) return;
+    if (MS.ws) { try { MS.ws.close(); } catch(e){} }
+    mlog('🔌 فتح اتصال لخمس رموز...', 'var(--cyan)');
+    MS.ws = new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
+    MS.ws.onopen = () => {
+      mlog('✅ متصل — طلب الشموع', 'var(--green)');
+      for (let i = 0; i < SYMBOLS.length; i++) {
+        MS.ws.send(JSON.stringify({ ticks_history: SYMBOLS[i], adjust_start_time: 1, count: 200, end: 'latest', start: 1, style: 'candles', granularity: GRAN, req_id: 1000 + i }));
+        MS.ws.send(JSON.stringify({ ticks: SYMBOLS[i], subscribe: 1, req_id: 2000 + i }));
+      }
+    };
+    MS.ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.msg_type === 'candles' && msg.candles) {
+          const sym = msg.echo_req && msg.echo_req.ticks_history;
+          if (!sym) return;
+          MS.candles[sym] = msg.candles.map(c => ({ time: c.epoch, open: +c.open, high: +c.high, low: +c.low, close: +c.close }));
+        } else if (msg.msg_type === 'tick' && msg.tick) {
+          const sym = msg.tick.symbol;
+          const p = +msg.tick.quote;
+          MS.prices[sym] = p;
+          const arr = MS.candles[sym];
+          if (arr && arr.length) {
+            const last = arr[arr.length-1];
+            const bt = Math.floor(Date.now()/1000/GRAN)*GRAN;
+            if (last.time === bt) { last.close = p; last.high = Math.max(last.high,p); last.low = Math.min(last.low,p); }
+            else if (last.time < bt) {
+              arr.push({ time: bt, open: last.close, high: Math.max(last.close,p), low: Math.min(last.close,p), close: p });
+              if (arr.length > 500) arr.shift();
+            }
+          }
+        }
+      } catch(e){}
+    };
+    MS.ws.onerror = () => mlog('❌ خطأ اتصال', 'var(--red)');
+    MS.ws.onclose = () => { MS.ws = null; if (MS.running) setTimeout(connect, 3000); };
+  }
+
+  function scan() {
+    if (!MS.running) return;
+    MS.stats.scans++;
+    if (MS.activeTrade && Date.now() - MS.activeTrade.ts > 120000) {
+      MS.activeTrade = null;
+      mlog('⚠ تصفير صفقة قديمة', 'var(--gold)');
+    }
+    let best = null;
+    for (const sym of SYMBOLS) {
+      const candles = MS.candles[sym];
+      if (!candles || candles.length < 40) { paintRow(sym, null); continue; }
+      const r = analyze(candles);
+      if (!r) { paintRow(sym, null); continue; }
+      MS.results[sym] = r;
+      paintRow(sym, r);
+      if (r.direction !== 'NEUTRAL' && r.confidence >= MS.config.minConfidence) {
+        if (!best || r.confidence > best.confidence) best = { symbol: sym, ...r };
+      }
+    }
+    MS.best = best;
+    if (best) {
+      mlog(`🎯 ${NAME[best.symbol]} · ${best.direction} · ${best.confidence}%`, best.direction === 'BUY' ? 'var(--green)' : 'var(--red)');
+      tryFire(best);
+    }
+  }
+
+  function tryFire(best) {
+    const now = Date.now();
+    if (MS.activeTrade) return;
+    if (now < MS.cooldownUntil) return;
+    if (!window.state || !window.state.derivWS || !window.state.derivLinked) {
+      mlog('❌ Deriv غير مربوط', 'var(--red)');
+      MS.cooldownUntil = now + 30000;
+      return;
+    }
+    if (typeof window.sendProposal !== 'function') { mlog('❌ sendProposal غير متاح', 'var(--red)'); return; }
+    const amount = MS.config.stake;
+    MS.activeTrade = { ts: now, symbol: best.symbol, direction: best.direction, amount, confidence: best.confidence };
+    MS.stats.fired++;
+    MS.cooldownUntil = now + MS.config.cooldownMs;
+    mlog(`▶ تنفيذ ${best.direction} ${NAME[best.symbol]} $${amount} — ${best.confidence}%`, 'var(--cyan)');
+    if (window.KZAudio && window.KZAudio.playTradeFire) window.KZAudio.playTradeFire();
+    try {
+      window.sendProposal({ side: best.direction, symbol: best.symbol, amount, duration: 1, auto: true, smart: false, scalp: true });
+    } catch (e) {
+      mlog('❌ فشل: ' + e.message, 'var(--red)');
+      MS.activeTrade = null;
+    }
+  }
+
+  function hookSettle() {
+    if (typeof window.settleTradeFromDeriv !== 'function') { setTimeout(hookSettle, 800); return; }
+    if (window.settleTradeFromDeriv.__msHooked) return;
     const orig = window.settleTradeFromDeriv;
     const wrapper = function (contract) {
       try {
@@ -4447,53 +4040,84 @@ async function handleCallback() {
         const t = id ? (window.state.activeTrades || []).find(x => x.id === id) : null;
         const profit = parseFloat(contract.profit) || 0;
         const won = contract.status === 'won' || (contract.status === 'sold' && profit > 0);
-        if (t && t.scalp && typeof window._scapOnSettle === 'function') {
-          window._scapOnSettle(t, won, profit);
+        if (t && t.scalp && MS.activeTrade) {
+          MS.activeTrade = null;
+          if (won) { MS.stats.wins++; MS.cooldownUntil = Date.now() + MS.config.cooldownMs; }
+          else     { MS.stats.losses++; MS.cooldownUntil = Date.now() + MS.config.lossCooldownMs; }
+          mlog((won ? '🟢 ربح ' : '🔴 خسارة ') + '$' + Math.abs(profit).toFixed(2), won ? 'var(--green)' : 'var(--red)');
         }
-      } catch (e) { console.warn('scalp settle hook', e); }
+      } catch (e) { console.warn('MS settle hook', e); }
       return orig.apply(this, arguments);
     };
-    wrapper.__patched = true;
+    wrapper.__msHooked = true;
     window.settleTradeFromDeriv = wrapper;
-    // Redefine the global name too (function declaration hoisting)
-    try { settleTradeFromDeriv = wrapper; } catch (e) {}
+    try { settleTradeFromDeriv = wrapper; } catch(e){}
   }
 
-  /* ─── Boot ─── */
+  function start() {
+    if (MS.running) return;
+    MS.running = true;
+    MS.stats = { scans:0, fired:0, wins:0, losses:0 };
+    MS.activeTrade = null;
+    MS.cooldownUntil = 0;
+    if ($('ms-stake')) MS.config.stake = Math.max(0.35, parseFloat($('ms-stake').value) || 1);
+    if ($('ms-minconf')) MS.config.minConfidence = Math.min(95, Math.max(55, parseInt($('ms-minconf').value) || 68));
+    if ($('ms-cooldown')) MS.config.cooldownMs = Math.max(3000, (parseInt($('ms-cooldown').value) || 8) * 1000);
+    connect();
+    if (MS.timer) clearInterval(MS.timer);
+    MS.timer = setInterval(scan, 4000);
+    setTimeout(scan, 2000);
+    $('ms-state-txt').textContent = 'يعمل';
+    $('ms-state').classList.add('on');
+    $('ms-btn-txt').textContent = 'إيقاف MULTI';
+    mlog('▶ MULTI-SCANNER يعمل على 5 رموز', 'var(--cyan)');
+    if (window.KZAudio && window.KZAudio.playStart) window.KZAudio.playStart();
+  }
+
+  function stop() {
+    if (!MS.running) return;
+    MS.running = false;
+    if (MS.timer) { clearInterval(MS.timer); MS.timer = null; }
+    if (MS.ws) { try { MS.ws.close(); } catch(e){} MS.ws = null; }
+    $('ms-state-txt').textContent = 'جاهز';
+    $('ms-state').classList.remove('on');
+    $('ms-btn-txt').textContent = 'تشغيل MULTI';
+    mlog('■ تم إيقاف MULTI-SCANNER', 'var(--gold)');
+    if (window.KZAudio && window.KZAudio.playStop) window.KZAudio.playStop();
+  }
+
+  window._msReset = function () {
+    stop();
+    MS.candles = {}; MS.prices = {}; MS.results = {}; MS.best = null;
+    SYMBOLS.forEach(s => paintRow(s, null));
+    const el = $('ms-log'); if (el) el.innerHTML = '<div style="color:var(--text-dim);text-align:center;">تم التصفير.</div>';
+  };
+  window._msTestSounds = async function () {
+    const seq = ['start','scan','signal','fire','target','win','loss','stop'];
+    for (const s of seq) {
+      if (window.KZAudio) {
+        if (s === 'start') window.KZAudio.playStart();
+        if (s === 'scan') window.KZAudio.playScanTick();
+        if (s === 'signal') window.KZAudio.playSignal();
+        if (s === 'fire') window.KZAudio.playTradeFire();
+        if (s === 'target') window.KZAudio.playTarget();
+        if (s === 'win') window.KZAudio.playWin();
+        if (s === 'loss') window.KZAudio.playLoss();
+        if (s === 'stop') window.KZAudio.playStop();
+      }
+      await new Promise(r => setTimeout(r, 900));
+    }
+  };
+
   function boot() {
     injectPanel();
-    patchSettle();
-    updateStatsUI();
-    log('⚙ SCALP AI جاهز — اضغط تشغيل للبدء', 'var(--cyan)');
+    hookSettle();
+    SYMBOLS.forEach(s => paintRow(s, null));
+    console.log('[Kanzer] Multi-Scanner v2 loaded (self-contained)');
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
-  else setTimeout(boot, 1500);
-
-  // Ensure it works after login flow
-  setInterval(() => { if ($('page-auto') && !$('scalp-panel')) injectPanel(); }, 3000);
-
-  console.log('[Kanzer] SCALP AI + Audio Engine loaded');
-})();
-</script>
-  <script>
-/* ═══ KANZER BRIDGE — يجعل state مرئياً لـ window (إصلاح SCALP AI) ═══ */
-(function(){
-  try {
-    if (typeof state !== 'undefined') {
-      // نستخدم getter حيّ حتى يرى كل تحديثات candles / derivWS / activeTrades
-      if (!window.state) {
-        Object.defineProperty(window, 'state', {
-          get: function(){ return state; },
-          configurable: true
-        });
-      }
-      console.log('[Kanzer] ✅ state bridged to window.state');
-    } else {
-      console.warn('[Kanzer] ⚠️ state غير معرّف بعد — تحقق من ترتيب الـ scripts');
-    }
-  } catch (e) {
-    console.warn('[Kanzer] bridge failed:', e);
-  }
+  else setTimeout(boot, 2000);
+  setInterval(() => { if ($('page-auto') && !$('multi-scanner-panel')) injectPanel(); }, 3000);
 })();
 </script>
 </body>
