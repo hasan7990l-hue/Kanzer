@@ -3983,7 +3983,7 @@ async function handleCallback() {
   function scan() {
     if (!MS.running) return;
     MS.stats.scans++;
-    if (MS.activeTrade && Date.now() - MS.activeTrade.ts > 120000) {
+    if (MS.activeTrade && Date.now() - MS.activeTrade.ts > 90000) {
       MS.activeTrade = null;
       mlog('⚠ تصفير صفقة قديمة', 'var(--gold)');
     }
