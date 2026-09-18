@@ -4669,7 +4669,7 @@ function f3(d,sym){
   const h=M-S,hp=mac.macd[mac.macd.length-2]-mac.signal[mac.signal.length-2],hp3=mac.macd[mac.macd.length-4]-mac.signal[mac.signal.length-4];
   let side=null,conf=0;const rs=[];
   if(r>35&&r<60&&r>rp&&r>rp3&&h>0&&h>hp&&h>hp3){side='BUY';
-  else if(r<70&&r>35&&r<rp&&r<rp3&&h<0&&h<hp&&h<hp3){side='SELL';conf=50+Math.min(25,Math.abs(h-hp3)*2000);rs.push('RSI='+r.toFixed(1));rs.push('MACD-');}
+  else if(r<65&&r>40&&r<rp&&r<rp3&&h<0&&h<hp&&h<hp3){side='SELL';
   else return null;
   return{side,family:'MOMENTUM',strategy:'MOM_SHIFT',confidence:Clamp(conf,0,88),atr:av,entry:p,reasons:rs};}
 
