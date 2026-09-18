@@ -4000,11 +4000,16 @@ async function handleCallback() {
       }
     }
     MS.best = best;
-    if (best) {
-      mlog(`🎯 ${NAME[best.symbol]} · ${best.direction} · ${best.confidence}%`, best.direction === 'BUY' ? 'var(--green)' : 'var(--red)');
-      tryFire(best);
-    }
+if (best) {
+  const key = best.symbol + '|' + best.direction;
+  if (MS._lastLogKey !== key) {
+    MS._lastLogKey = key;
+    mlog(`🎯 ${NAME[best.symbol]} · ${best.direction} · ${best.confidence}%`, best.direction === 'BUY' ? 'var(--green)' : 'var(--red)');
   }
+  tryFire(best);
+} else {
+  MS._lastLogKey = null;
+}
 
   function tryFire(best) {
     const now = Date.now();
