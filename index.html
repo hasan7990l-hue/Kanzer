@@ -3498,161 +3498,409 @@ async function handleCallback() {
     setTimeout(() => { updateDerivUI(); connectWS(); authorizeToken(token); }, 1500);
   }
 })();
-</script>  
+</script> 
 <script>
 /* ══════════════════════════════════════════════════════════════════
-   KANZER AUDIO ENGINE v1.1 — 8 distinct sounds, Web Audio API
+   KANZER AUDIO ENGINE v2.0 — Premium Sound Design
+   5 cinematic sounds · Web Audio API · no external files
 ══════════════════════════════════════════════════════════════════ */
 (function () {
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) { console.warn('[Audio] unsupported'); return; }
-  let ctx = null, master = null, analysis = null;
 
+  let ctx = null;
+  let master = null;
+  let limiter = null;
+  let reverb = null;
+  let analysis = null;
+  let unlocked = false;
+
+  /* ─── Audio Graph ─── */
   function ensure() {
     if (!ctx) {
       try {
         ctx = new AC();
+
+        // Limiter (prevents clipping)
+        limiter = ctx.createDynamicsCompressor();
+        limiter.threshold.value = -6;
+        limiter.knee.value = 4;
+        limiter.ratio.value = 12;
+        limiter.attack.value = 0.003;
+        limiter.release.value = 0.25;
+        limiter.connect(ctx.destination);
+
+        // Master gain
         master = ctx.createGain();
-        master.gain.value = 0.32;
-        master.connect(ctx.destination);
-      } catch (e) { console.warn('[Audio] ctx create failed:', e); return null; }
+        master.gain.value = 0.34;
+        master.connect(limiter);
+
+        // Simple reverb (feedback delay)
+        const delay = ctx.createDelay(0.5);
+        delay.delayTime.value = 0.09;
+        const feedback = ctx.createGain();
+        feedback.gain.value = 0.28;
+        const wet = ctx.createGain();
+        wet.gain.value = 0.18;
+        delay.connect(feedback);
+        feedback.connect(delay);
+        delay.connect(wet);
+        wet.connect(master);
+        reverb = { input: delay, wet };
+
+      } catch (e) { console.warn('[Audio] ctx failed:', e); return null; }
     }
     if (ctx.state === 'suspended') ctx.resume().catch(() => {});
     return ctx;
   }
 
+  /* ─── Premium tone builder ─── */
   function tone(o) {
     const c = ensure(); if (!c) return;
     try {
-      const osc = c.createOscillator();
-      const g = c.createGain();
-      osc.type = o.type || 'sine';
       const t0 = c.currentTime + (o.when || 0);
-      const dur = o.dur || 0.2;
+      const dur = o.dur || 0.3;
+      const vol = o.vol != null ? o.vol : 0.22;
+
+      // Main oscillator
+      const osc = c.createOscillator();
+      osc.type = o.type || 'sine';
       osc.frequency.setValueAtTime(o.freq, t0);
       if (o.sweepTo) osc.frequency.exponentialRampToValueAtTime(o.sweepTo, t0 + dur);
+
+      // Filter for warmth
+      const filter = c.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = o.filter || 4800;
+      filter.Q.value = 0.8;
+
+      // Gain envelope (attack / decay / sustain / release)
+      const g = c.createGain();
+      const atk = o.attack != null ? o.attack : 0.012;
+      const rel = o.release != null ? o.release : 0.10;
+
       g.gain.setValueAtTime(0.0001, t0);
-      g.gain.linearRampToValueAtTime(o.vol || 0.25, t0 + 0.012);
-      g.gain.setValueAtTime(o.vol || 0.25, t0 + dur - 0.05);
+      g.gain.linearRampToValueAtTime(vol, t0 + atk);
+      g.gain.setValueAtTime(vol, t0 + Math.max(atk, dur - rel));
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-      osc.connect(g); g.connect(master);
-      osc.start(t0); osc.stop(t0 + dur + 0.03);
+
+      // Optional second detuned osc (chorus)
+      osc.connect(filter);
+      if (o.detune) {
+        const osc2 = c.createOscillator();
+        osc2.type = o.type || 'sine';
+        osc2.frequency.setValueAtTime(o.freq * (1 + o.detune), t0);
+        if (o.sweepTo) osc2.frequency.exponentialRampToValueAtTime(o.sweepTo * (1 + o.detune), t0 + dur);
+        const g2 = c.createGain();
+        g2.gain.setValueAtTime(0.0001, t0);
+        g2.gain.linearRampToValueAtTime(vol * 0.6, t0 + atk);
+        g2.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        osc2.connect(filter);
+        osc2.connect(g2); g2.connect(filter);
+        osc2.start(t0); osc2.stop(t0 + dur + 0.05);
+      }
+
+      filter.connect(g);
+      g.connect(master);
+
+      // Send to reverb for depth
+      if (o.reverb) {
+        const send = c.createGain();
+        send.gain.value = o.reverb;
+        g.connect(send);
+        send.connect(reverb.input);
+      }
+
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.05);
     } catch (e) {}
   }
 
-  function noise(dur, vol) {
+  function noise(dur, vol, when, filtered) {
     const c = ensure(); if (!c) return;
     try {
-      const buf = c.createBuffer(1, c.sampleRate * dur, c.sampleRate);
+      const t0 = c.currentTime + (when || 0);
+      const buf = c.createBuffer(1, Math.max(1, c.sampleRate * dur), c.sampleRate);
       const d = buf.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
+
       const src = c.createBufferSource(); src.buffer = buf;
       const g = c.createGain(); g.gain.value = vol;
-      src.connect(g); g.connect(master);
-      src.start(c.currentTime);
+
+      if (filtered) {
+        const f = c.createBiquadFilter();
+        f.type = 'bandpass';
+        f.frequency.value = filtered;
+        f.Q.value = 0.9;
+        src.connect(f); f.connect(g);
+      } else {
+        src.connect(g);
+      }
+      g.connect(master);
+      src.start(t0);
     } catch (e) {}
   }
 
   const KZAudio = {
     enabled: true,
 
+    /* ═══════════════════════════════════════════════════════
+       ① تشغيل — سينمائي تصاعدي فخم
+       Sub-bass foundation → harmony rise → shimmer ping
+    ═══════════════════════════════════════════════════════ */
     playStart() {
       if (!this.enabled) return;
-      tone({ freq: 196, sweepTo: 880, dur: 0.55, type: 'sawtooth', vol: 0.20 });
-      tone({ freq: 330, sweepTo: 1320, dur: 0.50, type: 'triangle', vol: 0.16, when: 0.08 });
-      tone({ freq: 880, dur: 0.18, type: 'sine', vol: 0.28, when: 0.55 });
-      tone({ freq: 1320, dur: 0.22, type: 'sine', vol: 0.20, when: 0.62 });
-    },
-    playStop() {
-      if (!this.enabled) return;
-      tone({ freq: 880, sweepTo: 196, dur: 0.45, type: 'sawtooth', vol: 0.20 });
-      tone({ freq: 660, sweepTo: 110, dur: 0.55, type: 'triangle', vol: 0.16, when: 0.12 });
-      noise(0.35, 0.06);
-      tone({ freq: 220, dur: 0.30, type: 'sine', vol: 0.15, when: 0.55 });
-    },
-    playTarget() {
-      if (!this.enabled) return;
-      [0, 0.11, 0.22].forEach((w, i) => {
-        tone({ freq: 1320 + i * 260, dur: 0.10, type: 'square', vol: 0.22, when: w });
-      });
-      tone({ freq: 2640, dur: 0.18, type: 'sine', vol: 0.12, when: 0.34 });
-    },
-    playWin() {
-      if (!this.enabled) return;
-      const notes = [523.25, 659.25, 783.99, 1046.50];
-      notes.forEach((f, i) =>
-        tone({ freq: f, dur: 0.32, type: 'triangle', vol: 0.24, when: i * 0.095 })
-      );
-      tone({ freq: 523.25, dur: 0.55, type: 'sine', vol: 0.13, when: 0.38 });
-      tone({ freq: 783.99, dur: 0.55, type: 'sine', vol: 0.10, when: 0.38 });
-      tone({ freq: 1046.50, dur: 0.65, type: 'sine', vol: 0.09, when: 0.42 });
-    },
-    playLoss() {
-      if (!this.enabled) return;
-      tone({ freq: 466.16, sweepTo: 440.00, dur: 0.28, type: 'triangle', vol: 0.22 });
-      tone({ freq: 440.00, sweepTo: 349.23, dur: 0.55, type: 'triangle', vol: 0.22, when: 0.26 });
-      tone({ freq: 261.63, dur: 0.55, type: 'sine', vol: 0.16, when: 0.75 });
-      tone({ freq: 130.81, dur: 0.85, type: 'sine', vol: 0.14, when: 0.78 });
+      const c = ensure(); if (!c) return;
+
+      // Sub-bass foundation (deep rumble)
+      tone({ freq: 55, sweepTo: 110, dur: 0.9, type: 'sine', vol: 0.30, filter: 400, when: 0 });
+      tone({ freq: 82, sweepTo: 165, dur: 0.85, type: 'triangle', vol: 0.16, filter: 900, when: 0.05 });
+
+      // Harmony rise (C major chord building)
+      tone({ freq: 261.63, sweepTo: 523.25, dur: 0.75, type: 'sine', vol: 0.14, when: 0.10, detune: 0.003, reverb: 0.4 });
+      tone({ freq: 329.63, sweepTo: 659.25, dur: 0.70, type: 'sine', vol: 0.11, when: 0.16, detune: 0.003, reverb: 0.4 });
+      tone({ freq: 392.00, sweepTo: 783.99, dur: 0.65, type: 'triangle', vol: 0.10, when: 0.22, detune: 0.003, reverb: 0.35 });
+
+      // High shimmer ping
+      tone({ freq: 1567.98, dur: 0.22, type: 'sine', vol: 0.14, when: 0.62, reverb: 0.6 });
+      tone({ freq: 2093.00, dur: 0.30, type: 'sine', vol: 0.09, when: 0.68, reverb: 0.7 });
+
+      // Air noise burst (soft)
+      noise(0.35, 0.03, 0.55, 3500);
     },
 
+    /* ═══════════════════════════════════════════════════════
+       ② إيقاف — منسدل هادئ فخم
+       Harmony descent → soft release → silence
+    ═══════════════════════════════════════════════════════ */
+    playStop() {
+      if (!this.enabled) return;
+
+      // Descending harmony
+      tone({ freq: 783.99, sweepTo: 392.00, dur: 0.65, type: 'sine', vol: 0.16, when: 0, reverb: 0.4 });
+      tone({ freq: 659.25, sweepTo: 329.63, dur: 0.70, type: 'sine', vol: 0.14, when: 0.06, reverb: 0.4 });
+      tone({ freq: 523.25, sweepTo: 261.63, dur: 0.75, type: 'triangle', vol: 0.12, when: 0.12, reverb: 0.35 });
+
+      // Low foundation settling
+      tone({ freq: 164.81, sweepTo: 82.41, dur: 0.95, type: 'sine', vol: 0.22, filter: 500, when: 0.20 });
+      tone({ freq: 110.00, sweepTo: 55.00, dur: 1.10, type: 'sine', vol: 0.16, filter: 350, when: 0.28 });
+
+      // Soft noise release
+      noise(0.55, 0.04, 0.15, 800);
+      noise(0.30, 0.02, 0.55, 400);
+    },
+
+    /* ═══════════════════════════════════════════════════════
+       ③ ربح — احتفالي فخم
+       Rising arpeggio with reverb tail
+    ═══════════════════════════════════════════════════════ */
+    playWin() {
+      if (!this.enabled) return;
+
+      // C major arpeggio: C5 → E5 → G5 → C6
+      const notes = [523.25, 659.25, 783.99, 1046.50];
+      notes.forEach((f, i) => {
+        tone({
+          freq: f, dur: 0.42, type: 'triangle', vol: 0.20,
+          when: i * 0.075, reverb: 0.5,
+          filter: 6000
+        });
+      });
+
+      // Shimmer chord tail (C6 + E6)
+      tone({ freq: 1046.50, dur: 0.90, type: 'sine', vol: 0.10, when: 0.34, reverb: 0.7, detune: 0.002 });
+      tone({ freq: 1318.51, dur: 0.85, type: 'sine', vol: 0.08, when: 0.38, reverb: 0.7, detune: 0.002 });
+
+      // Sparkle
+      tone({ freq: 2637.02, dur: 0.30, type: 'sine', vol: 0.06, when: 0.42, reverb: 0.8 });
+    },
+
+    /* ═══════════════════════════════════════════════════════
+       ④ خسارة — احترافي هادئ (ليس صارخاً)
+       Two-tone descent with low drone
+    ═══════════════════════════════════════════════════════ */
+    playLoss() {
+      if (!this.enabled) return;
+
+      // Soft descending minor second
+      tone({ freq: 392.00, sweepTo: 369.99, dur: 0.38, type: 'triangle', vol: 0.18, when: 0, reverb: 0.3 });
+      tone({ freq: 369.99, sweepTo: 329.63, dur: 0.70, type: 'triangle', vol: 0.18, when: 0.30, reverb: 0.35 });
+
+      // Low drone (settling)
+      tone({ freq: 130.81, dur: 0.95, type: 'sine', vol: 0.14, when: 0.55, filter: 500 });
+      tone({ freq: 98.00, dur: 1.05, type: 'sine', vol: 0.12, when: 0.62, filter: 400 });
+
+      // Subtle noise (friction)
+      noise(0.42, 0.025, 0.05, 600);
+    },
+
+    /* ═══════════════════════════════════════════════════════
+       ⑤ التحليل المستمر — نغم خلفي هادئ
+       Two detuned sines + slow LFO modulation
+    ═══════════════════════════════════════════════════════ */
     startAnalysis() {
       if (!this.enabled || analysis) return;
       const c = ensure(); if (!c) return;
+
       try {
-        const gain = c.createGain(); gain.gain.value = 0.0001; gain.connect(master);
-        const o1 = c.createOscillator(); o1.type = 'sine'; o1.frequency.value = 220;
-        const o2 = c.createOscillator(); o2.type = 'sine'; o2.frequency.value = 329.63;
-        const lfo = c.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 1.4;
-        const lfoGain = c.createGain(); lfoGain.gain.value = 0.05;
-        const modGain = c.createGain(); modGain.gain.value = 0.055;
-        lfo.connect(lfoGain); lfoGain.connect(modGain.gain);
-        o1.connect(modGain); o2.connect(modGain); modGain.connect(gain);
-        lfo.start(); o1.start(); o2.start();
-        gain.gain.linearRampToValueAtTime(0.085, c.currentTime + 0.4);
-        analysis = { o1, o2, lfo, gain };
-      } catch (e) {}
+        const t0 = c.currentTime;
+
+        // Main gain (fade in)
+        const gain = c.createGain();
+        gain.gain.value = 0.0001;
+        gain.connect(master);
+
+        // Lowpass filter (soft)
+        const filter = c.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 1200;
+        filter.Q.value = 0.4;
+        filter.connect(gain);
+
+        // Oscillator 1: A3 (220 Hz)
+        const o1 = c.createOscillator();
+        o1.type = 'sine';
+        o1.frequency.value = 220;
+
+        // Oscillator 2: E4 (329.63 Hz) — perfect fifth
+        const o2 = c.createOscillator();
+        o2.type = 'sine';
+        o2.frequency.value = 329.63;
+
+        // Slight detune for chorus
+        const o3 = c.createOscillator();
+        o3.type = 'sine';
+        o3.frequency.value = 221.5; // ~8 cents sharp
+
+        // LFO (slow pulsing)
+        const lfo = c.createOscillator();
+        lfo.type = 'sine';
+        lfo.frequency.value = 1.3;
+
+        const lfoGain = c.createGain();
+        lfoGain.gain.value = 0.04;
+
+        const lfoDepth = c.createGain();
+        lfoDepth.gain.value = 0.045;
+
+        lfo.connect(lfoGain);
+        lfoGain.connect(lfoDepth.gain);
+
+        o1.connect(filter);
+        o2.connect(filter);
+        o3.connect(filter);
+
+        // Slow filter sweep
+        const filterLFO = c.createOscillator();
+        filterLFO.type = 'sine';
+        filterLFO.frequency.value = 0.15;
+        const filterLFOAmt = c.createGain();
+        filterLFOAmt.gain.value = 300;
+        filterLFO.connect(filterLFOAmt);
+        filterLFOAmt.connect(filter.frequency);
+
+        lfo.start(t0);
+        filterLFO.start(t0);
+        o1.start(t0);
+        o2.start(t0);
+        o3.start(t0);
+
+        gain.gain.linearRampToValueAtTime(0.075, t0 + 0.6);
+
+        analysis = { o1, o2, o3, lfo, filterLFO, gain };
+      } catch (e) { console.warn('[Audio] startAnalysis:', e); }
     },
+
     stopAnalysis() {
       if (!analysis || !ctx) return;
-      const a = analysis; analysis = null;
+      const a = analysis;
+      analysis = null;
       try {
-        a.gain.gain.cancelScheduledValues(ctx.currentTime);
-        a.gain.gain.setValueAtTime(a.gain.gain.value, ctx.currentTime);
-        a.gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+        const t = ctx.currentTime;
+        a.gain.gain.cancelScheduledValues(t);
+        a.gain.gain.setValueAtTime(a.gain.gain.value, t);
+        a.gain.gain.linearRampToValueAtTime(0.0001, t + 0.5);
         setTimeout(() => {
-          try { a.o1.stop(); a.o2.stop(); a.lfo.stop(); a.gain.disconnect(); } catch (e) {}
-        }, 450);
+          try {
+            a.o1.stop(); a.o2.stop(); a.o3.stop();
+            a.lfo.stop(); a.filterLFO.stop();
+            a.gain.disconnect();
+          } catch (e) {}
+        }, 600);
       } catch (e) {}
     },
 
-    playScanTick() { if (this.enabled) tone({ freq: 1760, dur: 0.035, type: 'sine', vol: 0.05 }); },
+    /* ─── Backward-compatible short sounds ─── */
+    playScanTick() {
+      if (!this.enabled) return;
+      // Very subtle blip — barely audible
+      tone({ freq: 2200, dur: 0.025, type: 'sine', vol: 0.025 });
+    },
+
     playSignal() {
       if (!this.enabled) return;
-      tone({ freq: 880, dur: 0.07, type: 'square', vol: 0.14 });
-      tone({ freq: 1174.66, dur: 0.10, type: 'square', vol: 0.14, when: 0.07 });
+      // Sharp double-tick — recognition
+      tone({ freq: 988, dur: 0.05, type: 'sine', vol: 0.10, filter: 4000 });
+      tone({ freq: 1319, dur: 0.08, type: 'sine', vol: 0.10, when: 0.05, filter: 4000 });
     },
+
     playTradeFire() {
       if (!this.enabled) return;
-      tone({ freq: 740, dur: 0.06, type: 'square', vol: 0.16 });
-      tone({ freq: 988, dur: 0.10, type: 'square', vol: 0.16, when: 0.06 });
+      // Punchy confirmation (rising octave)
+      tone({ freq: 740, dur: 0.06, type: 'triangle', vol: 0.14 });
+      tone({ freq: 1480, dur: 0.12, type: 'sine', vol: 0.12, when: 0.05, reverb: 0.3 });
     },
 
-    setEnabled(v) { this.enabled = !!v; if (!v) this.stopAnalysis(); },
-    _ensure: ensure
+    playTarget() {
+      if (!this.enabled) return;
+      // Triple high ping — TP hit
+      [0, 0.09, 0.18].forEach((w, i) => {
+        tone({ freq: 1760 + i * 220, dur: 0.08, type: 'sine', vol: 0.16, when: w, reverb: 0.4 });
+      });
+      tone({ freq: 3520, dur: 0.25, type: 'sine', vol: 0.08, when: 0.28, reverb: 0.6 });
+    },
+
+    setEnabled(v) {
+      this.enabled = !!v;
+      if (!v) this.stopAnalysis();
+    },
+    _ensure: ensure,
+
+    /* ─── Debug ─── */
+    _debug() {
+      const c = ensure();
+      console.log('KZAudio v2.0');
+      console.log('enabled:', this.enabled);
+      console.log('ctx:', c ? c.state : 'null');
+      console.log('analysis:', !!analysis);
+    }
   };
+
   window.KZAudio = KZAudio;
 
-  // Persistent unlock — fires on every user gesture
+  /* ─── Unlock on first user gesture (Android Chrome requirement) ─── */
+  function unlock() {
+    if (unlocked) return;
+    const c = ensure(); if (!c) return;
+    unlocked = true;
+    // Silent 1-sample buffer to force transition from suspended → running
+    try {
+      const buf = c.createBuffer(1, 1, 22050);
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      src.connect(c.destination);
+      src.start(0);
+    } catch (e) {}
+    console.log('[KZAudio v2.0] unlocked · ctx=' + c.state);
+  }
+
   ['click', 'touchstart', 'touchend', 'pointerdown', 'keydown'].forEach(ev =>
-    document.addEventListener(ev, () => {
-      const c = ensure();
-      if (c && c.state === 'suspended') c.resume().catch(() => {});
-    }, { passive: true, capture: true })
+    document.addEventListener(ev, unlock, { passive: true, capture: true })
   );
 
-  console.log('[Kanzer] KZAudio engine loaded');
+  console.log('[Kanzer] KZAudio v2.0 Premium loaded · 5 cinematic sounds');
 })();
-</script>
+ </script>
  <script>
 /* ══════════════════════════════════════════════════════════════════
    KANZER MULTI-SYMBOL SCANNER v2.1 — Clean Build
