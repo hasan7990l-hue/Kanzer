@@ -2775,27 +2775,6 @@ document.addEventListener('DOMContentLoaded', () => {
       requestAnimationFrame(draw);
     })();
   }
-  make('bg-radar');
-  function startRadar() {
-    const c = canv['bg-radar']; fit(c);
-    const ctx = c.getContext('2d');
-    let a = 0, pings = [];
-    const cx = c.width/2, cy = c.height/2, R = Math.min(c.width,c.height)*0.4;
-    (function draw(){
-      if (c.style.display === 'none') return requestAnimationFrame(draw);
-      ctx.clearRect(0,0,c.width,c.height);
-      [0.3,0.6,0.9].forEach(f => { ctx.strokeStyle = 'rgba(212,175,55,0.12)'; ctx.beginPath(); ctx.arc(cx,cy,R*f,0,6.3); ctx.stroke(); });
-      ctx.strokeStyle = 'rgba(212,175,55,0.3)'; ctx.beginPath(); ctx.arc(cx,cy,R,0,6.3); ctx.stroke();
-      a = (a+0.02)%6.28;
-      ctx.beginPath(); ctx.arc(cx,cy,R,a-0.5,a); ctx.lineTo(cx,cy); ctx.closePath();
-      ctx.fillStyle = 'rgba(0,212,255,0.08)'; ctx.fill();
-      ctx.strokeStyle = 'rgba(0,212,255,0.7)'; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(a)*R, cy+Math.sin(a)*R); ctx.stroke();
-      if (Math.random()>0.94) pings.push({ x:cx+Math.cos(a)*R*(0.3+Math.random()*0.6), y:cy+Math.sin(a)*R*(0.3+Math.random()*0.6), l:100 });
-      pings = pings.filter(p => p.l>0);
-      pings.forEach(p => { p.l--; ctx.fillStyle = 'rgba(212,175,55,'+(p.l/100)+')'; ctx.beginPath(); ctx.arc(p.x,p.y,3+(1-p.l/100)*8,0,6.3); ctx.fill(); });
-      requestAnimationFrame(draw);
-    })();
-  }
   make('bg-waves');
   function startWaves() {
     const c = canv['bg-waves']; fit(c);
