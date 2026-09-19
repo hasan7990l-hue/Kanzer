@@ -1329,10 +1329,6 @@ function showUpgradeModal() {
     '<button class="btn btn-outline btn-full" onclick="closeModal()" style="margin-top:10px;">إغلاق</button>';
   modal.classList.add('show');
   } 
-  function isPro() {
-  if (!state.currentUser) return false;
-  return state.currentUser.tier === 'pro';
-}
 function loadUser(email) {
   const users = getUsers();
   const u = users[email]; if (!u) return;
