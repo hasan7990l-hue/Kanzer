@@ -4786,5 +4786,287 @@ wick:   { wins: 0, losses: 0, weight: 1.0 }
 
 })();
 </script>
+ <script>
+/* ══════════════════════════════════════════════════════════════════
+   KANZER STATE BRIDGE v2.0 — Permanent
+══════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  let done = false;
+
+  function bridge() {
+    if (done) return true;
+    try {
+      if (typeof state !== 'undefined' && state && typeof state === 'object') {
+        Object.defineProperty(window, 'state', {
+          get: function () { return state; },
+          configurable: true
+        });
+        if (window.state === state) {
+          done = true;
+          console.log('[KZ-BRIDGE] ✅ window.state === state');
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn('[KZ-BRIDGE] err:', e);
+    }
+    return false;
+  }
+
+  if (!bridge()) {
+    let n = 0;
+    const iv = setInterval(() => {
+      n++;
+      if (bridge() || n > 60) clearInterval(iv);
+    }, 250);
+  }
+
+  setInterval(bridge, 10000);
+})();
+</script>
+  <script>
+/* ══════════════════════════════════════════════════════════════════
+   KANZER SMART RECONNECT v1.0
+   · Exponential backoff
+   · Network-aware (pause on offline)
+   · Visual badge
+   · Stats API
+══════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  const CHECK_MS = 3000;
+  const GRACE_MS = 8000;              // انتظر 8 ثوان قبل أول محاولة
+  const BACKOFF = [2000, 5000, 10000, 20000, 30000, 60000];
+
+  const trackers = {
+    main:  { fails: 0, next: 0, disconnectedSince: 0, everUp: false },
+    deriv: { fails: 0, next: 0, disconnectedSince: 0, everUp: false },
+    multi: { fails: 0, next: 0, disconnectedSince: 0, everUp: false }
+  };
+
+  const stats = {
+    attempts: 0,
+    successes: 0,
+    networkDrops: 0,
+    startedAt: Date.now()
+  };
+
+  let online = navigator.onLine;
+  let badge = null;
+
+  function getState() {
+    try { if (typeof state !== 'undefined' && state) return state; } catch(e) {}
+    return window.state || null;
+  }
+  function getMS() { return window._multiScanner || null; }
+
+  /* ── Badge ── */
+  function createBadge() {
+    if (badge || !document.body) return;
+    badge = document.createElement('div');
+    badge.id = 'kz-net-badge';
+    badge.style.cssText = [
+      'position:fixed','top:10px','left:10px','z-index:99998',
+      'display:none','align-items:center','gap:8px',
+      'padding:7px 13px','border-radius:18px',
+      'background:rgba(10,11,15,0.95)',
+      'border:1px solid rgba(38,166,154,0.45)',
+      'font-family:Courier New,monospace','font-size:10px',
+      'font-weight:900','letter-spacing:1.4px','color:#26a69a',
+      'box-shadow:0 4px 16px rgba(0,0,0,0.65)',
+      'transition:all 0.3s','pointer-events:none'
+    ].join(';');
+    badge.innerHTML = '<span id="kz-nb-dot" style="width:7px;height:7px;border-radius:50%;background:#26a69a;box-shadow:0 0 8px #26a69a;animation:livePulse 1.5s infinite;"></span>' +
+      '<span id="kz-nb-txt">ONLINE</span>' +
+      '<span id="kz-nb-sub" style="opacity:0.65;"></span>';
+    document.body.appendChild(badge);
+  }
+
+  function paintBadge() {
+    if (!badge) return;
+    const dot = document.getElementById('kz-nb-dot');
+    const txt = document.getElementById('kz-nb-txt');
+    const sub = document.getElementById('kz-nb-sub');
+    if (!dot || !txt || !sub) return;
+
+    const reconnecting = Object.keys(trackers).filter(k => trackers[k].fails > 0);
+
+    if (!online) {
+      badge.style.display = 'inline-flex';
+      badge.style.borderColor = 'rgba(239,83,80,0.5)';
+      dot.style.background = '#ef5350';
+      dot.style.boxShadow = '0 0 10px #ef5350';
+      txt.textContent = 'OFFLINE';
+      txt.style.color = '#ef5350';
+      sub.textContent = 'WAITING';
+      return;
+    }
+
+    if (reconnecting.length > 0) {
+      badge.style.display = 'inline-flex';
+      badge.style.borderColor = 'rgba(212,175,55,0.5)';
+      dot.style.background = '#d4af37';
+      dot.style.boxShadow = '0 0 10px #d4af37';
+      txt.textContent = 'RECONNECT';
+      txt.style.color = '#d4af37';
+      sub.textContent = reconnecting.length + ' CH';
+      return;
+    }
+
+    // all good
+    badge.style.display = 'none';
+  }
+
+  /* ── Backoff delay ── */
+  function waitFor(fails) {
+    const i = Math.min(Math.max(fails - 1, 0), BACKOFF.length - 1);
+    return BACKOFF[i];
+  }
+
+  /* ── Safe reconnect calls ── */
+  function tryReconnectMain() {
+    try {
+      if (typeof connectWS === 'function') { connectWS(); return true; }
+    } catch(e) { console.warn('[NET] connectWS:', e); }
+    return false;
+  }
+  function tryReconnectDeriv() {
+    try {
+      const t = localStorage.getItem('deriv_token');
+      if (t && typeof authorizeToken === 'function') {
+        authorizeToken(t, null, true);
+        return true;
+      }
+    } catch(e) { console.warn('[NET] authorizeToken:', e); }
+    return false;
+  }
+  function tryReconnectMulti() {
+    const MS = getMS();
+    if (!MS || !MS.running) return false;
+    if (MS.ws) return false; // متصل أو قيد المحاولة
+    // Multi يعيد الاتصال ذاتياً — لكن إذا عُلِق لأكثر من 15s نضغط زر التوقيع/التشغيل
+    if (trackers.multi.fails >= 3) {
+      const btn = document.getElementById('ms-toggle');
+      if (btn) {
+        try { btn.click(); setTimeout(() => btn.click(), 800); } catch(e){}
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /* ── Main monitor ── */
+  function tick() {
+    const s = getState();
+    const MS = getMS();
+    const now = Date.now();
+
+    // Helper
+    function checkWS(name, ws, reconnector, extraCondition) {
+      const t = trackers[name];
+      const isUp = ws && ws.readyState === 1;
+
+      if (isUp) {
+        if (t.fails > 0) {
+          stats.successes++;
+          console.log('[NET] ✅ ' + name + ' recovered after ' + t.fails + ' fails');
+        }
+        t.fails = 0;
+        t.everUp = true;
+        t.disconnectedSince = 0;
+        return;
+      }
+
+      // Not up — check if should retry
+      if (!online) return;
+      if (extraCondition && !extraCondition()) return;
+
+      if (t.disconnectedSince === 0) t.disconnectedSince = now;
+      const downFor = now - t.disconnectedSince;
+
+      // grace period
+      if (downFor < GRACE_MS) return;
+      if (now < t.next) return;
+
+      t.fails++;
+      t.next = now + waitFor(t.fails);
+      stats.attempts++;
+
+      console.log('[NET] 🔄 ' + name + ' retry #' + t.fails + ' (wait ' + waitFor(t.fails) + 'ms)');
+      reconnector();
+    }
+
+    // Main WS
+    if (s) {
+      checkWS('main', s.ws, tryReconnectMain, () => true);
+      checkWS('deriv', s.derivWS, tryReconnectDeriv, () => !!s.derivLinked);
+    }
+
+    // Multi WS
+    if (MS) {
+      checkWS('multi', MS.ws, tryReconnectMulti, () => !!MS.running);
+    }
+
+    paintBadge();
+  }
+
+  /* ── Network events ── */
+  window.addEventListener('online', () => {
+    online = true;
+    stats.networkDrops++;
+    console.log('[NET] 🟢 Network restored');
+    Object.keys(trackers).forEach(k => {
+      trackers[k].next = 0;
+      trackers[k].disconnectedSince = 0;
+    });
+    setTimeout(tick, 500);
+  });
+
+  window.addEventListener('offline', () => {
+    online = false;
+    console.log('[NET] 🔴 Network lost');
+    paintBadge();
+  });
+
+  /* ── Boot ── */
+  function boot() {
+    createBadge();
+    console.log('[NET] Smart Reconnect loaded · online=' + online);
+    setInterval(tick, CHECK_MS);
+    setTimeout(tick, 2000);
+    setInterval(paintBadge, 2000);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else setTimeout(boot, 1200);
+
+  /* ── Public API ── */
+  window._netStats = function () {
+    return {
+      online: online,
+      uptimeMs: Date.now() - stats.startedAt,
+      attempts: stats.attempts,
+      successes: stats.successes,
+      networkDrops: stats.networkDrops,
+      trackers: {
+        main:  { up: !!getState()?.ws, fails: trackers.main.fails },
+        deriv: { up: !!getState()?.derivWS, fails: trackers.deriv.fails },
+        multi: { up: !!getMS()?.ws, fails: trackers.multi.fails }
+      }
+    };
+  };
+
+  window._netForceReconnect = function () {
+    console.log('[NET] Manual reconnect triggered');
+    Object.keys(trackers).forEach(k => {
+      trackers[k].next = 0;
+      trackers[k].disconnectedSince = 0;
+    });
+    tick();
+  };
+})();
+</script>
 </body>
 </html>
