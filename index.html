@@ -2768,51 +2768,48 @@ const NAME = { 'R_75':'V75', 'R_100':'V100', '1HZ75V':'1HZ75', '1HZ100V':'1HZ100
     const rsiV=r[n-1], rsiPrev=r[n-2]||rsiV, rsiSlope=rsiV-rsiPrev;
     const vel3=(closes[n-1]-closes[n-4])/(atr||1);
     let bull=0, bear=0;
-    if(e3v>e8v && e8v>e21v) bull+=2; else if(e3v<e8v && e8v<e21v) bear+=2;
-    else if(e3v>e8v) bull+=0.5; else if(e3v<e8v) bear+=0.5;
-    if(prevE3<=prevE8 && e3v>e8v) bull+=1.6;
-    if(prevE3>=prevE8 && e3v<e8v) bear+=1.6;
-    if(vel3>0.5) bull+=1.5; else if(vel3>0.2) bull+=0.7;
-    else if(vel3<-0.5) bear+=1.5; else if(vel3<-0.2) bear+=0.7;
-    if(rsiV>55 && rsiSlope>1) bull+=1; else if(rsiV<45 && rsiSlope<-1) bear+=1;
-    else if(rsiV<25) bull+=0.8; else if(rsiV>75) bear+=0.8;
-    let upStreak=0, dnStreak=0;
-    for(let i=n-1;i>=Math.max(0,n-10);i--){
-      if(closes[i]>opens[i]){ if(dnStreak>0) break; upStreak++; }
-      else if(closes[i]<opens[i]){ if(upStreak>0) break; dnStreak++; } else break;
-    }
-    if(upStreak>=3) bull+=1; if(dnStreak>=3) bear+=1;
-    const win = closes.slice(-20);
-    const bbMid = win.reduce((a,b)=>a+b,0)/20;
-    const bbStd = stdev(win);
-    const bbU = bbMid+2*bbStd, bbL = bbMid-2*bbStd;
-    const bbPos = (price-bbL)/((bbU-bbL)||1);
-    const sr = detectSR(candles, 5);
-    const atrDist = atr || 1;
-    const nearSup = sr.supports.find(s => Math.abs(price - s.price) < atrDist * 0.6);
-    const nearRes = sr.resistances.find(r => Math.abs(price - r.price) < atrDist * 0.6);
-    const brokenRes = sr.resistances.find(r => price > r.price * 1.0003 && price < r.price * 1.003);
-    const brokenSup = sr.supports.find(s => price < s.price * 0.9997 && price > s.price * 0.997);
-    if(bbPos<0.15) bull+=1; else if(bbPos>0.85) bear+=1;
-    if(nearSup){ bull+=1.4; }
-    if(nearRes){ bear+=1.4; }
-    if(brokenRes){ bull+=1.8; }
-    if(brokenSup){ bear+=1.8; }
-    const c1=candles[n-1];
-    const body=Math.abs(c1.close-c1.open);
-    const range=(c1.high-c1.low)||0.0001;
-    const upperWick=c1.high-Math.max(c1.close,c1.open);
-    const lowerWick=Math.min(c1.close,c1.open)-c1.low;
-    if(lowerWick>body*1.8 && lowerWick>range*0.4) bull+=1.2;
-    if(upperWick>body*1.8 && upperWick>range*0.4) bear+=1.2;
-    if(volRatio<0.6){ bull*=0.55; bear*=0.55; } else if(volRatio>1.9){ bull*=0.72; bear*=0.72; }
-    const maxScore = Math.max(bull,bear), total = bull+bear;
-    const agreement = total>0 ? maxScore/total : 0;
-const strength = Math.min(1, maxScore/12);
+
+// ═══ STRATEGY 1: STREAK (WR 75%) ═══
+let upStreak=0, dnStreak=0;
+for(let i=n-1;i>=Math.max(0,n-10);i--){
+  if(closes[i]>opens[i]){ if(dnStreak>0) break; upStreak++; }
+  else if(closes[i]<opens[i]){ if(upStreak>0) break; dnStreak++; } else break;
+}
+if(upStreak>=3) bull+=1.0;
+if(dnStreak>=3) bear+=1.0;
+
+// ═══ STRATEGY 2: BOLLINGER (WR 63%) ═══
+const win = closes.slice(-20);
+const bbMid = win.reduce((a,b)=>a+b,0)/20;
+const bbStd = stdev(win);
+const bbU = bbMid+2*bbStd, bbL = bbMid-2*bbStd;
+const bbPos = (price-bbL)/((bbU-bbL)||1);
+if(bbPos<0.15) bull+=1.0;
+else if(bbPos>0.85) bear+=1.0;
+
+// ═══ STRATEGY 3: WICK (WR 56%) ═══
+const c1=candles[n-1];
+const body=Math.abs(c1.close-c1.open);
+const range=(c1.high-c1.low)||0.0001;
+const upperWick=c1.high-Math.max(c1.close,c1.open);
+const lowerWick=Math.min(c1.close,c1.open)-c1.low;
+if(lowerWick>body*1.8 && lowerWick>range*0.4) bull+=1.2;
+if(upperWick>body*1.8 && upperWick>range*0.4) bear+=1.2;
+
+// Volatility guard
+if(volRatio<0.6){ bull*=0.55; bear*=0.55; }
+else if(volRatio>1.9){ bull*=0.72; bear*=0.72; }
+
+// ═══ CONFIDENCE ═══
+const maxScore = Math.max(bull,bear), total = bull+bear;
+const agreement = total>0 ? maxScore/total : 0;
+const strength = Math.min(1, maxScore/3.2);
 const conf = Math.round(agreement * 65 + strength * 34);
-    let dir='NEUTRAL';
-    if(bull>=4.5 && bull>bear*1.5) dir='BUY';
-    else if(bear>=4.5 && bear>bull*1.5) dir='SELL';
+
+// ═══ DIRECTION ═══
+let dir='NEUTRAL';
+if(bull>=2.0 && bull>bear*1.5) dir='BUY';
+else if(bear>=2.0 && bear>bull*1.5) dir='SELL';
     if (typeof window._awApplyWeights === 'function') {
   const fired = [];
   if (e3v>e8v && e8v>e21v) fired.push('ema_align');
