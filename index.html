@@ -4020,5 +4020,66 @@ if (!hasStreak && !hasStrongStrategy && conf < 88) {
 
 })();
 </script>
+  <script>
+/* ══════════════════════════════════════════════════════════════════
+   KANZER CLEANUP PATCH v1.0
+   · Hide old "تشغيل MULTI" button (ORB replaces it)
+   · Force-stop analysis audio on Multi stop
+══════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  /* ① Hide old yellow toggle button */
+  function hideToggle() {
+    const b = document.getElementById('ms-toggle');
+    if (b && b.style.display !== 'none') {
+      b.style.display = 'none';
+      // Shrink the row if تصفير is now alone
+      const row = b.parentElement;
+      if (row && row.children.length === 2) {
+        row.style.gridTemplateColumns = '1fr';
+        row.style.gap = '0';
+      }
+    }
+  }
+
+  /* ② Watch MS.running transition; on stop → silence all audio */
+  let lastRun = null;
+  setInterval(() => {
+    const MS = window._multiScanner;
+    if (!MS) return;
+    if (lastRun === null) { lastRun = MS.running; return; }
+    if (lastRun === true && MS.running === false) {
+      try {
+        const A = window.KZAudio;
+        if (A) {
+          if (A.stopAnalysis) A.stopAnalysis();
+          // Force context suspend to cut tails
+          try {
+            const c = A._ensure && A._ensure();
+            if (c && c.state === 'running') {
+              setTimeout(() => {
+                try { if (c.state === 'running') c.suspend(); } catch(e){}
+              }, 400);
+            }
+          } catch(e){}
+        }
+      } catch(e) { console.warn('[CLEANUP] err', e); }
+    }
+    lastRun = MS.running;
+  }, 300);
+
+  /* ③ Boot */
+  function boot() {
+    hideToggle();
+    console.log('[KZ-CLEANUP] loaded');
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else setTimeout(boot, 2000);
+  setInterval(hideToggle, 2000);
+
+})();
+</script>
 </body>
 </html>
