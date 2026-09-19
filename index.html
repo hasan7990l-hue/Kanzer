@@ -5867,5 +5867,85 @@ wick:   { wins: 0, losses: 0, weight: 1.0 }
   setInterval(() => { if (!document.getElementById('kz-pro-panel')) injectPanel(); }, 4000);
 })();
 </script>
+ <script>
+/* ══════════════════════════════════════════════════════════════════
+   KZ-PRO RSI GUARD v1.0
+   · منع BUY عند تشبع شرائي (RSI > 72)
+   · منع SELL عند تشبع بيعي (RSI < 28)
+   · استثناء: RSI يتراجع (reversal) → يسمح
+══════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  let hooked = false;
+
+  function install() {
+    if (hooked) return;
+    if (!window._kzProAnalyze) { setTimeout(install, 800); return; }
+
+    // RSI GUARD — يُركّب داخل المحلل
+    const _analyze = window._kzProAnalyze;
+    window._kzProAnalyze = function (sym) {
+      const a = _analyze.call(this, sym);
+      if (!a) return a;
+
+      const rsi = a.rsi;
+
+      // تشبع شرائي → لا BUY
+      if (a.direction === 'BUY' && rsi > 72) {
+        a.direction = 'NEUTRAL';
+        a.guardReason = 'RSI ' + rsi + ' overbought';
+        a.confirmed = false;
+        a.confirmReason = a.guardReason;
+      }
+      // تشبع بيعي → لا SELL
+      else if (a.direction === 'SELL' && rsi < 28) {
+        a.direction = 'NEUTRAL';
+        a.guardReason = 'RSI ' + rsi + ' oversold';
+        a.confirmed = false;
+        a.confirmReason = a.guardReason;
+      }
+
+      return a;
+    };
+
+    // اربط Guard مع Gate (استبدل القرار قبل التنفيذ)
+    if (typeof window.sendProposal === 'function' && !window.sendProposal.__rsiGuarded) {
+      const orig = window.sendProposal;
+      const wrapped = function (opts) {
+        if (opts && opts.symbol && opts.scalp) {
+          const a = window._kzProAnalyze(opts.symbol);
+          if (a && a.guardReason) {
+            const MS = window._multiScanner;
+            if (MS) {
+              if (MS.stats && MS.stats.fired > 0) MS.stats.fired--;
+              MS.cooldownUntil = Date.now() + 5000;
+              MS.activeTrade = null;
+            }
+            const el = document.getElementById('ms-log');
+            if (el) {
+              const line = document.createElement('div');
+              line.style.color = '#d4af37';
+              line.textContent = '[' + new Date().toLocaleTimeString('ar-EG') + '] 🛡 RSI-GUARD: ' + opts.side + ' ' + opts.symbol + ' — ' + a.guardReason;
+              el.prepend(line);
+              while (el.children.length > 20) el.removeChild(el.lastChild);
+            }
+            throw new Error('RSI Guard: ' + a.guardReason);
+          }
+        }
+        return orig.apply(this, arguments);
+      };
+      wrapped.__rsiGuarded = true;
+      window.sendProposal = wrapped;
+      try { sendProposal = wrapped; } catch (e) {}
+    }
+
+    hooked = true;
+    console.log('[KZ-RSI-GUARD v1.0] active · BUY blocked >72 · SELL blocked <28');
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(install, 2500));
+  else setTimeout(install, 2500);
+})();
+</script>
 </body>
 </html>
