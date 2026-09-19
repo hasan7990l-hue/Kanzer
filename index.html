@@ -2383,28 +2383,6 @@ document.addEventListener('DOMContentLoaded', () => {
       requestAnimationFrame(draw);
     })();
   }
-  make('bg-lines');
-  function startLines() {
-    const c = canv['bg-lines']; fit(c);
-    const ctx = c.getContext('2d');
-    const list = [];
-    for (let i=0; i<8; i++) list.push({ y:(i+1)*c.height/9, sp:0.3+Math.random()*0.8, off:Math.random()*c.width, amp:20+Math.random()*40, fr:0.005+Math.random()*0.01, col:i%2===0?'rgba(38,166,154,0.18)':'rgba(239,83,80,0.18)' });
-    (function draw(){
-      if (c.style.display === 'none') return requestAnimationFrame(draw);
-      ctx.clearRect(0,0,c.width,c.height);
-      list.forEach(l => {
-        ctx.strokeStyle = l.col; ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        for (let x=0; x<=c.width; x+=5){
-          const y = l.y+Math.sin((x+l.off)*l.fr)*l.amp;
-          x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-        }
-        ctx.stroke();
-        l.off += l.sp;
-      });
-      requestAnimationFrame(draw);
-    })();
-  }
     make('bg-timeline');
   function startTimeline() {
     const c = canv['bg-timeline']; fit(c);
