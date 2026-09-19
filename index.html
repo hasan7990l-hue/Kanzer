@@ -1316,19 +1316,6 @@ async function handleLogin(e) {
     showAuthMsg('login-msg', msg, 'error');
   }
 }
-
-function showUpgradeModal() {
-  const modal = $('modal-bg'), content = $('modal-content');
-  if (!modal || !content) return;
-  content.innerHTML =
-    '<h3 style="color:var(--gold);text-align:center;margin-bottom:16px;">💎 الترقية إلى Pro</h3>' +
-    '<p style="color:var(--text-dim);font-size:13px;text-align:center;line-height:1.8;margin-bottom:16px;">للحصول على الاشتراك، تواصل معنا:</p>' +
-    '<a href="https://wa.me/9647751459130?text=أريد%20الاشتراك%20في%20Kanzer%20Pro" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-radius:10px;text-decoration:none;font-weight:800;margin-bottom:10px;">💬 واتساب — اشترك الآن</a>' +
-    '<a href="https://t.me/Eror_7" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;background:linear-gradient(135deg,#29B6F6,#0077B5);color:#fff;border-radius:10px;text-decoration:none;font-weight:800;margin-bottom:10px;">✈️ تلغرام — اشترك الآن</a>' +
-    '<p style="color:var(--text-dim);font-size:11px;text-align:center;margin-top:14px;">بعد الدفع، سيتم تفعيل حسابك خلال دقائق</p>' +
-    '<button class="btn btn-outline btn-full" onclick="closeModal()" style="margin-top:10px;">إغلاق</button>';
-  modal.classList.add('show');
-  } 
 function loadUser(email) {
   const users = getUsers();
   const u = users[email]; if (!u) return;
