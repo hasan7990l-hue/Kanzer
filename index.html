@@ -1595,21 +1595,6 @@ function requestCandles() {
   }));
 }
   function currentCurrency() { return (state.derivAccount && state.derivAccount.currency) || 'USD'; }
-
-function executeSignalTrade(side) {
-  if (!state.derivLinked || !state.derivWS) {
-    showToast('اربط حساب Deriv أولاً', 'red');
-    setTimeout(() => document.querySelector('[data-page="deriv"]').click(), 800);
-    return;
-  }
-  const symbol = $('symbol-select')?.value || 'R_100';
-  const amount = parseFloat($('auto-amount')?.value) || 1;
-  const duration = parseInt($('auto-duration')?.value) || 1;
-  const label = side === 'BUY' ? 'شراء Rise' : 'بيع Fall';
-  if (!confirm('تنفيذ ' + label + '؟\n\nالأصل: ' + symbol + '\nالمبلغ: ' + amount + '\nالمدة: ' + duration + ' دقيقة')) return;
-  sendProposal({ side, symbol, amount, duration, auto: false });
-}
-
 function sendProposal({ side, symbol, amount, duration, auto, smart, hunter }) {
   amount = Number(Number(amount).toFixed(2));
 if (!(amount >= 0.35)) amount = 0.35;
