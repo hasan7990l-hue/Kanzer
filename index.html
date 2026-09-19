@@ -1595,8 +1595,7 @@ if (!(amount >= 0.35)) amount = 0.35;
           state.derivWS.send(JSON.stringify({ buy: msg.proposal.id, price: msg.proposal.ask_price, req_id: reqId + 1 }));
         } else if (msg.error) {
           state.derivWS.removeEventListener('message', handler);
-          else showToast('رُفض الطلب: ' + (msg.error.message || 'خطأ'), 'red');
-        }
+          showToast('رُفض الطلب: ' + (msg.error.message || 'خطأ'), 'red');
       } catch(e) {}
     };
     state.derivWS.addEventListener('message', handler);
