@@ -3002,10 +3002,15 @@ return {
     if (MS.activeTrade) return;
     if (now < MS.cooldownUntil) return;
     if (!window.state || !window.state.derivWS || !window.state.derivLinked) {
-      mlog('Deriv غير مربوط', 'var(--red)');
-      MS.cooldownUntil = now + 30000;
-      return;
-    }
+  // Only log if no reconnect in progress
+  if (!window.__kz_reconnecting) {
+    mlog('⏸ Deriv يقطع — إعادة اتصال جارية', 'var(--gold)');
+  }
+  window.__kz_reconnecting = true;
+  MS.cooldownUntil = now + 5000;
+  return;
+}
+window.__kz_reconnecting = false;
     if (typeof window.sendProposal !== 'function') { mlog('sendProposal غير متاح', 'var(--red)'); return; }
     const amount = MS.config.stake;
     MS.activeTrade = { ts:now, symbol:best.symbol, direction:best.direction, amount, confidence:best.confidence };
