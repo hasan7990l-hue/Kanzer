@@ -2308,7 +2308,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (mb) mb.addEventListener('click', (e) => { if (e.target.id === 'modal-bg') closeModal(); });
 });
 function startRefreshLoop() {
-  setInterval(() =>
+  setInterval(() => {
     if (!state.wsConnected || !state.derivWS) {
       if (state.derivLinked && localStorage.getItem('deriv_token') && !state.derivWS) authorizeToken(localStorage.getItem('deriv_token'), null, true);
       if (!state.wsConnected) connectWS();
