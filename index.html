@@ -1574,7 +1574,6 @@ function handleWSMessage(msg) {
       setText('signal-price', state.currentPrice.toFixed(4));
     }
     if (loader) loader.classList.add('hidden');
-    runAnalysis();
   } else if (msg.msg_type === 'authorize') {
     if (msg.error) { console.warn('Deriv auth error', msg.error); return; }
     const a = msg.authorize;
