@@ -4557,5 +4557,244 @@ if (!hasStreak && !hasStrongStrategy && conf < 88) {
 
 })();
 </script>
+ <script>
+/* ══════════════════════════════════════════════════════════════════
+   KANZER MULTI-TIMEFRAME v1.0
+   5m Trend Confirmation Layer
+   · Blocks trades against 5m trend
+   · Live alignment badge
+   · Self-contained
+══════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  const SYMBOLS = ['R_75', 'R_100', '1HZ75V', '1HZ100V'];
+  const TF5M = 300;
+  const state5m = { candles: {}, ws: null, connected: false, ready: false };
+  const stats5m = { allowed: 0, blocked: 0, pending: 0 };
+  let enabled = true;
+
+  /* ── EMA ── */
+  function ema(a, p) {
+    if (!a.length) return [];
+    const k = 2 / (p + 1), o = [a[0]];
+    for (let i = 1; i < a.length; i++) o.push(a[i] * k + o[i - 1] * (1 - k));
+    return o;
+  }
+
+  /* ── Trend detection ── */
+  function trend5m(sym) {
+    const c = state5m.candles[sym];
+    if (!c || c.length < 30) return 'PENDING';
+    const closes = c.map(x => x.close);
+    const e21 = ema(closes, 21);
+    const last = closes[closes.length - 1];
+    const e21v = e21[e21.length - 1];
+    const diff = (last - e21v) / e21v;
+    if (diff > 0.0005) return 'UP';
+    if (diff < -0.0005) return 'DOWN';
+    return 'FLAT';
+  }
+
+  /* ── WebSocket for 5m candles ── */
+  function connect5m() {
+    if (state5m.ws && state5m.ws.readyState === 1) return;
+    if (state5m.ws) { try { state5m.ws.close(); } catch(e){} }
+    try {
+      state5m.ws = new WebSocket('wss://api.derivws.com/trading/v1/options/ws/public');
+    } catch(e) { setTimeout(connect5m, 5000); return; }
+
+    state5m.ws.onopen = () => {
+      state5m.connected = true;
+      SYMBOLS.forEach((s, i) => {
+        try {
+          state5m.ws.send(JSON.stringify({
+            ticks_history: s, adjust_start_time: 1, count: 100,
+            end: 'latest', start: 1, style: 'candles',
+            granularity: TF5M, req_id: 5000 + i
+          }));
+        } catch(e){}
+      });
+      console.log('[5m-TF] connected');
+      paintBadge();
+    };
+
+    state5m.ws.onmessage = (ev) => {
+      try {
+        const m = JSON.parse(ev.data);
+        if (m.msg_type === 'candles' && m.candles) {
+          const sym = m.echo_req && m.echo_req.ticks_history;
+          if (!sym) return;
+          state5m.candles[sym] = m.candles.map(c => ({
+            time: c.epoch,
+            open: +c.open, high: +c.high, low: +c.low, close: +c.close
+          }));
+          state5m.ready = true;
+          paintBadge();
+        }
+      } catch(e){}
+    };
+
+    state5m.ws.onerror = () => { state5m.connected = false; };
+    state5m.ws.onclose = () => {
+      state5m.connected = false;
+      setTimeout(connect5m, 5000);
+    };
+  }
+
+  /* ── Alignment check ── */
+  function checkAlignment(side, symbol) {
+    const t = trend5m(symbol);
+    if (t === 'PENDING') return { allow: true, reason: 'pending' };
+    if (side === 'BUY') {
+      if (t === 'DOWN') return { allow: false, reason: '1m BUY ضد 5m DOWN' };
+      return { allow: true, reason: t };
+    }
+    if (side === 'SELL') {
+      if (t === 'UP') return { allow: false, reason: '1m SELL ضد 5m UP' };
+      return { allow: true, reason: t };
+    }
+    return { allow: true, reason: 'n/a' };
+  }
+
+  /* ── Hook sendProposal ── */
+  function patchSend() {
+    if (typeof window.sendProposal !== 'function') { setTimeout(patchSend, 500); return; }
+    if (window.sendProposal.__tf5mHooked) return;
+
+    const orig = window.sendProposal;
+    const wrapped = function (opts) {
+      if (enabled && opts && opts.scalp && opts.symbol) {
+        const r = checkAlignment(opts.side, opts.symbol);
+        if (!r.allow) {
+          stats5m.blocked++;
+
+          // Undo Multi's premature accounting
+          const MS = window._multiScanner;
+          if (MS) {
+            if (MS.stats && MS.stats.fired > 0) MS.stats.fired--;
+            MS.cooldownUntil = Date.now() + 5000; // retry in 5s
+          }
+
+          // Log
+          const el = document.getElementById('ms-log');
+          if (el) {
+            const line = document.createElement('div');
+            line.style.color = 'var(--red)';
+            line.textContent = '[' + new Date().toLocaleTimeString('ar-EG') + '] ⛔ رفض 5m: ' + opts.side + ' ' + opts.symbol + ' — ' + r.reason;
+            el.prepend(line);
+            while (el.children.length > 20) el.removeChild(el.lastChild);
+          }
+
+          if (window.KZAudio && window.KZAudio.playSignal) window.KZAudio.playSignal();
+
+          // Abort — Multi's try/catch will reset activeTrade
+          throw new Error('5m trend mismatch');
+        }
+        if (r.reason === 'FLAT') {
+          stats5m.pending++;
+        } else {
+          stats5m.allowed++;
+        }
+      }
+      return orig.apply(this, arguments);
+    };
+    wrapped.__tf5mHooked = true;
+    window.sendProposal = wrapped;
+    console.log('[5m-TF] sendProposal hooked');
+    paintBadge();
+  }
+
+  /* ── Badge ── */
+  function injectBadge() {
+    const head = document.querySelector('#multi-scanner-panel .hunter-head');
+    if (!head || document.getElementById('kz-tf5m-badge')) return;
+
+    const b = document.createElement('div');
+    b.id = 'kz-tf5m-badge';
+    b.style.cssText = [
+      'display:inline-flex','align-items:center','gap:6px',
+      'font-family:Courier New,monospace','font-size:10px',
+      'letter-spacing:1.5px','padding:3px 10px','border-radius:12px',
+      'background:rgba(0,212,255,0.1)','border:1px solid rgba(0,212,255,0.4)',
+      'color:var(--cyan)','margin-right:8px','transition:all 0.4s'
+    ].join(';');
+    b.innerHTML = '<span id="kz-tf5m-dot" style="width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 6px var(--cyan);animation:livePulse 1.5s infinite;"></span><span id="kz-tf5m-txt">5m: INIT</span>';
+
+    const stateEl = document.getElementById('ms-state');
+    if (stateEl && stateEl.parentNode) stateEl.parentNode.insertBefore(b, stateEl);
+    else head.appendChild(b);
+  }
+
+  function paintBadge() {
+    const txt = document.getElementById('kz-tf5m-txt');
+    const dot = document.getElementById('kz-tf5m-dot');
+    const b = document.getElementById('kz-tf5m-badge');
+    if (!txt || !dot || !b) return;
+
+    if (!enabled) {
+      txt.textContent = '5m: OFF';
+      dot.style.background = '#6b7280';
+      dot.style.boxShadow = 'none';
+      b.style.borderColor = 'rgba(107,114,128,0.4)';
+      b.style.color = '#6b7280';
+      return;
+    }
+
+    let up = 0, down = 0, flat = 0, total = 0;
+    SYMBOLS.forEach(s => {
+      const t = trend5m(s);
+      if (t === 'UP')   { up++;   total++; }
+      if (t === 'DOWN') { down++; total++; }
+      if (t === 'FLAT') { flat++; total++; }
+    });
+
+    if (total === 0) {
+      txt.textContent = '5m: LOADING';
+      return;
+    }
+
+    txt.textContent = '5m ' + up + '▲ ' + down + '▼ | OK ' + stats5m.allowed + ' BLC ' + stats5m.blocked;
+
+    // Color
+    const color = stats5m.blocked > stats5m.allowed ? 'var(--red)' : 'var(--cyan)';
+    b.style.color = color;
+    b.style.borderColor = stats5m.blocked > stats5m.allowed
+      ? 'rgba(239,83,80,0.4)' : 'rgba(0,212,255,0.4)';
+    dot.style.background = color;
+    dot.style.boxShadow = '0 0 6px ' + color;
+  }
+
+  /* ── Public API ── */
+  window._tf5mToggle = function () {
+    enabled = !enabled;
+    paintBadge();
+    console.log('[5m-TF]', enabled ? 'ENABLED' : 'DISABLED');
+  };
+  window._tf5mStats = function () {
+    return {
+      enabled,
+      connected: state5m.connected,
+      ready: state5m.ready,
+      symbols: SYMBOLS.reduce((acc, s) => { acc[s] = trend5m(s); return acc; }, {}),
+      stats: stats5m
+    };
+  };
+
+  /* ── Boot ── */
+  function boot() {
+    if (!window._multiScanner) { setTimeout(boot, 1000); return; }
+    connect5m();
+    patchSend();
+    setInterval(injectBadge, 2000);
+    setInterval(paintBadge, 3000);
+    console.log('[5m-TF] Multi-Timeframe loaded');
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else setTimeout(boot, 3500);
+
+})();
+</script>
 </body>
 </html>
