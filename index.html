@@ -3667,5 +3667,358 @@ if (!hasStreak && !hasStrongStrategy && conf < 88) {
   else setTimeout(boot, 2000);
 })();
 </script>
+  <script>
+/* ══════════════════════════════════════════════════════════════════
+   KANZER ELECTRONIC SUITE v1.0
+   · Live Session Badge (electronic)
+   · Auto-Confidence Threshold (electronic display)
+══════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  const BLOCKED_UTC = [0, 1, 21, 22, 23];
+  let overrideUntil = 0;
+
+  /* ──────────────── CSS ──────────────── */
+  const CSS = `
+  .kz-elec-row {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 10px;
+    margin-bottom: 12px;
+    position: relative;
+    z-index: 2;
+  }
+  @media (max-width: 500px) {
+    .kz-elec-row { grid-template-columns: 1fr; }
+  }
+
+  /* Session card */
+  .kz-session-card {
+    position: relative;
+    padding: 12px 14px;
+    background: linear-gradient(145deg, rgba(38,166,154,0.08), rgba(10,11,15,0.95));
+    border: 1px solid rgba(38,166,154,0.35);
+    border-radius: 12px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 0 20px rgba(38,166,154,0.08);
+    overflow: hidden;
+    transition: all 0.5s;
+  }
+  .kz-session-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      90deg,
+      transparent 0px, transparent 3px,
+      rgba(255,255,255,0.02) 3px, rgba(255,255,255,0.02) 4px
+    );
+    pointer-events: none;
+  }
+  .kz-session-card[data-state="blocked"] {
+    background: linear-gradient(145deg, rgba(239,83,80,0.1), rgba(10,11,15,0.95));
+    border-color: rgba(239,83,80,0.45);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 0 24px rgba(239,83,80,0.15);
+  }
+
+  .kz-session-head {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 6px;
+    position: relative; z-index: 1;
+  }
+  .kz-session-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #26a69a;
+    box-shadow: 0 0 10px #26a69a, 0 0 20px rgba(38,166,154,0.5);
+    animation: kzSessionPulse 1.6s ease-in-out infinite;
+    transition: all 0.5s;
+  }
+  .kz-session-card[data-state="blocked"] .kz-session-dot {
+    background: #ef5350;
+    box-shadow: 0 0 12px #ef5350, 0 0 24px rgba(239,83,80,0.6);
+    animation: kzSessionPulse 0.9s ease-in-out infinite;
+  }
+  @keyframes kzSessionPulse {
+    0%,100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.55; }
+  }
+  .kz-session-title {
+    font-family: 'Courier New', monospace;
+    font-size: 9px; letter-spacing: 3px;
+    color: rgba(38,166,154,0.85);
+    font-weight: 900;
+    text-transform: uppercase;
+    transition: color 0.4s;
+  }
+  .kz-session-card[data-state="blocked"] .kz-session-title {
+    color: rgba(239,83,80,0.9);
+  }
+  .kz-session-value {
+    font-family: 'Courier New', monospace;
+    font-size: 15px; font-weight: 900;
+    color: #e8eaf0;
+    letter-spacing: 1.5px;
+    position: relative; z-index: 1;
+    transition: color 0.4s;
+  }
+  .kz-session-card[data-state="blocked"] .kz-session-value {
+    color: #ef5350;
+  }
+  .kz-session-sub {
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    color: rgba(138,144,163,0.55);
+    letter-spacing: 1px;
+    margin-top: 2px;
+    position: relative; z-index: 1;
+  }
+
+  /* Auto-conf card */
+  .kz-auto-card {
+    position: relative;
+    padding: 12px 14px 15px;
+    background: linear-gradient(145deg, rgba(0,212,255,0.06), rgba(10,11,15,0.95));
+    border: 1px solid rgba(0,212,255,0.28);
+    border-radius: 12px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 0 22px rgba(0,212,255,0.06);
+    overflow: hidden;
+    transition: all 0.5s;
+  }
+  .kz-auto-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      90deg,
+      transparent 0px, transparent 3px,
+      rgba(0,212,255,0.02) 3px, rgba(0,212,255,0.02) 4px
+    );
+    pointer-events: none;
+  }
+  .kz-auto-head {
+    display: flex; justify-content: space-between; align-items: center;
+    position: relative; z-index: 1;
+    margin-bottom: 4px;
+  }
+  .kz-auto-title {
+    font-family: 'Courier New', monospace;
+    font-size: 9px; letter-spacing: 3px;
+    color: rgba(0,212,255,0.8);
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+  .kz-auto-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #00d4ff;
+    box-shadow: 0 0 8px #00d4ff;
+    animation: kzAutoDot 1.4s ease-in-out infinite;
+  }
+  @keyframes kzAutoDot {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(1.4); }
+  }
+  .kz-auto-value {
+    font-family: 'Courier New', monospace;
+    font-size: 32px; font-weight: 900;
+    letter-spacing: 1px;
+    color: #00d4ff;
+    text-shadow: 0 0 14px rgba(0,212,255,0.8), 0 0 32px rgba(0,212,255,0.4);
+    direction: ltr;
+    text-align: right;
+    position: relative; z-index: 1;
+    transition: color 0.4s, text-shadow 0.4s;
+    line-height: 1;
+    margin: 2px 0 6px;
+  }
+  .kz-auto-value[data-tone="loose"] {
+    color: #26a69a;
+    text-shadow: 0 0 14px rgba(38,166,154,0.8);
+  }
+  .kz-auto-value[data-tone="strict"] {
+    color: #d4af37;
+    text-shadow: 0 0 16px rgba(212,175,55,0.85), 0 0 36px rgba(212,175,55,0.4);
+  }
+  .kz-auto-value[data-tone="tight"] {
+    color: #ef5350;
+    text-shadow: 0 0 18px rgba(239,83,80,0.9), 0 0 40px rgba(239,83,80,0.5);
+    animation: kzTightPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes kzTightPulse {
+    0%,100% { filter: brightness(1); }
+    50% { filter: brightness(1.5); }
+  }
+  .kz-auto-bar {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 3px;
+    background: rgba(0,0,0,0.4);
+    overflow: hidden;
+  }
+  .kz-auto-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #26a69a, #00d4ff, #d4af37, #ef5350);
+    transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  `;
+
+  /* ──────────────── Logic ──────────────── */
+  function sessionBlocked() {
+    if (Date.now() < overrideUntil) return false;
+    return BLOCKED_UTC.includes(new Date().getUTCHours());
+  }
+
+  function computeThreshold() {
+    const MS = window._multiScanner;
+    if (!MS) return 78;
+    let base = 78;
+
+    // Volatility
+    let vol = 1.0;
+    const syms = Object.keys(MS.results || {});
+    if (syms.length) {
+      let sum = 0, n = 0;
+      syms.forEach(s => {
+        const r = MS.results[s];
+        if (r && typeof r.volRatio === 'number') { sum += r.volRatio; n++; }
+      });
+      if (n) vol = sum / n;
+    }
+    if (vol > 1.6) base += 6;
+    else if (vol > 1.3) base += 3;
+    else if (vol < 0.7) base += 8;
+    else if (vol < 0.9) base += 4;
+
+    // Recent trades
+    const hist = (window.state && window.state.history) || [];
+    const recent = hist.slice(0, 5);
+    if (recent.length >= 3) {
+      const l = recent.filter(h => h.status === 'loss').length;
+      const w = recent.filter(h => h.status === 'win').length;
+      if (l >= 3) base += 8;
+      else if (l >= 2) base += 4;
+      else if (w >= 4) base -= 3;
+    }
+    if (hist.length >= 30) base -= 2;
+
+    // Adaptive
+    const AW = window._adaptive;
+    if (AW && AW.symbolBoost) {
+      const b = Object.values(AW.symbolBoost).filter(x => typeof x === 'number');
+      if (b.length >= 2) {
+        const avg = b.reduce((a, c) => a + c, 0) / b.length;
+        if (avg < 0.85) base += 3;
+        else if (avg > 1.15) base -= 2;
+      }
+    }
+
+    return Math.max(70, Math.min(92, Math.round(base)));
+  }
+
+  function toneFor(v) {
+    if (v >= 88) return 'tight';
+    if (v >= 82) return 'strict';
+    if (v >= 74) return 'normal';
+    return 'loose';
+  }
+
+  /* ──────────────── Inject ──────────────── */
+  function inject() {
+    const input = document.getElementById('ms-minconf');
+    if (!input) return false;
+    const fieldWrap = input.closest('.field');
+    if (!fieldWrap) return false;
+    const gridWrap = fieldWrap.parentElement;
+    if (!gridWrap) return false;
+
+    // Replace the field with electronic card
+    fieldWrap.remove();
+
+    // Create row container
+    const row = document.createElement('div');
+    row.className = 'kz-elec-row';
+    row.id = 'kz-elec-row';
+    row.innerHTML = `
+      <div class="kz-session-card" id="kz-session-card" data-state="ok">
+        <div class="kz-session-head">
+          <span class="kz-session-dot"></span>
+          <span class="kz-session-title">SESSION</span>
+        </div>
+        <div class="kz-session-value" id="kz-session-val">OK</div>
+        <div class="kz-session-sub" id="kz-session-sub">UTC XX:00 · ACTIVE</div>
+      </div>
+      <div class="kz-auto-card" id="kz-auto-card">
+        <div class="kz-auto-head">
+          <span class="kz-auto-title">AUTO THRESHOLD</span>
+          <span class="kz-auto-dot"></span>
+        </div>
+        <div class="kz-auto-value" id="kz-auto-val" data-tone="normal">--%</div>
+        <div style="font-family:'Courier New',monospace;font-size:8px;color:rgba(138,144,163,0.55);letter-spacing:1px;position:relative;z-index:1;">MARKET + PERF + AI</div>
+        <div class="kz-auto-bar"><div class="kz-auto-bar-fill" id="kz-auto-bar" style="width:0%"></div></div>
+      </div>
+    `;
+    gridWrap.insertBefore(row, gridWrap.firstChild);
+
+    // Also inject the actual hidden input so Multi still works
+    const hidden = document.createElement('input');
+    hidden.type = 'hidden';
+    hidden.id = 'ms-minconf';
+    hidden.value = 78;
+    gridWrap.appendChild(hidden);
+
+    return true;
+  }
+
+  /* ──────────────── Paint loop ──────────────── */
+  function paint() {
+    // Session
+    const blocked = sessionBlocked();
+    const sc = document.getElementById('kz-session-card');
+    const sv = document.getElementById('kz-session-val');
+    const ss = document.getElementById('kz-session-sub');
+    const h = new Date().getUTCHours();
+    const hh = String(h).padStart(2, '0');
+
+    if (sc) sc.dataset.state = blocked ? 'blocked' : 'ok';
+    if (sv) sv.textContent = blocked ? 'PAUSED' : 'OK';
+    if (ss) ss.textContent = 'UTC ' + hh + ':00 · ' + (blocked ? 'NO TRADE' : 'ACTIVE');
+
+    // Threshold
+    const v = computeThreshold();
+    const valEl = document.getElementById('kz-auto-val');
+    const barEl = document.getElementById('kz-auto-bar');
+    const hidden = document.getElementById('ms-minconf');
+
+    if (valEl) {
+      if (valEl.textContent !== v + '%') valEl.textContent = v + '%';
+      valEl.dataset.tone = toneFor(v);
+    }
+    if (barEl) {
+      const pct = Math.max(0, Math.min(100, ((v - 70) / 25) * 100));
+      barEl.style.width = pct + '%';
+    }
+    if (hidden && hidden.value != v) {
+      hidden.value = v;
+      hidden.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+
+  function boot() {
+    if (!window._multiScanner) { setTimeout(boot, 1000); return; }
+    const s = document.createElement('style');
+    s.textContent = CSS;
+    document.head.appendChild(s);
+
+    if (!inject()) { setTimeout(boot, 800); return; }
+
+    // Paint loop
+    paint();
+    setInterval(paint, 2000);
+
+    console.log('[KZ-ELEC] Suite loaded');
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else setTimeout(boot, 3500);
+
+})();
+</script>
 </body>
 </html>
