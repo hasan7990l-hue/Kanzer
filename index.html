@@ -2810,28 +2810,27 @@ const conf = Math.round(agreement * 65 + strength * 34);
 let dir='NEUTRAL';
 if(bull>=2.0 && bull>bear*1.5) dir='BUY';
 else if(bear>=2.0 && bear>bull*1.5) dir='SELL';
-    if (typeof window._awApplyWeights === 'function') {
+if (typeof window._awApplyWeights === 'function') {
   const fired = [];
-  if (e3v>e8v && e8v>e21v) fired.push('ema_align');
-  else if (e3v<e8v && e8v<e21v) fired.push('ema_align');
-  if (prevE3<=prevE8 && e3v>e8v) fired.push('ema_cross');
-  if (prevE3>=prevE8 && e3v<e8v) fired.push('ema_cross');
-  if (Math.abs(vel3) > 0.2) fired.push('momentum');
-  if (rsiV>55 || rsiV<45) fired.push('rsi');
   if (upStreak>=3 || dnStreak>=3) fired.push('streak');
   if (bbPos<0.15 || bbPos>0.85) fired.push('bb');
   if (lowerWick>body*1.8 || upperWick>body*1.8) fired.push('wick');
-      if (nearSup || nearRes || brokenRes || brokenSup) fired.push('sr');
-  window._awLastFired = fired;   
-// QUALITY FILTER — Streak or strong signal only
-const hasStreak = (upStreak>=3 || dnStreak>=3);
-const firingStrategies = (window._awLastFired || []);
-const hasSR = firingStrategies.includes('sr');
-const hasStrongStrategy = firingStrategies.includes('streak') || firingStrategies.includes('bb') || hasSR;
-if (!hasStreak && !hasStrongStrategy && conf < 88) {
-  dir = 'NEUTRAL';
+  window._awLastFired = fired;
+
+  // Quality filter — require Streak or BB
+  const hasStreak = (upStreak>=3 || dnStreak>=3);
+  const hasBB = (bbPos<0.15 || bbPos>0.85);
+  if (!hasStreak && !hasBB && conf < 88) {
+    dir = 'NEUTRAL';
   }
-    }
+}
+
+return {
+  direction: dir,
+  confidence: conf,
+  bull, bear, price, volRatio,
+  ts: Date.now()
+};
     return {
       direction:dir, confidence:conf, bull, bear, price, volRatio, ts:Date.now(),
       sr: { nearSup: !!nearSup, nearRes: !!nearRes, brokenRes: !!brokenRes, brokenSup: !!brokenSup }
