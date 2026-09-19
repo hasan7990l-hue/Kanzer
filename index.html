@@ -1641,20 +1641,17 @@ if (!(amount >= 0.35)) amount = 0.35;
           state.contractMap[contractId] = trade.id;
           renderActiveTrades();
           state.derivWS.send(JSON.stringify({ proposal_open_contract: 1, contract_id: contractId, subscribe: 1, req_id: reqId + 2 }));
-          if (auto) addAutoLog('تم تنفيذ ' + side + ' — $' + amount, 'var(--green)');
-          else showToast('تم إرسال الصفقة — ' + amount + ' دولار', 'green');
+          showToast('تم إرسال الصفقة — ' + amount + ' دولار', 'green');
         } else if (msg.error && msg.req_id === reqId + 1) {
           state.derivWS.removeEventListener('message', buyHandler);
-          if (auto) addAutoLog('رُفض الشراء: ' + (msg.error.message || 'خطأ'), 'var(--red)');
-          else showToast('رُفض الشراء: ' + (msg.error.message || 'خطأ'), 'red');
+          showToast('رُفض الطلب: ' + (msg.error.message || 'خطأ'), 'red');
         }
       } catch(e) {}
     };
     state.derivWS.addEventListener('message', buyHandler);
     setTimeout(() => { try { state.derivWS.removeEventListener('message', buyHandler); } catch(e){} }, 20000);
   } catch (e) {
-    if (auto) addAutoLog('فشل الإرسال: ' + e.message, 'var(--red)');
-    else showToast('فشل الإرسال: ' + e.message, 'red');
+    showToast('فشل الإرسال: ' + e.message, 'red');
   }
 }
 function settleTradeFromDeriv(contract) {
