@@ -272,17 +272,6 @@ a { color:var(--gold); text-decoration:none; }
 .modal-steps { list-style:none; padding:0; }
 .modal-steps li { padding:10px 12px; margin-bottom:8px; background:var(--bg-1); border-radius:8px; font-size:13px; color:var(--text); display:flex; gap:10px; align-items:flex-start; }
 .modal-steps .num { background:var(--gold); color:#0a0b0f; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:12px; flex-shrink:0; }
-
-.live-stats { position:fixed; top:18px; left:18px; display:flex; align-items:center; gap:14px; background:rgba(15,18,24,0.85); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:1px solid rgba(212,175,55,0.3); border-radius:14px; padding:10px 16px; z-index:500; box-shadow:0 4px 20px rgba(0,0,0,0.5); font-family:inherit; transition:all 0.3s; }
-.live-stats:hover { border-color:rgba(212,175,55,0.6); box-shadow:0 6px 24px rgba(212,175,55,0.15); }
-.live-item { display:flex; align-items:center; gap:6px; font-size:12px; }
-.live-dot { width:8px; height:8px; border-radius:50%; background:#26a69a; box-shadow:0 0 8px rgba(38,166,154,0.9); animation:livePulse 1.5s infinite; }
-@keyframes livePulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.5; transform:scale(1.3); } }
-.live-icon { font-size:13px; }
-.live-num { font-size:14px; font-weight:900; color:var(--gold); min-width:24px; text-align:center; }
-.live-label { color:var(--text-dim); font-weight:600; letter-spacing:0.3px; }
-.live-divider { width:1px; height:18px; background:rgba(42,47,61,0.8); }
-
 #intro-particles { position:fixed; inset:0; width:100%; height:100%; z-index:8999; pointer-events:none; display:none; }
 #intro-particles.active { display:block; }
 .intro-screen { position:fixed; inset:0; z-index:9000; display:none; align-items:center; justify-content:center; padding:20px; background:radial-gradient(ellipse at top, rgba(139,92,246,0.10), transparent 60%), radial-gradient(ellipse at bottom, rgba(0,212,255,0.06), transparent 60%), var(--bg-0); overflow:hidden; }
