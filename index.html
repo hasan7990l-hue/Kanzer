@@ -1769,15 +1769,6 @@ function computeKellyAmount(balance) {
   const f = kellyFraction(p, avgWin / avgLoss);
   return Math.max(0.35, Number((balance * f).toFixed(2)));
 }
-function addAutoLog(msg, color = 'var(--text)') {
-  const log = $('auto-log'); if (!log) return;
-  const time = new Date().toLocaleTimeString('ar-EG');
-  const line = document.createElement('div');
-  line.style.color = color;
-  line.textContent = `[${time}] ${msg}`;
-  log.prepend(line);
-  if (log.children.length > 50) log.removeChild(log.lastChild);
-  }
   async function authorizeToken(token, preferredType, silent) {
   try {
     const r1 = await fetch(window.KANZER_API + '/deriv/accounts', { headers: { 'Authorization': 'Bearer ' + token } });
