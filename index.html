@@ -1596,9 +1596,8 @@ if (!(amount >= 0.35)) amount = 0.35;
         } else if (msg.error) {
           state.derivWS.removeEventListener('message', handler);
           showToast('رُفض الطلب: ' + (msg.error.message || 'خطأ'), 'red');
-       'red');
-        } 
-        } catch(e) {}
+          } 
+       } catch(e) {}
     };
     state.derivWS.addEventListener('message', handler);
     setTimeout(() => { try { state.derivWS.removeEventListener('message', handler); } catch(e){} }, 15000);
