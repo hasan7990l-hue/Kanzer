@@ -5073,5 +5073,153 @@ wick:   { wins: 0, losses: 0, weight: 1.0 }
   };
 })();
 </script>
+  <script>
+/* ══════════════════════════════════════════════════════════════════
+   KANZER DERIV STATE SYNC FIX v2.0
+   Fixes: State desync between UI and Deriv WebSocket
+   Bugs:  derivAccount not persisted · retry loop deadlock
+══════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  let fixed = false;
+
+  function apply() {
+    if (fixed) return;
+    if (typeof state === 'undefined' || !state) return;
+    if (typeof authorizeToken !== 'function') return;
+    if (typeof saveCurrentUser !== 'function') return;
+    if (typeof updateDerivUI !== 'function') return;
+    fixed = true;
+
+    /* ═══ FIX 1: Persist derivAccount after successful link ═══ */
+    const _authOrig = authorizeToken;
+    const _authNew = async function (token, preferredType, silent) {
+      const r = await _authOrig.apply(this, arguments);
+      // Poll for state.derivLinked becoming true (ws.onopen is async)
+      let tries = 0;
+      const iv = setInterval(() => {
+        tries++;
+        if (state.derivLinked && state.derivAccount) {
+          clearInterval(iv);
+          try {
+            saveCurrentUser();
+            console.log('[FIX-1] derivAccount persisted ✓');
+          } catch (e) { console.warn('[FIX-1] save failed:', e); }
+        }
+        if (tries > 20) clearInterval(iv); // 10s max
+      }, 500);
+      return r;
+    };
+    window.authorizeToken = _authNew;
+    try { authorizeToken = _authNew; } catch (e) {}
+
+    /* ═══ FIX 2: Optimistic "connecting" state on reload ═══ */
+    const _updOrig = updateDerivUI;
+    const _updNew = function () {
+      // If pending reconnect, show CONNECTING instead of UNLINKED
+      if (state._derivPending && !state.derivLinked) {
+        const notLinked = document.getElementById('deriv-not-linked');
+        const linked = document.getElementById('deriv-linked');
+        const badge = document.getElementById('deriv-badge');
+        const badgeText = document.getElementById('deriv-badge-text');
+        const stage = document.getElementById('deriv-stage');
+        if (notLinked) notLinked.style.display = 'none';
+        if (linked) linked.classList.remove('show');
+        if (badge) { badge.className = 'deriv-badge'; badge.style.color = 'var(--gold)'; }
+        if (badgeText) badgeText.textContent = 'جاري الاتصال...';
+        if (stage) stage.classList.remove('connected');
+        return;
+      }
+      return _updOrig.apply(this, arguments);
+    };
+    window.updateDerivUI = _updNew;
+    try { updateDerivUI = _updNew; } catch (e) {}
+
+    /* ═══ FIX 3: Token-based retry (NOT state.derivLinked) ═══ */
+    if (localStorage.getItem('deriv_token') && !state.derivLinked) {
+      state._derivPending = true;
+    }
+
+    let attempt = 0;
+    const MAX = 12;
+    const BACKOFF = [2000, 3000, 5000, 8000, 13000, 21000, 30000, 30000, 30000, 30000, 30000, 30000];
+
+    function ensureLink() {
+      const t = localStorage.getItem('deriv_token');
+      if (!t) { state._derivPending = false; return; }
+      if (state.derivLinked && state.derivWS && state.derivWS.readyState === 1) {
+        state._derivPending = false;
+        attempt = 0;
+        return;
+      }
+      if (attempt >= MAX) {
+        console.warn('[FIX-3] max retries — manual re-link needed');
+        state._derivPending = false;
+        _updOrig.call(window);
+        return;
+      }
+      const delay = BACKOFF[Math.min(attempt, BACKOFF.length - 1)];
+      attempt++;
+      console.log('[FIX-3] link attempt #' + attempt + ' in ' + delay + 'ms');
+      setTimeout(() => {
+        if (state.derivLinked && state.derivWS) return;
+        try { _authNew(t, null, true); } catch (e) {}
+        ensureLink();
+      }, delay);
+    }
+
+    // Start after initial showApp's timeout (1.5s) has had a chance
+    setTimeout(ensureLink, 4000);
+
+    /* ═══ FIX 4: Polling safety — force UI sync every 2s ═══ */
+    setInterval(() => {
+      const badge = document.getElementById('deriv-badge');
+      const badgeText = document.getElementById('deriv-badge-text');
+      if (!badge || !badgeText) return;
+
+      if (state.derivLinked && state.derivAccount && state.derivWS && state.derivWS.readyState === 1) {
+        state._derivPending = false;
+        if (!badge.classList.contains('linked')) {
+          badge.className = 'deriv-badge linked';
+          badge.style.color = '';
+          badgeText.textContent = state.derivAccount.loginid || 'مربوط';
+          console.log('[FIX-4] UI force-synced to LINKED');
+          _updOrig.call(window);
+        }
+      }
+    }, 2000);
+
+    /* ═══ FIX 5: unlinkDeriv clears pending retries ═══ */
+    const _unlinkOrig = window.unlinkDeriv || unlinkDeriv;
+    if (_unlinkOrig && !_unlinkOrig.__fixed) {
+      const _unlinkNew = function () {
+        state._derivPending = false;
+        attempt = MAX; // halt retry loop
+        return _unlinkOrig.apply(this, arguments);
+      };
+      _unlinkNew.__fixed = true;
+      window.unlinkDeriv = _unlinkNew;
+      try { unlinkDeriv = _unlinkNew; } catch (e) {}
+    }
+
+    console.log('[KZ-FIX v2.0] Deriv state sync patched · pending=' + state._derivPending);
+  }
+
+  function boot() {
+    let n = 0;
+    const iv = setInterval(() => {
+      n++;
+      apply();
+      if (fixed || n > 80) clearInterval(iv);
+    }, 300);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 1200));
+  } else {
+    setTimeout(boot, 1200);
+  }
+})();
+</script>
 </body>
 </html>
