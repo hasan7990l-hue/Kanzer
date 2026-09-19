@@ -172,27 +172,6 @@ a { color:var(--gold); text-decoration:none; }
 .spinner { width:22px; height:22px; border:3px solid var(--border); border-top-color:var(--cyan); border-radius:50%; animation:spin 1s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 
-.signal-wrap { background:rgba(24,27,36,0.68); backdrop-filter:blur(10px); border:1px solid var(--border); border-radius:14px; padding:24px; text-align:center; margin-bottom:16px; position:relative; overflow:hidden; }
-.signal-wrap.buy { border-color:var(--green); }
-.signal-wrap.sell { border-color:var(--red); }
-.signal-label { font-size:12px; color:var(--text-dim); letter-spacing:3px; text-transform:uppercase; }
-.signal-main { font-size:42px; font-weight:900; letter-spacing:6px; margin:10px 0; background:linear-gradient(135deg,var(--gold) 0%,var(--cyan) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-.signal-wrap.buy .signal-main { background:linear-gradient(135deg,#26a69a 0%,#00b894 100%); -webkit-background-clip:text; background-clip:text; }
-.signal-wrap.sell .signal-main { background:linear-gradient(135deg,#ef5350 0%,#c62828 100%); -webkit-background-clip:text; background-clip:text; }
-.signal-meta { display:flex; justify-content:center; gap:24px; font-size:13px; color:var(--text-dim); margin-top:8px; flex-wrap:wrap; }
-.signal-meta strong { color:var(--gold); font-size:16px; }
-.signal-action { display:none; justify-content:center; gap:12px; margin-top:14px; }
-
-.ind-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; }
-.ind-card { background:rgba(24,27,36,0.68); backdrop-filter:blur(10px); border:1px solid var(--border); border-radius:10px; padding:12px; }
-.ind-card .ind-name { font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; }
-.ind-card .ind-val { font-size:18px; font-weight:800; margin-top:4px; }
-.ind-card.bull { border-color:rgba(38,166,154,0.4); }
-.ind-card.bull .ind-val { color:var(--green); }
-.ind-card.bear { border-color:rgba(239,83,80,0.4); }
-.ind-card.bear .ind-val { color:var(--red); }
-.ind-card.neutral .ind-val { color:var(--text-dim); }
-
 .trades-table { width:100%; border-collapse:collapse; font-size:13px; }
 .trades-table th { text-align:right; padding:10px 8px; color:var(--text-dim); font-size:11px; letter-spacing:1px; text-transform:uppercase; border-bottom:1px solid var(--border); }
 .trades-table td { padding:12px 8px; border-bottom:1px solid var(--border); }
