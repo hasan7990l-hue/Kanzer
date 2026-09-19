@@ -4495,5 +4495,67 @@ if (!hasStreak && !hasStrongStrategy && conf < 88) {
 }
 .auth-msg { margin-top: 10px; }
  </style>
+  <script>
+/* ══════════════════════════════════════════════════════════════════
+   KANZER AUTH TABS FIX — Correct tab switching + marker animation
+══════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  function syncTabsMarker() {
+    const tabs = document.querySelector('.kz-auth-tabs');
+    const activeTab = document.querySelector('.kz-auth-tab.active');
+    if (!tabs || !activeTab) return;
+    tabs.dataset.active = activeTab.dataset.tab || 'login';
+  }
+
+  function switchTab(tabName, evt) {
+    if (evt && evt.preventDefault) evt.preventDefault();
+
+    // Remove active from all tabs
+    document.querySelectorAll('.kz-auth-tab').forEach(t => t.classList.remove('active'));
+    // Add active to the clicked tab
+    const target = document.querySelector('.kz-auth-tab[data-tab="' + tabName + '"]');
+    if (target) target.classList.add('active');
+
+    // Hide all forms
+    document.querySelectorAll('.kz-auth-form').forEach(f => f.classList.remove('active'));
+    // Show target form
+    const form = document.getElementById('form-' + tabName);
+    if (form) form.classList.add('active');
+
+    // Clear messages
+    document.querySelectorAll('.auth-msg').forEach(m => m.classList.remove('show'));
+
+    // Sync the sliding marker
+    syncTabsMarker();
+  }
+
+  // Override global switchAuth
+  window.switchAuth = function (tab, e) {
+    switchTab(tab, e);
+  };
+
+  // Boot
+  function boot() {
+    // Force initial state to login
+    switchTab('login', null);
+
+    // Also add click handlers on the tabs directly (safety net)
+    document.querySelectorAll('.kz-auth-tab').forEach(t => {
+      t.addEventListener('click', function (ev) {
+        const tabName = this.dataset.tab || 'login';
+        switchTab(tabName, ev);
+      });
+    });
+
+    console.log('[KZ-AUTH-FIX] tabs wired correctly');
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else setTimeout(boot, 300);
+
+})();
+</script>
 </body>
 </html>
