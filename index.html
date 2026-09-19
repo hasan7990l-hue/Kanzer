@@ -5221,5 +5221,651 @@ wick:   { wins: 0, losses: 0, weight: 1.0 }
   }
 })();
 </script>
+ <script>
+/* ══════════════════════════════════════════════════════════════════
+   KANZER ANALYZER PRO v1.0
+   Deep Multi-Indicator Analysis · Voting System · Confirmation Gate
+   Author: MODARK-X FORGE
+══════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  /* ═══════════ CONFIG ═══════════ */
+  const CFG = {
+    mode: 'ADVISORY',        // OFF | ADVISORY | GATE | STRICT
+    minScore: 3.0,           // عتبة القرار
+    requireADX: 18,          // أدنى قوة اتجاه
+    requireTwoCandle: true,  // تأكيد شمعتين
+    minCandles: 50,
+    verbose: true
+  };
+  window._kzProCfg = CFG;
+
+  /* ═══════════ MATH LIBRARY ═══════════ */
+  const M = {
+    ema(arr, p) {
+      if (!arr.length) return [];
+      const k = 2 / (p + 1), out = [arr[0]];
+      for (let i = 1; i < arr.length; i++) out.push(arr[i] * k + out[i - 1] * (1 - k));
+      return out;
+    },
+    sma(arr, p) {
+      if (arr.length < p) return [];
+      const out = [];
+      let s = 0;
+      for (let i = 0; i < arr.length; i++) {
+        s += arr[i];
+        if (i >= p) s -= arr[i - p];
+        if (i >= p - 1) out.push(s / p);
+      }
+      return out;
+    },
+    stdev(arr) {
+      if (arr.length < 2) return 0;
+      const m = arr.reduce((a, b) => a + b, 0) / arr.length;
+      return Math.sqrt(arr.reduce((s, x) => s + (x - m) ** 2, 0) / arr.length);
+    },
+    rsiWilder(closes, p) {
+      const n = closes.length;
+      const out = new Array(n).fill(50);
+      if (n < p + 1) return out;
+      let g = 0, l = 0;
+      for (let i = 1; i <= p; i++) {
+        const d = closes[i] - closes[i - 1];
+        if (d > 0) g += d; else l -= d;
+      }
+      let ag = g / p, al = l / p;
+      out[p] = al === 0 ? 100 : 100 - 100 / (1 + ag / al);
+      for (let i = p + 1; i < n; i++) {
+        const d = closes[i] - closes[i - 1];
+        const gn = d > 0 ? d : 0, ln = d < 0 ? -d : 0;
+        ag = (ag * (p - 1) + gn) / p;
+        al = (al * (p - 1) + ln) / p;
+        out[i] = al === 0 ? 100 : 100 - 100 / (1 + ag / al);
+      }
+      return out;
+    },
+    macd(closes, fast, slow, sig) {
+      const ef = M.ema(closes, fast);
+      const es = M.ema(closes, slow);
+      const line = closes.map((_, i) => ef[i] - es[i]);
+      const signal = M.ema(line, sig);
+      const hist = line.map((v, i) => v - signal[i]);
+      return { line, signal, hist };
+    },
+    tr(candles) {
+      const out = [0];
+      for (let i = 1; i < candles.length; i++) {
+        const c = candles[i], p = candles[i - 1];
+        out.push(Math.max(
+          c.high - c.low,
+          Math.abs(c.high - p.close),
+          Math.abs(c.low - p.close)
+        ));
+      }
+      return out;
+    },
+    atr(candles, p) {
+      const t = M.tr(candles);
+      // Wilder smoothing
+      if (t.length < p + 1) return 0;
+      let s = 0;
+      for (let i = 1; i <= p; i++) s += t[i];
+      let a = s / p;
+      for (let i = p + 1; i < t.length; i++) a = (a * (p - 1) + t[i]) / p;
+      return a;
+    },
+    adx(candles, p) {
+      const n = candles.length;
+      if (n < p * 2 + 5) return { adx: 0, plusDI: 0, minusDI: 0 };
+      const plusDM = [0], minusDM = [0], tr = [0];
+      for (let i = 1; i < n; i++) {
+        const c = candles[i], prev = candles[i - 1];
+        const up = c.high - prev.high;
+        const dn = prev.low - c.low;
+        plusDM.push(up > dn && up > 0 ? up : 0);
+        minusDM.push(dn > up && dn > 0 ? dn : 0);
+        tr.push(Math.max(c.high - c.low, Math.abs(c.high - prev.close), Math.abs(c.low - prev.close)));
+      }
+      // Wilder smoothing
+      const smooth = (arr) => {
+        let s = 0;
+        for (let i = 1; i <= p; i++) s += arr[i];
+        const out = new Array(n).fill(0);
+        out[p] = s;
+        for (let i = p + 1; i < n; i++) out[i] = out[i - 1] - out[i - 1] / p + arr[i];
+        return out;
+      };
+      const sTR = smooth(tr);
+      const sPDM = smooth(plusDM);
+      const sMDM = smooth(minusDM);
+      const dxs = [];
+      for (let i = p; i < n; i++) {
+        if (sTR[i] === 0) { dxs.push(0); continue; }
+        const pdi = 100 * sPDM[i] / sTR[i];
+        const mdi = 100 * sMDM[i] / sTR[i];
+        const sum = pdi + mdi;
+        dxs.push(sum === 0 ? 0 : 100 * Math.abs(pdi - mdi) / sum);
+      }
+      // ADX = EMA of DX
+      let adx = dxs.length ? dxs[0] : 0;
+      for (let i = 1; i < dxs.length; i++) adx = (adx * (p - 1) + dxs[i]) / p;
+      const lastTR = sTR[n - 1] || 1;
+      return {
+        adx,
+        plusDI: 100 * sPDM[n - 1] / lastTR,
+        minusDI: 100 * sMDM[n - 1] / lastTR
+      };
+    },
+    bollinger(closes, p, k) {
+      const n = closes.length;
+      if (n < p) return { upper: 0, mid: 0, lower: 0, pos: 0.5, width: 0 };
+      const win = closes.slice(-p);
+      const mid = win.reduce((a, b) => a + b, 0) / p;
+      const sd = M.stdev(win);
+      const upper = mid + k * sd;
+      const lower = mid - k * sd;
+      const price = closes[n - 1];
+      const range = upper - lower;
+      return {
+        upper, mid, lower, sd,
+        pos: range > 0 ? (price - lower) / range : 0.5,
+        width: mid > 0 ? range / mid : 0
+      };
+    },
+    sr(candles, lookback = 5, clusterPct = 0.0015) {
+      const n = candles.length;
+      const highs = candles.map(c => c.high);
+      const lows = candles.map(c => c.low);
+      const res = [], sup = [];
+      for (let i = lookback; i < n - lookback; i++) {
+        let isH = true, isL = true;
+        for (let j = i - lookback; j <= i + lookback; j++) {
+          if (j === i) continue;
+          if (highs[j] >= highs[i]) isH = false;
+          if (lows[j] <= lows[i]) isL = false;
+        }
+        if (isH) res.push({ price: highs[i], idx: i });
+        if (isL) sup.push({ price: lows[i], idx: i });
+      }
+      const cluster = (arr) => {
+        if (!arr.length) return [];
+        const sorted = [...arr].sort((a, b) => a.price - b.price);
+        const groups = [];
+        let cur = [sorted[0]];
+        for (let i = 1; i < sorted.length; i++) {
+          if (Math.abs(sorted[i].price - cur[cur.length - 1].price) / (sorted[i].price || 1) < clusterPct) {
+            cur.push(sorted[i]);
+          } else {
+            groups.push(cur);
+            cur = [sorted[i]];
+          }
+        }
+        if (cur.length) groups.push(cur);
+        return groups.map(g => ({
+          price: g.reduce((a, b) => a + b.price, 0) / g.length,
+          tests: g.length,
+          lastIdx: Math.max(...g.map(x => x.idx))
+        })).sort((a, b) => b.price - a.price);
+      };
+      return { resistances: cluster(res), supports: cluster(sup) };
+    }
+  };
+
+  /* ═══════════ ANALYSIS ENGINE ═══════════ */
+  function analyzePro(candles) {
+    const n = candles.length;
+    if (!n || n < CFG.minCandles) return null;
+
+    const closes = candles.map(c => c.close);
+    const opens = candles.map(c => c.open);
+    const price = closes[n - 1];
+    const votes = [];
+    const reasons = [];
+
+    /* ── ① Trend: EMA alignment ── */
+    const e3 = M.ema(closes, 3), e8 = M.ema(closes, 8), e21 = M.ema(closes, 21);
+    const e3v = e3[n - 1], e8v = e8[n - 1], e21v = e21[n - 1];
+    if (e3v > e8v && e8v > e21v) {
+      votes.push({ name: 'Trend-Align', dir: 1, w: 2.0 });
+      reasons.push('EMA aligned bullish');
+    } else if (e3v < e8v && e8v < e21v) {
+      votes.push({ name: 'Trend-Align', dir: -1, w: 2.0 });
+      reasons.push('EMA aligned bearish');
+    } else {
+      votes.push({ name: 'Trend-Align', dir: 0, w: 0 });
+    }
+
+    /* ── ② EMA Cross (fresh) ── */
+    const prevE3 = e3[n - 3], prevE8 = e8[n - 3];
+    if (prevE3 <= prevE8 && e3v > e8v) {
+      votes.push({ name: 'EMA-Cross', dir: 1, w: 1.5 });
+      reasons.push('Fresh bullish cross');
+    } else if (prevE3 >= prevE8 && e3v < e8v) {
+      votes.push({ name: 'EMA-Cross', dir: -1, w: 1.5 });
+      reasons.push('Fresh bearish cross');
+    } else {
+      votes.push({ name: 'EMA-Cross', dir: 0, w: 0 });
+    }
+
+    /* ── ③ RSI reversal ── */
+    const r7 = M.rsiWilder(closes, 7);
+    const rsiV = r7[n - 1], rsiPrev = r7[n - 2] || rsiV;
+    const rsiSlope = rsiV - rsiPrev;
+    if (rsiV < 30 && rsiSlope > 0) {
+      votes.push({ name: 'RSI-Reversal', dir: 1, w: 1.0 });
+      reasons.push('RSI oversold rebound');
+    } else if (rsiV > 70 && rsiSlope < 0) {
+      votes.push({ name: 'RSI-Reversal', dir: -1, w: 1.0 });
+      reasons.push('RSI overbought fade');
+    } else if (rsiV > 55 && rsiV < 70 && rsiSlope > 0.5) {
+      votes.push({ name: 'RSI-Reversal', dir: 1, w: 0.5 });
+    } else if (rsiV < 45 && rsiV > 30 && rsiSlope < -0.5) {
+      votes.push({ name: 'RSI-Reversal', dir: -1, w: 0.5 });
+    } else {
+      votes.push({ name: 'RSI-Reversal', dir: 0, w: 0 });
+    }
+
+    /* ── ④ MACD ── */
+    const macd = M.macd(closes, 12, 26, 9);
+    const mh = macd.hist[n - 1], mhPrev = macd.hist[n - 2] || mh;
+    if (mh > 0 && mh > mhPrev) {
+      votes.push({ name: 'MACD', dir: 1, w: 1.0 });
+      reasons.push('MACD hist rising');
+    } else if (mh < 0 && mh < mhPrev) {
+      votes.push({ name: 'MACD', dir: -1, w: 1.0 });
+      reasons.push('MACD hist falling');
+    } else {
+      votes.push({ name: 'MACD', dir: 0, w: 0 });
+    }
+
+    /* ── ⑤ Bollinger position ── */
+    const bb = M.bollinger(closes, 20, 2);
+    if (bb.pos < 0.15) {
+      votes.push({ name: 'Bollinger', dir: 1, w: 1.0 });
+      reasons.push('BB lower touch');
+    } else if (bb.pos > 0.85) {
+      votes.push({ name: 'Bollinger', dir: -1, w: 1.0 });
+      reasons.push('BB upper touch');
+    } else {
+      votes.push({ name: 'Bollinger', dir: 0, w: 0 });
+    }
+
+    /* ── ⑥ Streak ── */
+    let up = 0, dn = 0;
+    for (let i = n - 1; i >= Math.max(0, n - 10); i--) {
+      if (closes[i] > opens[i]) { if (dn > 0) break; up++; }
+      else if (closes[i] < opens[i]) { if (up > 0) break; dn++; }
+      else break;
+    }
+    if (up >= 3) {
+      votes.push({ name: 'Streak', dir: -1, w: 1.0 });   // انعكاس محتمل
+      reasons.push(`${up}-candle up streak (mean revert)`);
+    } else if (dn >= 3) {
+      votes.push({ name: 'Streak', dir: 1, w: 1.0 });
+      reasons.push(`${dn}-candle down streak (mean revert)`);
+    } else {
+      votes.push({ name: 'Streak', dir: 0, w: 0 });
+    }
+
+    /* ── ⑦ Wick rejection ── */
+    const c1 = candles[n - 1];
+    const body = Math.abs(c1.close - c1.open) || 0.0001;
+    const range = (c1.high - c1.low) || 0.0001;
+    const uw = c1.high - Math.max(c1.close, c1.open);
+    const lw = Math.min(c1.close, c1.open) - c1.low;
+    if (lw > body * 1.8 && lw > range * 0.4) {
+      votes.push({ name: 'Wick', dir: 1, w: 1.0 });
+      reasons.push('Lower wick rejection');
+    } else if (uw > body * 1.8 && uw > range * 0.4) {
+      votes.push({ name: 'Wick', dir: -1, w: 1.0 });
+      reasons.push('Upper wick rejection');
+    } else {
+      votes.push({ name: 'Wick', dir: 0, w: 0 });
+    }
+
+    /* ── ⑧ S/R proximity / break ── */
+    const sr = M.sr(candles, 5, 0.0015);
+    const nearestSup = (sr.supports || []).filter(s => s.price < price)[0];
+    const nearestRes = (sr.resistances || []).filter(r => r.price > price).slice(-1)[0];
+    const distSup = nearestSup ? (price - nearestSup.price) / price : 1;
+    const distRes = nearestRes ? (nearestRes.price - price) / price : 1;
+    if (distSup < 0.001 && distSup < distRes) {
+      votes.push({ name: 'S/R', dir: 1, w: 1.0 });
+      reasons.push('At support');
+    } else if (distRes < 0.001 && distRes < distSup) {
+      votes.push({ name: 'S/R', dir: -1, w: 1.0 });
+      reasons.push('At resistance');
+    } else {
+      votes.push({ name: 'S/R', dir: 0, w: 0 });
+    }
+
+    /* ── ⑨ ADX strength (trend filter — vote only) ── */
+    const adxData = M.adx(candles, 14);
+    const trendStrong = adxData.adx >= CFG.requireADX;
+    const plusMinus = adxData.plusDI - adxData.minusDI;
+    if (trendStrong && plusMinus > 3) {
+      votes.push({ name: 'ADX', dir: 1, w: 0.5 });
+    } else if (trendStrong && plusMinus < -3) {
+      votes.push({ name: 'ADX', dir: -1, w: 0.5 });
+    } else {
+      votes.push({ name: 'ADX', dir: 0, w: 0 });
+    }
+
+    /* ── Net score ── */
+    let score = 0, maxPossible = 0;
+    votes.forEach(v => { score += v.dir * v.w; maxPossible += v.w; });
+
+    /* ── Direction ── */
+    let direction = 'NEUTRAL';
+    if (score >= CFG.minScore) direction = 'BUY';
+    else if (score <= -CFG.minScore) direction = 'SELL';
+
+    /* ── Two-candle confirmation ── */
+    let confirmed = true;
+    let confirmReason = '';
+    if (CFG.requireTwoCandle && direction !== 'NEUTRAL') {
+      const c2 = candles[n - 2];
+      if (!c2) { confirmed = false; confirmReason = 'no prev candle'; }
+      else if (direction === 'BUY') {
+        if (!(c1.close > c1.open && c2.close > c2.open)) {
+          confirmed = false;
+          confirmReason = 'need 2 bullish closes';
+        }
+      } else if (direction === 'SELL') {
+        if (!(c1.close < c1.open && c2.close < c2.open)) {
+          confirmed = false;
+          confirmReason = 'need 2 bearish closes';
+        }
+      }
+    }
+
+    /* ── ADX hard filter (trend markets only) ── */
+    if (CFG.requireADX > 0 && adxData.adx < CFG.requireADX) {
+      if (direction !== 'NEUTRAL') {
+        confirmed = false;
+        confirmReason = 'ADX too low (' + adxData.adx.toFixed(1) + ')';
+      }
+    }
+
+    /* ── Volatility regime ── */
+    const atr14 = M.atr(candles, 14);
+    const trs = M.tr(candles);
+    const avgAtr = trs.slice(-30).reduce((a, b) => a + b, 0) / Math.min(30, trs.length);
+    const volRatio = avgAtr > 0 ? atr14 / avgAtr : 1;
+    let regime = 'NORMAL';
+    if (volRatio > 1.5) regime = 'HIGH';
+    else if (volRatio < 0.7) regime = 'LOW';
+
+    /* ── Confidence ── */
+    const agreement = Math.abs(score) / (maxPossible || 1);
+    const confidence = Math.round(Math.min(100, agreement * 130));
+
+    return {
+      direction,
+      score: +score.toFixed(2),
+      maxPossible: +maxPossible.toFixed(2),
+      confidence,
+      confirmed,
+      confirmReason,
+      regime,
+      volRatio: +volRatio.toFixed(2),
+      adx: +adxData.adx.toFixed(1),
+      plusDI: +adxData.plusDI.toFixed(1),
+      minusDI: +adxData.minusDI.toFixed(1),
+      rsi: +rsiV.toFixed(1),
+      macdHist: +mh.toFixed(5),
+      bbPos: +bb.pos.toFixed(2),
+      price,
+      votes,
+      reasons,
+      sr: {
+        nearestSupport: nearestSup ? +nearestSup.price.toFixed(5) : null,
+        nearestResistance: nearestRes ? +nearestRes.price.toFixed(5) : null,
+        distSup: +distSup.toFixed(5),
+        distRes: +distRes.toFixed(5)
+      },
+      ts: Date.now()
+    };
+  }
+
+  /* ═══════════ GATE HOOK ═══════════ */
+  let gateHooked = false;
+  const gateStats = { passed: 0, blocked: 0, bypassed: 0 };
+
+  function logGate(msg, color) {
+    const el = document.getElementById('ms-log');
+    if (!el) return;
+    if (el.firstChild && el.firstChild.style && el.firstChild.style.textAlign === 'center') el.innerHTML = '';
+    const line = document.createElement('div');
+    line.style.color = color || 'var(--text)';
+    line.style.fontSize = '11px';
+    line.textContent = '[' + new Date().toLocaleTimeString('ar-EG') + '] PRO: ' + msg;
+    el.prepend(line);
+    while (el.children.length > 20) el.removeChild(el.lastChild);
+  }
+
+  function installGate() {
+    if (gateHooked) return;
+    if (typeof window.sendProposal !== 'function') {
+      setTimeout(installGate, 500);
+      return;
+    }
+    const orig = window.sendProposal;
+    const wrapped = function (opts) {
+      if (CFG.mode === 'OFF' || !opts || !opts.symbol || !opts.scalp) {
+        gateStats.bypassed++;
+        return orig.apply(this, arguments);
+      }
+      const MS = window._multiScanner;
+      const candles = MS && MS.candles && MS.candles[opts.symbol];
+      if (!candles || candles.length < CFG.minCandles) {
+        gateStats.bypassed++;
+        return orig.apply(this, arguments);
+      }
+      const a = analyzePro(candles);
+      if (!a) { gateStats.bypassed++; return orig.apply(this, arguments); }
+
+      const agrees =
+        (opts.side === 'BUY' && a.direction === 'BUY') ||
+        (opts.side === 'SELL' && a.direction === 'SELL');
+
+      const scoreOK = Math.abs(a.score) >= CFG.minScore;
+      const confOK = a.confirmed;
+
+      let verdict = 'PASS';
+      let reason = '';
+
+      if (CFG.mode === 'GATE') {
+        if (!agrees) { verdict = 'BLOCK'; reason = 'dir mismatch (pro=' + a.direction + ')'; }
+      } else if (CFG.mode === 'STRICT') {
+        if (!agrees) { verdict = 'BLOCK'; reason = 'dir mismatch'; }
+        else if (!scoreOK) { verdict = 'BLOCK'; reason = 'score ' + a.score + ' < ' + CFG.minScore; }
+        else if (!confOK) { verdict = 'BLOCK'; reason = a.confirmReason || 'unconfirmed'; }
+      }
+
+      if (verdict === 'BLOCK') {
+        gateStats.blocked++;
+        logGate(`⛔ رفض ${opts.side} ${opts.symbol} — ${reason} | score=${a.score} conf=${a.confidence}%`, 'var(--red)');
+        // Undo Multi's premature accounting
+        if (MS) {
+          if (MS.stats && MS.stats.fired > 0) MS.stats.fired--;
+          MS.cooldownUntil = Date.now() + 5000;
+          MS.activeTrade = null;
+        }
+        if (window.KZAudio && window.KZAudio.playSignal) window.KZAudio.playSignal();
+        throw new Error('KZ-PRO gate: ' + reason);
+      }
+
+      gateStats.passed++;
+      const tag = CFG.mode === 'ADVISORY' ? '[ADV]' : '[OK]';
+      logGate(`${tag} ${opts.side} ${opts.symbol} | score=${a.score} conf=${a.confidence}% ADX=${a.adx} ${a.regime}`, 'var(--green)');
+      return orig.apply(this, arguments);
+    };
+    wrapped.__kzProHooked = true;
+    window.sendProposal = wrapped;
+    try { sendProposal = wrapped; } catch (e) {}
+    gateHooked = true;
+    console.log('[KZ-PRO] Gate installed · mode=' + CFG.mode);
+  }
+
+  /* ═══════════ UI PANEL ═══════════ */
+  function injectPanel() {
+    if (document.getElementById('kz-pro-panel')) return;
+    const pageAuto = document.getElementById('page-auto');
+    if (!pageAuto) return;
+
+    const html = `
+<div class="panel" id="kz-pro-panel" style="border-color:rgba(155,109,255,0.35);">
+  <div class="panel-title" style="color:var(--purple);">🧪 KZ-PRO ANALYZER · 9 Layered</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
+    <div class="field">
+      <label style="font-size:10px;">الوضع</label>
+      <select id="kz-pro-mode" style="font-size:12px;padding:7px;">
+        <option value="OFF">OFF</option>
+        <option value="ADVISORY" selected>ADVISORY (تسجيل فقط)</option>
+        <option value="GATE">GATE (رفض مخالف)</option>
+        <option value="STRICT">STRICT (رفض + عتبة)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label style="font-size:10px;">حد النقاط</label>
+      <input type="number" id="kz-pro-score" value="3" min="1" max="10" step="0.5" style="font-size:12px;padding:7px;">
+    </div>
+    <div class="field">
+      <label style="font-size:10px;">حد ADX</label>
+      <input type="number" id="kz-pro-adx" value="18" min="0" max="50" step="1" style="font-size:12px;padding:7px;">
+    </div>
+  </div>
+  <div id="kz-pro-live" style="display:flex;flex-direction:column;gap:6px;"></div>
+  <div style="display:flex;gap:8px;margin-top:10px;">
+    <button class="btn btn-outline btn-full" style="font-size:11px;" onclick="window._kzProForce()">🔍 تحليل فوري</button>
+    <button class="btn btn-outline btn-full" style="font-size:11px;" onclick="window._kzProLog()">📋 طباعة التقرير</button>
+  </div>
+</div>`;
+    // Insert AFTER multi-scanner panel
+    const anchor = document.getElementById('multi-scanner-panel');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(
+      (function () { const d = document.createElement('div'); d.innerHTML = html; return d.firstElementChild; })(),
+      anchor.nextSibling
+    );
+    else pageAuto.insertBefore(
+      (function () { const d = document.createElement('div'); d.innerHTML = html; return d.firstElementChild; })(),
+      pageAuto.firstChild
+    );
+
+    document.getElementById('kz-pro-mode').addEventListener('change', (e) => {
+      CFG.mode = e.target.value;
+      console.log('[KZ-PRO] mode=' + CFG.mode);
+    });
+    document.getElementById('kz-pro-score').addEventListener('change', (e) => {
+      CFG.minScore = Math.max(1, parseFloat(e.target.value) || 3);
+    });
+    document.getElementById('kz-pro-adx').addEventListener('change', (e) => {
+      CFG.requireADX = Math.max(0, parseInt(e.target.value) || 18);
+    });
+
+    paintPanel();
+    setInterval(paintPanel, 3000);
+  }
+
+  function paintPanel() {
+    const el = document.getElementById('kz-pro-live');
+    if (!el) return;
+    const MS = window._multiScanner;
+    if (!MS || !MS.candles) {
+      el.innerHTML = '<div style="color:var(--text-dim);text-align:center;font-size:12px;padding:10px;">بانتظار بيانات Multi-Scanner...</div>';
+      return;
+    }
+    const symbols = ['R_75', 'R_100', '1HZ75V', '1HZ100V'];
+    const rows = symbols.map(sym => {
+      const candles = MS.candles[sym];
+      if (!candles || candles.length < CFG.minCandles) {
+        return `<div style="display:grid;grid-template-columns:55px 45px 45px 60px 40px 1fr;gap:6px;padding:6px 8px;background:rgba(0,0,0,0.3);border-radius:6px;font-family:monospace;font-size:10px;color:var(--text-dim);">
+          <span>${sym}</span><span>—</span><span>—</span><span>—</span><span>—</span><span>بانتظار الشموع</span>
+        </div>`;
+      }
+      const a = analyzePro(candles);
+      if (!a) return '';
+      const dirColor = a.direction === 'BUY' ? 'var(--green)' : a.direction === 'SELL' ? 'var(--red)' : 'var(--text-dim)';
+      const scoreColor = a.score > 0 ? 'var(--green)' : a.score < 0 ? 'var(--red)' : 'var(--text-dim)';
+      const confirmIcon = a.confirmed ? '✓' : '✗';
+      const confirmColor = a.confirmed ? 'var(--green)' : 'var(--red)';
+      const regimeColor = a.regime === 'HIGH' ? 'var(--gold)' : a.regime === 'LOW' ? 'var(--cyan)' : 'var(--text-dim)';
+      return `<div style="display:grid;grid-template-columns:55px 45px 45px 55px 40px 1fr;gap:6px;padding:7px 8px;background:rgba(0,0,0,0.3);border:1px solid ${dirColor}33;border-radius:6px;font-family:monospace;font-size:10px;align-items:center;">
+        <span style="color:var(--text);font-weight:900;">${sym}</span>
+        <span style="color:${dirColor};font-weight:900;">${a.direction}</span>
+        <span style="color:${scoreColor};font-weight:900;">${a.score > 0 ? '+' : ''}${a.score}</span>
+        <span style="color:var(--cyan);">${a.confidence}%</span>
+        <span style="color:${confirmColor};">${confirmIcon}</span>
+        <span style="color:${regimeColor};font-size:9px;">ADX ${a.adx} · ${a.regime} · RSI ${a.rsi}</span>
+      </div>`;
+    }).join('');
+
+    const summary = `PASS ${gateStats.passed} · BLOCK ${gateStats.blocked} · BYPASS ${gateStats.bypassed}`;
+    el.innerHTML = rows + `<div style="text-align:center;font-family:monospace;font-size:10px;color:var(--text-dim);padding:6px;border-top:1px dashed var(--border);margin-top:6px;">${summary}</div>`;
+  }
+
+  /* ═══════════ PUBLIC API ═══════════ */
+  window._kzProAnalyze = function (sym) {
+    const MS = window._multiScanner;
+    const c = MS && MS.candles && MS.candles[sym || 'R_100'];
+    if (!c) return null;
+    return analyzePro(c);
+  };
+  window._kzProForce = function () {
+    const MS = window._multiScanner;
+    if (!MS) return;
+    ['R_75', 'R_100', '1HZ75V', '1HZ100V'].forEach(sym => {
+      const c = MS.candles[sym];
+      if (!c || c.length < CFG.minCandles) return;
+      const a = analyzePro(c);
+      if (!a) return;
+      console.log(`[KZ-PRO] ${sym} → ${a.direction} | score=${a.score} conf=${a.confidence}% ADX=${a.adx} RSI=${a.rsi} regime=${a.regime} confirmed=${a.confirmed}`, a);
+    });
+  };
+  window._kzProLog = function () {
+    const MS = window._multiScanner;
+    if (!MS) { console.warn('Multi-Scanner not loaded'); return; }
+    console.log('═══ KZ-PRO REPORT ═══');
+    console.log('Mode:', CFG.mode, '| minScore:', CFG.minScore, '| ADX:', CFG.requireADX);
+    console.log('Stats:', JSON.stringify(gateStats));
+    ['R_75', 'R_100', '1HZ75V', '1HZ100V'].forEach(sym => {
+      const c = MS.candles[sym];
+      if (!c) return;
+      const a = analyzePro(c);
+      if (!a) return;
+      console.log(`\n${sym}:`, {
+        dir: a.direction,
+        score: a.score + '/' + a.maxPossible,
+        conf: a.confidence + '%',
+        confirmed: a.confirmed,
+        ADX: a.adx,
+        RSI: a.rsi,
+        regime: a.regime,
+        votes: a.votes.filter(v => v.dir !== 0).map(v => `${v.name}:${v.dir > 0 ? '+' : ''}${v.dir * v.w}`).join(' | ')
+      });
+    });
+  };
+  window._kzProCfg = CFG;
+  window._kzProStats = gateStats;
+
+  /* ═══════════ BOOTSTRAP ═══════════ */
+  function boot() {
+    if (!window._multiScanner) { setTimeout(boot, 800); return; }
+    injectPanel();
+    installGate();
+    console.log('[KZ-PRO v1.0] Analyzer + Gate loaded · mode=' + CFG.mode);
+    console.log('[KZ-PRO] Available commands:');
+    console.log('  window._kzProForce()       → تحليل فوري لكل الرموز');
+    console.log('  window._kzProLog()         → تقرير مفصّل في Console');
+    console.log('  window._kzProCfg.mode      → OFF | ADVISORY | GATE | STRICT');
+    console.log('  window._kzProAnalyze("R_100")  → تحليل رمز محدد');
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 2000));
+  else setTimeout(boot, 2000);
+  setInterval(() => { if (!document.getElementById('kz-pro-panel')) injectPanel(); }, 4000);
+})();
+</script>
 </body>
 </html>
