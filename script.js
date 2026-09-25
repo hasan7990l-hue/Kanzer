@@ -58,29 +58,27 @@ function loginWithGoogle() {
   }
 }
 
+// ============ تسجيل الخروج ============
 function logout() {
   try {
     localStorage.clear();
     sessionStorage.clear();
   } catch(e) {}
   
-  // نخفي الموقع ونظهر المقدمة
   var hero = document.getElementById('luxuryHero');
   var mainSite = document.getElementById('mainSite');
   
   if (mainSite) mainSite.classList.remove('show');
   if (hero) hero.classList.remove('hide');
   
-  // نرجع لأعلى
   window.scrollTo({ top: 0, behavior: 'smooth' });
   
-  // نغلق القائمة المنسدلة
   var dropdown = document.getElementById('profileDropdown');
   if (dropdown) dropdown.classList.remove('active');
   
-  // اهتزاز
   if (navigator.vibrate) navigator.vibrate(20);
 }
+
 // ============ تحميل الصفحة ============
 window.addEventListener('load', function() {
   var isLoggedIn = localStorage.getItem('nokhba_logged_in');
@@ -125,12 +123,11 @@ function filterCategory(category, btn) {
 }
 
 // ============================================
-// بيانات المنتجات
+// بيانات المنتجات (بدون أسعار)
 // ============================================
 var productsData = {
   1: {
     name: "Canon PIXMA G3411",
-    price: "250,000 د.ع",
     desc: "طابعة ملونة عالية الجودة، مناسبة للمنازل والمكاتب الصغيرة. تتميز بنظام الحبر المستمر، وواي فاي مدمج، وسرعة طباعة عالية.",
     specs: [
       { label: "النوع", value: "طابعة ملونة" },
@@ -138,13 +135,11 @@ var productsData = {
       { label: "السرعة", value: "8.8 صورة/دقيقة" },
       { label: "الاتصال", value: "USB + واي فاي" },
       { label: "الحبر", value: "مستمر (GI-490)" },
-      { label: "الضمان", value: "سنة كاملة" },
       { label: "المنشأ", value: "اليابان" }
     ]
   },
   2: {
     name: "Canon LBP6030",
-    price: "180,000 د.ع",
     desc: "طابعة ليزر أبيض وأسود، مثالية للمنازل والمكاتب الصغيرة. سرعة عالية، وجودة طباعة ممتازة، وتوفير في الطاقة.",
     specs: [
       { label: "النوع", value: "طابعة ليزر" },
@@ -152,13 +147,11 @@ var productsData = {
       { label: "السرعة", value: "18 صورة/دقيقة" },
       { label: "الاتصال", value: "USB" },
       { label: "اللون", value: "أبيض وأسود" },
-      { label: "الضمان", value: "سنة كاملة" },
       { label: "المنشأ", value: "اليابان" }
     ]
   },
   3: {
     name: "Canon PIXMA TS3320",
-    price: "150,000 د.ع",
     desc: "طابعة منزلية متعددة الوظائف، تطبع وتمسح وتنسخ. متوافقة مع الواي فاي، ومناسبة للاستخدام اليومي.",
     specs: [
       { label: "النوع", value: "طابعة متعددة" },
@@ -166,13 +159,11 @@ var productsData = {
       { label: "السرعة", value: "7.7 صورة/دقيقة" },
       { label: "الاتصال", value: "USB + واي فاي" },
       { label: "الوظائف", value: "طباعة + مسح + نسخ" },
-      { label: "الضمان", value: "سنة كاملة" },
       { label: "المنشأ", value: "اليابان" }
     ]
   },
   4: {
     name: "Canon MAXIFY GX6010",
-    price: "450,000 د.ع",
     desc: "طابعة مكتبية احترافية، مصممة للشركات والمكاتب الكبيرة. سرعة عالية، وتكلفة تشغيل منخفضة، وجودة طباعة احترافية.",
     specs: [
       { label: "النوع", value: "طابعة مكتبية" },
@@ -180,13 +171,11 @@ var productsData = {
       { label: "السرعة", value: "24 صورة/دقيقة" },
       { label: "الاتصال", value: "USB + واي فاي + Ethernet" },
       { label: "الوظائف", value: "طباعة + مسح + نسخ + فاكس" },
-      { label: "الضمان", value: "سنة كاملة" },
       { label: "المنشأ", value: "اليابان" }
     ]
   },
   5: {
     name: "Canon SELPHY CP1300",
-    price: "200,000 د.ع",
     desc: "طابعة صور محمولة، تطبع صور بجودة عالية من هاتفك. مثالية للمناسبات والسفر، مع بطارية قابلة للشحن.",
     specs: [
       { label: "النوع", value: "طابعة صور" },
@@ -194,13 +183,11 @@ var productsData = {
       { label: "الاتصال", value: "واي فاي + USB" },
       { label: "الشاشة", value: "3.2 بوصة" },
       { label: "البطارية", value: "قابلة للشحن" },
-      { label: "الضمان", value: "سنة كاملة" },
       { label: "المنشأ", value: "اليابان" }
     ]
   },
   6: {
     name: "Canon PIXMA MG3620",
-    price: "170,000 د.ع",
     desc: "طابعة ملونة اقتصادية، مثالية للاستخدام المنزلي. تطبع وتمسح وتنسخ، مع اتصال واي فاي سهل.",
     specs: [
       { label: "النوع", value: "طابعة متعددة" },
@@ -208,7 +195,6 @@ var productsData = {
       { label: "السرعة", value: "9.9 صورة/دقيقة" },
       { label: "الاتصال", value: "USB + واي فاي" },
       { label: "الوظائف", value: "طباعة + مسح + نسخ" },
-      { label: "الضمان", value: "سنة كاملة" },
       { label: "المنشأ", value: "اليابان" }
     ]
   }
@@ -220,12 +206,10 @@ function openProductDetails(id) {
   if (!product) return;
   
   var titleEl = document.getElementById('detailsTitle');
-  var priceEl = document.getElementById('detailsPrice');
   var descEl = document.getElementById('detailsDesc');
   var specsEl = document.getElementById('detailsSpecs');
   
   if (titleEl) titleEl.textContent = product.name;
-  if (priceEl) priceEl.textContent = product.price;
   if (descEl) descEl.textContent = product.desc;
   
   if (specsEl) {
@@ -259,7 +243,7 @@ for (var i = 0; i < detailsButtons.length; i++) {
   })(detailsButtons[i]);
 }
 
-// ============ السلايدر (مع حماية) ============
+// ============ السلايدر ============
 var allSliders = document.querySelectorAll('.slider');
 for (var s = 0; s < allSliders.length; s++) {
   (function(slider) {
@@ -321,14 +305,13 @@ for (var s = 0; s < allSliders.length; s++) {
   })(allSliders[s]);
 }
 
-// ============ 3D Tilt خفيف + Glow ============
+// ============ 3D Tilt + Glow ============
 var tiltCards = document.querySelectorAll('.card');
 for (var i = 0; i < tiltCards.length; i++) {
   (function(card) {
     var glow = card.querySelector('.card-glow');
     var isTouching = false;
     
-    // الماوس
     card.addEventListener('mousemove', function(e) {
       var rect = card.getBoundingClientRect();
       var x = e.clientX - rect.left;
@@ -353,7 +336,6 @@ for (var i = 0; i < tiltCards.length; i++) {
       if (glow) glow.style.opacity = '0';
     });
     
-    // اللمس
     card.addEventListener('touchstart', function() {
       isTouching = true;
       card.style.transition = 'transform 0.1s ease';
