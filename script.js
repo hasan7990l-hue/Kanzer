@@ -8,12 +8,13 @@ if (luxuryParticles) {
     p.style.height = p.style.width;
     p.style.background = Math.random() > 0.5 ? '#FFC107' : '#0066FF';
     p.style.borderRadius = '50%';
-    p.style.left = Math.random() * 100 + '%';
-    p.style.top = Math.random() * 100 + '%';
+    p.style.left = (Math.random() * 90 + 5) + '%';
+    p.style.top = (Math.random() * 90 + 5) + '%';
     p.style.boxShadow = '0 0 10px ' + (Math.random() > 0.5 ? '#FFC107' : '#0066FF');
     p.style.opacity = 0.3 + Math.random() * 0.5;
     p.style.animation = 'floatParticle ' + (5 + Math.random() * 10) + 's infinite ease-in-out';
     p.style.animationDelay = Math.random() * 5 + 's';
+    p.style.pointerEvents = 'none';
     luxuryParticles.appendChild(p);
   }
 }
@@ -103,11 +104,42 @@ function scrollToProducts() {
   if (productsSection) productsSection.scrollIntoView({ behavior: 'smooth' });
 }
 
+// ============ البحث ============
+function searchProducts(query) {
+  query = query.toLowerCase().trim();
+  
+  var cards = document.querySelectorAll('.products-grid .card');
+  var visibleCount = 0;
+  
+  for (var i = 0; i < cards.length; i++) {
+    var cardName = cards[i].getAttribute('data-name') || '';
+    var cardTitle = cards[i].querySelector('h3') ? cards[i].querySelector('h3').textContent.toLowerCase() : '';
+    
+    if (query === '' || cardName.indexOf(query) !== -1 || cardTitle.indexOf(query) !== -1) {
+      cards[i].classList.remove('hidden');
+      visibleCount++;
+    } else {
+      cards[i].classList.add('hidden');
+    }
+  }
+  
+  // إعادة تفعيل زر "الكل"
+  var allBtns = document.querySelectorAll('.category-btn');
+  for (var i = 0; i < allBtns.length; i++) {
+    allBtns[i].classList.remove('active');
+  }
+  if (allBtns[0]) allBtns[0].classList.add('active');
+}
+
 // ============ الأقسام ============
 function filterCategory(category, btn) {
   var allBtns = document.querySelectorAll('.category-btn');
   for (var i = 0; i < allBtns.length; i++) allBtns[i].classList.remove('active');
   btn.classList.add('active');
+  
+  // نفرغ البحث
+  var searchInput = document.getElementById('searchInput');
+  if (searchInput) searchInput.value = '';
   
   var cards = document.querySelectorAll('.products-grid .card');
   for (var i = 0; i < cards.length; i++) {
@@ -123,7 +155,7 @@ function filterCategory(category, btn) {
 }
 
 // ============================================
-// بيانات المنتجات (بدون أسعار)
+// بيانات المنتجات
 // ============================================
 var productsData = {
   1: {
@@ -305,72 +337,6 @@ for (var s = 0; s < allSliders.length; s++) {
   })(allSliders[s]);
 }
 
-// ============ 3D Tilt + Glow ============
-var tiltCards = document.querySelectorAll('.card');
-for (var i = 0; i < tiltCards.length; i++) {
-  (function(card) {
-    var glow = card.querySelector('.card-glow');
-    var isTouching = false;
-    
-    card.addEventListener('mousemove', function(e) {
-      var rect = card.getBoundingClientRect();
-      var x = e.clientX - rect.left;
-      var y = e.clientY - rect.top;
-      var centerX = rect.width / 2;
-      var centerY = rect.height / 2;
-      var rotateX = (y - centerY) / 50;
-      var rotateY = (centerX - x) / 50;
-      
-      card.style.transform = 'perspective(1200px) rotateX(' + rotateX + 'deg) rotateY(' + rotateY + 'deg) scale(1.02)';
-      
-      if (glow) {
-        glow.style.left = x + 'px';
-        glow.style.top = y + 'px';
-        glow.style.opacity = '1';
-        glow.style.transform = 'translate(-50%, -50%)';
-      }
-    });
-    
-    card.addEventListener('mouseleave', function() {
-      card.style.transform = 'perspective(1200px) rotateX(0) rotateY(0) scale(1)';
-      if (glow) glow.style.opacity = '0';
-    });
-    
-    card.addEventListener('touchstart', function() {
-      isTouching = true;
-      card.style.transition = 'transform 0.1s ease';
-      if (glow) glow.style.opacity = '1';
-    });
-    
-    card.addEventListener('touchmove', function(e) {
-      if (!isTouching) return;
-      var touch = e.touches[0];
-      var rect = card.getBoundingClientRect();
-      var x = touch.clientX - rect.left;
-      var y = touch.clientY - rect.top;
-      var centerX = rect.width / 2;
-      var centerY = rect.height / 2;
-      var rotateX = (y - centerY) / 50;
-      var rotateY = (centerX - x) / 50;
-      
-      card.style.transform = 'perspective(1200px) rotateX(' + rotateX + 'deg) rotateY(' + rotateY + 'deg) scale(1.02)';
-      
-      if (glow) {
-        glow.style.left = x + 'px';
-        glow.style.top = y + 'px';
-        glow.style.transform = 'translate(-50%, -50%)';
-      }
-    });
-    
-    card.addEventListener('touchend', function() {
-      isTouching = false;
-      card.style.transition = 'transform 0.5s ease';
-      card.style.transform = 'perspective(1200px) rotateX(0) rotateY(0) scale(1)';
-      if (glow) glow.style.opacity = '0';
-    });
-  })(tiltCards[i]);
-}
-
 // ============ تأثير الموجة ============
 var buttons = document.querySelectorAll('.btn');
 for (var i = 0; i < buttons.length; i++) {
@@ -453,7 +419,9 @@ document.addEventListener('click', function(e) {
   var dropdown = document.getElementById('profileDropdown');
   var wrapper = document.querySelector('.profile-menu-wrapper');
   if (dropdown && dropdown.classList.contains('active')) {
-    if (wrapper && !wrapper.contains(e.target)) dropdown.classList.remove('active');
+    if (wrapper && !wrapper.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.classList.remove('active');
+    }
   }
 });
 
@@ -676,29 +644,3 @@ for (var i = 0; i < ratingStars.length; i++) {
 }
 
 loadRatings();
-/* ============ القائمة المنسدلة - فوق كل شي ============ */
-.profile-dropdown {
-  z-index: 9999999 !important;
-  position: absolute !important;
-}
-
-.site-header {
-  z-index: 999998 !important;
-}
-
-.profile-menu-wrapper {
-  z-index: 999999 !important;
-}
-
-.profile-trigger {
-  z-index: 999999 !important;
-}
-
-.main-site,
-.welcome-hero,
-.page,
-.products-grid,
-.card,
-.slider {
-  z-index: 1;
-}
