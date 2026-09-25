@@ -1,1 +1,0 @@
-Kanzer Trading Suite
