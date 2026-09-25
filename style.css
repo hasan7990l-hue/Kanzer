@@ -1544,3 +1544,30 @@ body {
   .welcome-btn { padding: 14px 30px; font-size: 14px; }
   .profile-dropdown { width: 260px; right: -10px; }
   }
+ /* ============ منع التحرك الأفقي ============ */
+html {
+  overflow-x: hidden !important;
+  max-width: 100vw;
+  width: 100%;
+}
+
+body {
+  overflow-x: hidden !important;
+  max-width: 100vw;
+  width: 100%;
+}
+
+.luxury-hero,
+.main-site,
+.site-header,
+.welcome-hero,
+.page,
+.products-grid {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+.luxury-particles {
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
