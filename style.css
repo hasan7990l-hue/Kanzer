@@ -1571,3 +1571,26 @@ body {
   overflow: hidden !important;
   pointer-events: none !important;
 }
+/* ============ رفع القائمة المنسدلة فوق كل شي ============ */
+.site-header {
+  z-index: 9999 !important;
+  position: sticky !important;
+}
+
+.profile-menu-wrapper {
+  position: relative;
+  z-index: 10000 !important;
+}
+
+.profile-dropdown {
+  z-index: 10001 !important;
+  position: absolute !important;
+}
+
+.main-site,
+.welcome-hero,
+.page,
+.products-grid,
+.card {
+  z-index: 1 !important;
+}
