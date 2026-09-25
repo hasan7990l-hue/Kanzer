@@ -676,3 +676,29 @@ for (var i = 0; i < ratingStars.length; i++) {
 }
 
 loadRatings();
+/* ============ القائمة المنسدلة - فوق كل شي ============ */
+.profile-dropdown {
+  z-index: 9999999 !important;
+  position: absolute !important;
+}
+
+.site-header {
+  z-index: 999998 !important;
+}
+
+.profile-menu-wrapper {
+  z-index: 999999 !important;
+}
+
+.profile-trigger {
+  z-index: 999999 !important;
+}
+
+.main-site,
+.welcome-hero,
+.page,
+.products-grid,
+.card,
+.slider {
+  z-index: 1;
+}
