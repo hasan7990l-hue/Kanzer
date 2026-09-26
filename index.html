@@ -329,7 +329,8 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
   
   const firebaseConfig = {
     apiKey: "AIzaSyCFJXoImDeFtzpDPUyVWhSUDF1fj0KoAX0",
@@ -342,6 +343,8 @@
   
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const auth = getAuth(app);
+  const googleProvider = new GoogleAuthProvider();
   
   window.firebaseDB = db;
   window.firebaseAddDoc = addDoc;
@@ -351,7 +354,15 @@
   window.firebaseDoc = doc;
   window.firebaseUpdateDoc = updateDoc;
   
-  console.log('🔥 Firebase loaded');
+  window.firebaseAuth = auth;
+  window.firebaseGoogleProvider = googleProvider;
+  window.firebaseSignInWithPopup = signInWithPopup;
+  window.firebaseSignOut = signOut;
+  window.firebaseOnAuthStateChanged = onAuthStateChanged;
+  window.firebaseSetDoc = setDoc;
+  window.firebaseGetDoc = getDoc;
+  
+  console.log('🔥 Firebase loaded with Auth');
 </script>
 
 <script src="./ai.js"></script>
