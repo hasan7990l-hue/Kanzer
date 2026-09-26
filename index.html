@@ -616,5 +616,53 @@
 </div>
 
 <script src="./script.js"></script>
+  <!-- Dashboard -->
+<div class="modal" id="dashboardModal">
+  <div class="modal-content" style="max-width: 500px;">
+    <h2>🎛️ NAKHEEB Dashboard</h2>
+    
+    <div class="profile-field">
+      <label>اسم المنتج</label>
+      <input type="text" id="dashProductName" placeholder="Canon PIXMA G3411">
+    </div>
+    
+    <div class="profile-field">
+      <label>وصف مختصر</label>
+      <input type="text" id="dashProductDesc" placeholder="طابعة ملونة...">
+    </div>
+    
+    <div class="profile-field">
+      <label>الفئة</label>
+      <select id="dashProductCategory" style="width:100%;padding:12px;background:rgba(0,102,255,0.08);border:1.5px solid rgba(0,102,255,0.3);border-radius:10px;color:#fff;font-family:inherit;font-size:14px;">
+        <option value="new">جديدة</option>
+        <option value="used">مستعملة</option>
+        <option value="small">صغيرة</option>
+        <option value="large">كبيرة</option>
+        <option value="business">شركات</option>
+      </select>
+    </div>
+    
+    <button class="btn details-btn" onclick="searchVideos()" style="margin-top:15px;">
+      🔍 NAKHEEB ابحث عن فيديو
+    </button>
+    
+    <div id="dashVideoResults" style="margin:15px 0;min-height:50px;"></div>
+    
+    <div id="dashStatus" style="text-align:center;color:#4D94FF;margin:10px 0;font-size:14px;"></div>
+    
+    <button class="btn contact-btn" onclick="publishProduct()">
+      🚀 نشر المنتج
+    </button>
+    
+    <div class="modal-buttons">
+      <button class="back-btn" onclick="closeModal('dashboardModal')">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
