@@ -1,18 +1,23 @@
-// ============ Firebase Setup ============
+// ============================================
+// Firebase Setup
+// ============================================
 var db = window.firebaseDB;
 var addDoc = window.firebaseAddDoc;
 var collection = window.firebaseCollection;
 var getDocs = window.firebaseGetDocs;
 var deleteDoc = window.firebaseDeleteDoc;
 var doc = window.firebaseDoc;
-var onSnapshot = window.firebaseOnSnapshot;
 
-// ============ Pexels API ============
+// ============================================
+// Pexels API
+// ============================================
 var PEXELS_API_KEY = "fUwYP07PE6LkC0yx09qHhnHs6WhHsKs58H53DUr91tiANWSinET9MfXT";
 var MIN_DURATION = 20;
 var MAX_DURATION = 30;
 
-// ============ الجزيئات ============
+// ============================================
+// الجزيئات
+// ============================================
 var luxuryParticles = document.getElementById('luxuryParticles');
 if (luxuryParticles) {
   for (var i = 0; i < 40; i++) {
@@ -33,7 +38,9 @@ if (luxuryParticles) {
   }
 }
 
-// ============ النوافذ ============
+// ============================================
+// النوافذ
+// ============================================
 function openModal(id) {
   var modal = document.getElementById(id);
   if (modal) modal.classList.add('active');
@@ -56,7 +63,9 @@ for (var i = 0; i < modals.length; i++) {
   });
 }
 
-// ============ تسجيل الدخول ============
+// ============================================
+// تسجيل الدخول
+// ============================================
 function loginWithGoogle() {
   localStorage.setItem('nokhba_logged_in', 'true');
   closeModal('loginModal');
@@ -73,7 +82,9 @@ function loginWithGoogle() {
   }
 }
 
-// ============ تسجيل الخروج ============
+// ============================================
+// تسجيل الخروج
+// ============================================
 function logout() {
   try {
     localStorage.clear();
@@ -94,7 +105,9 @@ function logout() {
   if (navigator.vibrate) navigator.vibrate(20);
 }
 
-// ============ تحميل الصفحة ============
+// ============================================
+// تحميل الصفحة
+// ============================================
 window.addEventListener('load', function() {
   var isLoggedIn = localStorage.getItem('nokhba_logged_in');
   
@@ -111,17 +124,24 @@ window.addEventListener('load', function() {
   var settings = JSON.parse(localStorage.getItem('nokhba_settings') || '{}');
   if (settings.darkMode) document.body.classList.add('dark-mode');
   
-  // نحمّل المنتجات من Firestore
+  // تحميل المنتجات
   loadProductsFromFirestore();
+  
+  // تفعيل السلايدر للمنتجات الموجودة
+  setupAllFeatures();
 });
 
-// ============ تصفح المنتجات ============
+// ============================================
+// تصفح المنتجات
+// ============================================
 function scrollToProducts() {
   var productsSection = document.getElementById('productsSection');
   if (productsSection) productsSection.scrollIntoView({ behavior: 'smooth' });
 }
 
-// ============ البحث ============
+// ============================================
+// البحث
+// ============================================
 function searchProducts(query) {
   query = query.toLowerCase().trim();
   
@@ -129,9 +149,7 @@ function searchProducts(query) {
   
   for (var i = 0; i < cards.length; i++) {
     var cardName = cards[i].getAttribute('data-name') || '';
-    var cardTitle = cards[i].querySelector('h3') ? cards[i].querySelector('h3').textContent.toLowerCase() : '';
-    
-    if (query === '' || cardName.indexOf(query) !== -1 || cardTitle.indexOf(query) !== -1) {
+    if (query === '' || cardName.indexOf(query) !== -1) {
       cards[i].classList.remove('hidden');
     } else {
       cards[i].classList.add('hidden');
@@ -139,13 +157,13 @@ function searchProducts(query) {
   }
   
   var allBtns = document.querySelectorAll('.category-btn');
-  for (var i = 0; i < allBtns.length; i++) {
-    allBtns[i].classList.remove('active');
-  }
+  for (var i = 0; i < allBtns.length; i++) allBtns[i].classList.remove('active');
   if (allBtns[0]) allBtns[0].classList.add('active');
 }
 
-// ============ الأقسام ============
+// ============================================
+// الأقسام
+// ============================================
 function filterCategory(category, btn) {
   var allBtns = document.querySelectorAll('.category-btn');
   for (var i = 0; i < allBtns.length; i++) allBtns[i].classList.remove('active');
@@ -168,21 +186,117 @@ function filterCategory(category, btn) {
 }
 
 // ============================================
-// Firestore - قراءة المنتجات
+// قاعدة بيانات NAKHEEB
+// ============================================
+var nokhbaProductsDB = {
+  "canon pixma g3411": {
+    desc: "طابعة ملونة عالية الجودة بنظام الحبر المستمر — مثالية للاستخدام اليومي.",
+    marketing: "🔥 الأكثر مبيعاً — اقتصادية في الحبر، توفّرلك فلوس على المدى الطويل!",
+    specs: [
+      { label: "النوع", value: "طابعة ملونة" },
+      { label: "التقنية", value: "Inkjet" },
+      { label: "السرعة", value: "8.8 صورة/دقيقة" },
+      { label: "الاتصال", value: "USB + واي فاي" },
+      { label: "الحبر", value: "مستمر (GI-490)" }
+    ]
+  },
+  "canon lbp6030": {
+    desc: "طابعة ليزر أبيض وأسود سريعة وموثوقة — تصميم مدمج يناسب أي مكتب.",
+    marketing: "⚡ أسرع طابعة ليزر بفئتها — اطبع مئات الصفحات بدون ما تحس!",
+    specs: [
+      { label: "النوع", value: "طابعة ليزر" },
+      { label: "التقنية", value: "Laser" },
+      { label: "السرعة", value: "18 صورة/دقيقة" },
+      { label: "الاتصال", value: "USB" },
+      { label: "اللون", value: "أبيض وأسود" }
+    ]
+  },
+  "canon pixma ts3320": {
+    desc: "طابعة منزلية متعددة الوظائف — تطبع وتمسح وتنسخ بسهولة.",
+    marketing: "✨ 3 أجهزة في جهاز واحد — وفّر مساحة وفلوس!",
+    specs: [
+      { label: "النوع", value: "طابعة متعددة" },
+      { label: "التقنية", value: "Inkjet" },
+      { label: "الوظائف", value: "طباعة + مسح + نسخ" },
+      { label: "الاتصال", value: "USB + واي فاي" }
+    ]
+  },
+  "canon maxify gx6010": {
+    desc: "طابعة مكتبية احترافية مصممة للشركات — إنتاجية عالية وتكلفة منخفضة.",
+    marketing: "👑 صممت للشركات — تطبع آلاف الصفحات بجودة ثابتة!",
+    specs: [
+      { label: "النوع", value: "طابعة مكتبية" },
+      { label: "التقنية", value: "Inkjet" },
+      { label: "السرعة", value: "24 صورة/دقيقة" },
+      { label: "الوظائف", value: "طباعة + مسح + نسخ + فاكس" }
+    ]
+  },
+  "canon selphy cp1300": {
+    desc: "طابعة صور محمولة — اطبع صورك مباشرة من هاتفك بجودة استوديو.",
+    marketing: "📸 اطبع ذكرياتك فوراً — مثالية للمناسبات والسفر!",
+    specs: [
+      { label: "النوع", value: "طابعة صور" },
+      { label: "الاتصال", value: "واي فاي + USB" },
+      { label: "الشاشة", value: "3.2 بوصة" },
+      { label: "البطارية", value: "قابلة للشحن" }
+    ]
+  },
+  "canon pixma mg3620": {
+    desc: "طابعة ملونة اقتصادية — مثالية للاستخدام المنزلي اليومي.",
+    marketing: "💰 اقتصادية وجودة عالية — الخيار الأمثل للمنزل!",
+    specs: [
+      { label: "النوع", value: "طابعة متعددة" },
+      { label: "التقنية", value: "Inkjet" },
+      { label: "الوظائف", value: "طباعة + مسح + نسخ" }
+    ]
+  }
+};
+
+// ============================================
+// NAKHEEB يبحث عن معلومات المنتج
+// ============================================
+function nokheebLookup(name) {
+  var key = name.toLowerCase().trim();
+  
+  if (nokhbaProductsDB[key]) {
+    return nokhbaProductsDB[key];
+  }
+  
+  var keys = Object.keys(nokhbaProductsDB);
+  for (var i = 0; i < keys.length; i++) {
+    if (key.indexOf(keys[i]) !== -1 || keys[i].indexOf(key) !== -1) {
+      return nokhbaProductsDB[keys[i]];
+    }
+  }
+  
+  return {
+    desc: "منتج أصلي من نُخبة — جودة عالية وسعر مناسب.",
+    marketing: "✨ اختيار النخبة — جودة مضمونة وخدمة ممتازة!",
+    specs: [
+      { label: "النوع", value: "طابعة" },
+      { label: "الحالة", value: "جديد" },
+      { label: "الأصالة", value: "أصلي 100%" }
+    ]
+  };
+}
+
+// ============================================
+// تحميل المنتجات من Firestore
 // ============================================
 async function loadProductsFromFirestore() {
   if (!db) return;
   
   try {
     var querySnapshot = await getDocs(collection(db, "products"));
-    var productsGrid = document.querySelector('.products-grid');
+    var productsGrid = document.getElementById('productsGrid');
     if (!productsGrid) return;
     
-    // نمسح المنتجات الثابتة (بس نتركها إذا Firestore فاضي)
-    if (querySnapshot.size === 0) return;
-    
-    // نمحي المنتجات القديمة
     productsGrid.innerHTML = '';
+    
+    if (querySnapshot.size === 0) {
+      productsGrid.innerHTML = '<p style="color:#888;text-align:center;padding:40px;grid-column:1/-1;">ما فيه منتجات حالياً — قريباً!</p>';
+      return;
+    }
     
     querySnapshot.forEach(function(docSnap) {
       var data = docSnap.data();
@@ -190,14 +304,14 @@ async function loadProductsFromFirestore() {
       productsGrid.appendChild(card);
     });
     
-    // نعيد تفعيل السلايدر + الأزرار
-    setupSliderAndDetails();
+    setupAllFeatures();
     
   } catch(e) {
     console.log('Firestore error:', e);
   }
 }
-  // ============================================
+
+// ============================================
 // إنشاء بطاقة منتج
 // ============================================
 function createProductCard(data, firestoreId) {
@@ -209,20 +323,15 @@ function createProductCard(data, firestoreId) {
   
   var videoHTML = '';
   if (data.videoUrl) {
-    videoHTML = `
-      <video class="product-video" autoplay muted loop playsinline>
-        <source src="${data.videoUrl}" type="video/mp4">
-      </video>
-    `;
+    videoHTML = '<video class="product-video" autoplay muted loop playsinline><source src="' + data.videoUrl + '" type="video/mp4"></video>';
   }
   
-  var imagesHTML = '';
+  var imagesHTML = '<img src="https://picsum.photos/seed/' + (firestoreId || 'p') + '/400/300" alt="1">';
   if (data.images && data.images.length > 0) {
+    imagesHTML = '';
     for (var i = 0; i < data.images.length; i++) {
       imagesHTML += '<img src="' + data.images[i] + '" alt="' + (i+1) + '">';
     }
-  } else {
-    imagesHTML = '<img src="https://picsum.photos/seed/' + (firestoreId || 'p') + '/400/300" alt="1">';
   }
   
   var marketingHTML = '';
@@ -230,29 +339,37 @@ function createProductCard(data, firestoreId) {
     marketingHTML = '<div class="marketing-msg">' + data.marketing + '</div>';
   }
   
-  card.innerHTML = `
-    <div class="card-glow"></div>
-    <div class="slider">
-      ${videoHTML}
-      <div class="slides">
-        ${imagesHTML}
-      </div>
-    </div>
-    <div class="content">
-      <h3>${data.name || 'منتج'}</h3>
-      <p class="desc">${data.desc || ''}</p>
-      ${marketingHTML}
-      <button class="btn details-btn" data-id="${firestoreId || ''}">تفاصيل الجهاز</button>
-      <button class="btn contact-btn">تواصل معنا</button>
-    </div>
-  `;
+  card.innerHTML = '<div class="card-glow"></div>' +
+    '<div class="slider">' +
+      videoHTML +
+      '<div class="slides">' + imagesHTML + '</div>' +
+    '</div>' +
+    '<div class="content">' +
+      '<h3>' + (data.name || 'منتج') + '</h3>' +
+      '<p class="desc">' + (data.desc || '') + '</p>' +
+      marketingHTML +
+      '<button class="btn details-btn" data-id="' + (firestoreId || '') + '">تفاصيل الجهاز</button>' +
+      '<button class="btn contact-btn">تواصل معنا</button>' +
+    '</div>';
   
   return card;
 }
+
+// ============================================
+// تفعيل كل الميزات
+// ============================================
+function setupAllFeatures() {
+  setupSliders();
+  setupDetailsButtons();
+  setupContactButtons();
+  setupRippleEffect();
+  setup3DTilt();
+}
+
 // ============================================
 // السلايدر
 // ============================================
-function setupSliderAndDetails() {
+function setupSliders() {
   var allSliders = document.querySelectorAll('.slider');
   for (var s = 0; s < allSliders.length; s++) {
     (function(slider) {
@@ -271,14 +388,12 @@ function setupSliderAndDetails() {
       var isDragging = false;
       
       slider.addEventListener('touchstart', function(e) {
-        e.stopPropagation();
         startX = e.touches[0].clientX;
         isDragging = true;
       });
       
       slider.addEventListener('touchmove', function(e) {
         if (!isDragging) return;
-        e.stopPropagation();
         var diff = startX - e.touches[0].clientX;
         if (Math.abs(diff) > 50) {
           if (diff > 0) currentSlide = (currentSlide + 1) % totalSlides;
@@ -289,28 +404,14 @@ function setupSliderAndDetails() {
       });
       
       slider.addEventListener('touchend', function() { isDragging = false; });
-      
-      var mouseDown = false;
-      slider.addEventListener('mousedown', function(e) {
-        startX = e.clientX;
-        mouseDown = true;
-      });
-      slider.addEventListener('mouseup', function() { mouseDown = false; });
-      slider.addEventListener('mouseleave', function() { mouseDown = false; });
-      slider.addEventListener('mousemove', function(e) {
-        if (!mouseDown) return;
-        var diff = startX - e.clientX;
-        if (Math.abs(diff) > 50) {
-          if (diff > 0) currentSlide = (currentSlide + 1) % totalSlides;
-          else currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
-          slides.style.transform = 'translateX(-' + (currentSlide * 100) + '%)';
-          mouseDown = false;
-        }
-      });
     })(allSliders[s]);
   }
-  
-  // أزرار التفاصيل
+}
+
+// ============================================
+// أزرار التفاصيل
+// ============================================
+function setupDetailsButtons() {
   var detailsButtons = document.querySelectorAll('.details-btn');
   for (var i = 0; i < detailsButtons.length; i++) {
     (function(btn) {
@@ -325,64 +426,50 @@ function setupSliderAndDetails() {
 }
 
 // ============================================
-// بيانات المنتجات الافتراضية
+// فتح تفاصيل المنتج
 // ============================================
-var productsData = {
-  1: { name: "Canon PIXMA G3411", desc: "طابعة ملونة عالية الجودة", specs: [{label:"النوع",value:"طابعة ملونة"},{label:"التقنية",value:"Inkjet"},{label:"الاتصال",value:"USB + واي فاي"}] },
-  2: { name: "Canon LBP6030", desc: "طابعة ليزر أبيض وأسود", specs: [{label:"النوع",value:"طابعة ليزر"},{label:"التقنية",value:"Laser"},{label:"الاتصال",value:"USB"}] },
-  3: { name: "Canon PIXMA TS3320", desc: "طابعة منزلية متعددة", specs: [{label:"النوع",value:"طابعة متعددة"},{label:"التقنية",value:"Inkjet"}] },
-  4: { name: "Canon MAXIFY GX6010", desc: "طابعة مكتبية احترافية", specs: [{label:"النوع",value:"طابعة مكتبية"}] },
-  5: { name: "Canon SELPHY CP1300", desc: "طابعة صور محمولة", specs: [{label:"النوع",value:"طابعة صور"}] },
-  6: { name: "Canon PIXMA MG3620", desc: "طابعة ملونة اقتصادية", specs: [{label:"النوع",value:"طابعة متعددة"}] }
-};
-
-// ============ فتح تفاصيل المنتج ============
 async function openProductDetails(id) {
-  // نجرب من Firestore أولاً
-  if (db && id.length > 10) {
-    try {
-      var productRef = doc(db, "products", id);
-      var allProducts = await getDocs(collection(db, "products"));
-      var found = null;
-      allProducts.forEach(function(d) {
-        if (d.id === id) found = d.data();
-      });
-      
-      if (found) {
-        showProductModal(found.name, found.desc, found.specs || []);
-        return;
-      }
-    } catch(e) {}
-  }
+  if (!id) return;
   
-  // من البيانات الافتراضية
-  var product = productsData[id];
-  if (!product) return;
-  showProductModal(product.name, product.desc, product.specs);
+  try {
+    var allProducts = await getDocs(collection(db, "products"));
+    var found = null;
+    allProducts.forEach(function(d) {
+      if (d.id === id) found = d.data();
+    });
+    
+    if (found) {
+      showProductModal(found.name, found.desc, found.specs || [], found.marketing);
+      return;
+    }
+  } catch(e) {
+    console.log('Error:', e);
+  }
 }
-// ============ عرض نافذة تفاصيل المنتج ============
+
+// ============================================
+// عرض نافذة التفاصيل
+// ============================================
 function showProductModal(name, desc, specs, marketing) {
   var titleEl = document.getElementById('detailsTitle');
   var descEl = document.getElementById('detailsDesc');
   var specsEl = document.getElementById('detailsSpecs');
+  var marketingSlot = document.getElementById('detailsMarketingSlot');
   
-  if (titleEl) titleEl.textContent = name;
-  if (descEl) descEl.textContent = desc;
+  if (titleEl) titleEl.textContent = name || '-';
+  if (descEl) descEl.textContent = desc || '-';
   
-  // نضيف رسالة تسويقية (إذا موجودة)
-  var existingMarketing = document.getElementById('modalMarketing');
-  if (existingMarketing) existingMarketing.remove();
-  
-  if (marketing && descEl) {
-    var marketingDiv = document.createElement('div');
-    marketingDiv.id = 'modalMarketing';
-    marketingDiv.className = 'marketing-msg';
-    marketingDiv.style.marginTop = '15px';
-    marketingDiv.textContent = marketing;
-    descEl.parentNode.insertBefore(marketingDiv, descEl.nextSibling);
+  if (marketingSlot) {
+    marketingSlot.innerHTML = '';
+    if (marketing) {
+      var marketingDiv = document.createElement('div');
+      marketingDiv.className = 'marketing-msg';
+      marketingDiv.style.marginTop = '15px';
+      marketingDiv.textContent = marketing;
+      marketingSlot.appendChild(marketingDiv);
+    }
   }
   
-  // المواصفات
   if (specsEl) {
     specsEl.innerHTML = '';
     if (specs && specs.length > 0) {
@@ -402,37 +489,23 @@ function showProductModal(name, desc, specs, marketing) {
   openModal('detailsModal');
   if (navigator.vibrate) navigator.vibrate(10);
 }
-// ============ تأثير الموجة ============
-var buttons = document.querySelectorAll('.btn');
-for (var i = 0; i < buttons.length; i++) {
-  buttons[i].addEventListener('click', function(e) {
-    var rect = this.getBoundingClientRect();
-    var x = e.clientX - rect.left;
-    var y = e.clientY - rect.top;
-    var size = Math.max(rect.width, rect.height);
-    
-    var ripple = document.createElement('span');
-    ripple.classList.add('ripple');
-    ripple.style.width = size + 'px';
-    ripple.style.height = size + 'px';
-    ripple.style.left = (x - size / 2) + 'px';
-    ripple.style.top = (y - size / 2) + 'px';
-    this.appendChild(ripple);
-    
-    setTimeout(function() { ripple.remove(); }, 600);
-  });
-}
 
-// ============ قائمة التواصل ============
-function openContactMenu(e) {
-  if (e) e.stopPropagation();
-  var menu = document.getElementById('contactMenu');
-  if (menu) menu.classList.toggle('active');
-}
-
-var contactButtons = document.querySelectorAll('.contact-btn');
-for (var i = 0; i < contactButtons.length; i++) {
-  contactButtons[i].addEventListener('click', openContactMenu);
+// ============================================
+// أزرار التواصل
+// ============================================
+function setupContactButtons() {
+  var contactButtons = document.querySelectorAll('.contact-btn');
+  for (var i = 0; i < contactButtons.length; i++) {
+    (function(btn) {
+      if (btn.getAttribute('data-ready')) return;
+      btn.setAttribute('data-ready', 'true');
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var menu = document.getElementById('contactMenu');
+        if (menu) menu.classList.toggle('active');
+      });
+    })(contactButtons[i]);
+  }
 }
 
 document.addEventListener('click', function(e) {
@@ -442,7 +515,78 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// ============ القائمة المنسدلة ============
+// ============================================
+// تأثير الموجة
+// ============================================
+function setupRippleEffect() {
+  var buttons = document.querySelectorAll('.btn');
+  for (var i = 0; i < buttons.length; i++) {
+    (function(btn) {
+      if (btn.getAttribute('data-ripple-ready')) return;
+      btn.setAttribute('data-ripple-ready', 'true');
+      btn.addEventListener('click', function(e) {
+        var rect = this.getBoundingClientRect();
+        var x = e.clientX - rect.left;
+        var y = e.clientY - rect.top;
+        var size = Math.max(rect.width, rect.height);
+        
+        var ripple = document.createElement('span');
+        ripple.classList.add('ripple');
+        ripple.style.width = size + 'px';
+        ripple.style.height = size + 'px';
+        ripple.style.left = (x - size / 2) + 'px';
+        ripple.style.top = (y - size / 2) + 'px';
+        this.appendChild(ripple);
+        
+        setTimeout(function() { ripple.remove(); }, 600);
+      });
+    })(buttons[i]);
+  }
+}
+
+// ============================================
+// 3D Tilt
+// ============================================
+function setup3DTilt() {
+  var cards = document.querySelectorAll('.card');
+  for (var i = 0; i < cards.length; i++) {
+    (function(card) {
+      if (card.getAttribute('data-tilt-ready')) return;
+      card.setAttribute('data-tilt-ready', 'true');
+      
+      var glow = card.querySelector('.card-glow');
+      var isTouching = false;
+      
+      card.addEventListener('mousemove', function(e) {
+        var rect = card.getBoundingClientRect();
+        var x = e.clientX - rect.left;
+        var y = e.clientY - rect.top;
+        var centerX = rect.width / 2;
+        var centerY = rect.height / 2;
+        var rotateX = (y - centerY) / 50;
+        var rotateY = (centerX - x) / 50;
+        
+        card.style.transform = 'perspective(1200px) rotateX(' + rotateX + 'deg) rotateY(' + rotateY + 'deg) scale(1.02)';
+        
+        if (glow) {
+          glow.style.left = x + 'px';
+          glow.style.top = y + 'px';
+          glow.style.opacity = '1';
+          glow.style.transform = 'translate(-50%, -50%)';
+        }
+      });
+      
+      card.addEventListener('mouseleave', function() {
+        card.style.transform = 'perspective(1200px) rotateX(0) rotateY(0) scale(1)';
+        if (glow) glow.style.opacity = '0';
+      });
+    })(cards[i]);
+  }
+}
+
+// ============================================
+// القائمة المنسدلة
+// ============================================
 function toggleProfileMenu(e) {
   if (e) e.stopPropagation();
   var dropdown = document.getElementById('profileDropdown');
@@ -471,11 +615,6 @@ function openProfileFromDropdown() {
   openProfile();
 }
 
-function openSettingsFromDropdown() {
-  document.getElementById('profileDropdown').classList.remove('active');
-  openProfile();
-}
-
 document.addEventListener('click', function(e) {
   var dropdown = document.getElementById('profileDropdown');
   var wrapper = document.querySelector('.profile-menu-wrapper');
@@ -486,7 +625,9 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// ============ الملف الشخصي ============
+// ============================================
+// الملف الشخصي
+// ============================================
 function loadProfile() {
   var profile = JSON.parse(localStorage.getItem('nokhba_profile') || '{}');
   var nameInput = document.getElementById('profileNameInput');
@@ -502,6 +643,15 @@ function loadProfile() {
   if (emailDisplay) emailDisplay.textContent = profile.email || 'user@gmail.com';
   
   if (profile.avatar) updateAvatarDisplay(profile.avatar);
+  
+  var settings = JSON.parse(localStorage.getItem('nokhba_settings') || '{}');
+  var notifToggle = document.getElementById('notificationsToggle');
+  var darkToggle = document.getElementById('darkModeToggle');
+  var promoToggle = document.getElementById('promotionsToggle');
+  
+  if (notifToggle) notifToggle.checked = settings.notifications || false;
+  if (darkToggle) darkToggle.checked = settings.darkMode || false;
+  if (promoToggle) promoToggle.checked = settings.promotions || false;
 }
 
 function updateAvatarDisplay(imageUrl) {
@@ -518,7 +668,7 @@ function updateAvatarDisplay(imageUrl) {
 function uploadAvatar(event) {
   var file = event.target.files[0];
   if (!file) return;
-  if (file.size > 2 * 1024 * 1024) { alert('الصورة كبيرة'); return; }
+  if (file.size > 2 * 1024 * 1024) { alert('الصورة كبيرة. الحد 2 ميجا.'); return; }
   
   var reader = new FileReader();
   reader.onload = function(e) {
@@ -584,12 +734,114 @@ function showToast(message) {
 }
 
 // ============================================
-// Dashboard (3 ضغطات على شعار N)
+// التقييم
+// ============================================
+var ratingStars = document.querySelectorAll('.star');
+var ratingAverage = document.querySelector('.rating-average');
+var ratingCount = document.querySelector('.rating-count');
+var ratingThanks = document.getElementById('ratingThanks');
+
+var ratingsData = { totalRatings: 0, sumRatings: 0, userRating: 0 };
+
+function loadRatings() {
+  try {
+    var saved = localStorage.getItem('nokhba_ratings');
+    if (saved) {
+      var parsed = JSON.parse(saved);
+      ratingsData.totalRatings = parsed.totalRatings || 0;
+      ratingsData.sumRatings = parsed.sumRatings || 0;
+      ratingsData.userRating = parsed.userRating || 0;
+    }
+  } catch(e) {}
+  updateRatingDisplay();
+}
+
+function saveRatings() {
+  try { localStorage.setItem('nokhba_ratings', JSON.stringify(ratingsData)); } catch(e) {}
+}
+
+function updateRatingDisplay() {
+  var avg = 0;
+  if (ratingsData.totalRatings > 0) avg = ratingsData.sumRatings / ratingsData.totalRatings;
+  
+  if (ratingAverage) ratingAverage.textContent = avg.toFixed(1);
+  
+  if (ratingCount) {
+    var count = ratingsData.totalRatings;
+    var label = 'تقييم';
+    if (count === 0) label = 'لا يوجد تقييم';
+    else if (count === 1) label = 'تقييم واحد';
+    else if (count === 2) label = 'تقييمان';
+    ratingCount.textContent = '(' + count + ' ' + label + ')';
+  }
+  
+  if (ratingsData.userRating > 0) {
+    for (var i = 0; i < ratingStars.length; i++) {
+      var val = parseInt(ratingStars[i].getAttribute('data-value'));
+      if (val <= ratingsData.userRating) ratingStars[i].classList.add('active');
+      else ratingStars[i].classList.remove('active');
+    }
+  }
+}
+
+function setRating(value) {
+  if (ratingsData.userRating > 0) {
+    ratingsData.sumRatings -= ratingsData.userRating;
+    ratingsData.totalRatings -= 1;
+  }
+  
+  ratingsData.userRating = value;
+  ratingsData.sumRatings += value;
+  ratingsData.totalRatings += 1;
+  
+  saveRatings();
+  updateRatingDisplay();
+  
+  for (var i = 0; i < ratingStars.length; i++) {
+    var val = parseInt(ratingStars[i].getAttribute('data-value'));
+    if (val <= value) ratingStars[i].classList.add('active');
+  }
+  
+  if (ratingThanks) {
+    ratingThanks.classList.remove('show');
+    setTimeout(function() { ratingThanks.classList.add('show'); }, 100);
+    setTimeout(function() { ratingThanks.classList.remove('show'); }, 3000);
+  }
+  
+  if (navigator.vibrate) navigator.vibrate(15);
+}
+
+for (var i = 0; i < ratingStars.length; i++) {
+  (function(star) {
+    var value = parseInt(star.getAttribute('data-value'));
+    
+    star.addEventListener('click', function() { setRating(value); });
+    
+    star.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      for (var j = 0; j < ratingStars.length; j++) {
+        var v = parseInt(ratingStars[j].getAttribute('data-value'));
+        if (v <= value) ratingStars[j].classList.add('hover');
+      }
+    });
+    
+    star.addEventListener('touchend', function(e) {
+      e.preventDefault();
+      for (var j = 0; j < ratingStars.length; j++) ratingStars[j].classList.remove('hover');
+      setRating(value);
+    });
+  })(ratingStars[i]);
+}
+
+loadRatings();
+
+// ============================================
+// Dashboard - 3 ضغطات على الشعار
 // ============================================
 var logoClickCount = 0;
 var logoClickTimer = null;
 
-var headerLogo = document.querySelector('.header-logo');
+var headerLogo = document.getElementById('headerLogo');
 if (headerLogo) {
   headerLogo.addEventListener('click', function() {
     logoClickCount++;
@@ -601,26 +853,18 @@ if (headerLogo) {
     
     if (logoClickCount === 3) {
       logoClickCount = 0;
-      openDashboardPassword();
+      var password = prompt('🔐 أدخل كلمة السر:');
+      if (password === 'nakheeb2026') {
+        openModal('dashboardModal');
+      } else if (password !== null) {
+        alert('❌ كلمة السر غلط');
+      }
     }
   });
 }
 
-function openDashboardPassword() {
-  var password = prompt('🔐 أدخل كلمة السر:');
-  if (password === 'nakheeb2026') {
-    openDashboard();
-  } else if (password !== null) {
-    alert('❌ كلمة السر غلط');
-  }
-}
-
-function openDashboard() {
-  openModal('dashboardModal');
-}
-
 // ============================================
-// Pexels API - البحث عن فيديوهات
+// Pexels - البحث عن فيديوهات
 // ============================================
 async function searchVideos() {
   var query = document.getElementById('dashProductName').value.trim();
@@ -636,9 +880,7 @@ async function searchVideos() {
     var url = 'https://api.pexels.com/videos/search?query=' + encodeURIComponent(query) + '&per_page=6&min_duration=' + MIN_DURATION + '&max_duration=' + MAX_DURATION;
     
     var response = await fetch(url, {
-      headers: {
-        'Authorization': PEXELS_API_KEY
-      }
+      headers: { 'Authorization': PEXELS_API_KEY }
     });
     
     var data = await response.json();
@@ -648,7 +890,6 @@ async function searchVideos() {
       return;
     }
     
-    // نعرض الفيديوهات
     resultsDiv.innerHTML = '';
     var grid = document.createElement('div');
     grid.style.display = 'grid';
@@ -661,12 +902,8 @@ async function searchVideos() {
       
       var item = document.createElement('div');
       item.style.cssText = 'position:relative;cursor:pointer;border-radius:12px;overflow:hidden;border:2px solid rgba(0,102,255,0.3);';
-      item.innerHTML = `
-        <video src="${videoFile.link}" muted loop playsinline style="width:100%;height:120px;object-fit:cover;display:block;"></video>
-        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.7);color:#fff;padding:5px;font-size:11px;text-align:center;">
-          ${video.duration}ث
-        </div>
-      `;
+      item.innerHTML = '<video src="' + videoFile.link + '" muted loop playsinline style="width:100%;height:120px;object-fit:cover;display:block;"></video>' +
+        '<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.7);color:#fff;padding:5px;font-size:11px;text-align:center;">' + video.duration + 'ث</div>';
       
       item.addEventListener('mouseenter', function() {
         item.querySelector('video').play();
@@ -674,13 +911,15 @@ async function searchVideos() {
       });
       item.addEventListener('mouseleave', function() {
         item.querySelector('video').pause();
-        item.style.borderColor = 'rgba(0,102,255,0.3)';
+        if (window.selectedVideoUrl !== videoFile.link) {
+          item.style.borderColor = 'rgba(0,102,255,0.3)';
+        }
       });
       
       item.addEventListener('click', function() {
-        // نحدد الفيديو
-        document.querySelectorAll('#dashVideoResults div[style*="border"]').forEach(function(el) {
-          el.style.borderColor = 'rgba(0,102,255,0.3)';
+        document.querySelectorAll('#dashVideoResults video').forEach(function(v) {
+          v.parentElement.style.borderColor = 'rgba(0,102,255,0.3)';
+          v.parentElement.style.borderWidth = '2px';
         });
         item.style.borderColor = '#00C853';
         item.style.borderWidth = '3px';
@@ -699,153 +938,32 @@ async function searchVideos() {
     resultsDiv.innerHTML = '<p style="text-align:center;color:#FF6B6B;">خطأ: ' + e.message + '</p>';
   }
 }
-// ============================================
-// قاعدة بيانات المنتجات (NAKHEEB يعرفها)
-// ============================================
-var nokhbaProductsDB = {
-  "canon pixma g3411": {
-    desc: "طابعة ملونة عالية الجودة بنظام الحبر المستمر — مثالية للاستخدام اليومي.",
-    marketing: "🔥 الأكثر مبيعاً — اقتصادية في الحبر، توفّرلك فلوس على المدى الطويل!",
-    specs: [
-      { label: "النوع", value: "طابعة ملونة" },
-      { label: "التقنية", value: "Inkjet" },
-      { label: "السرعة", value: "8.8 صورة/دقيقة" },
-      { label: "الاتصال", value: "USB + واي فاي" },
-      { label: "الحبر", value: "مستمر (GI-490)" },
-      { label: "الاستخدام", value: "منازل ومكاتب صغيرة" }
-    ]
-  },
-  "canon lbp6030": {
-    desc: "طابعة ليزر أبيض وأسود سريعة وموثوقة — تصميم مدمج يناسب أي مكتب.",
-    marketing: "⚡ أسرع طابعة ليزر بفئتها — اطبع مئات الصفحات بدون ما تحس!",
-    specs: [
-      { label: "النوع", value: "طابعة ليزر" },
-      { label: "التقنية", value: "Laser" },
-      { label: "السرعة", value: "18 صورة/دقيقة" },
-      { label: "الاتصال", value: "USB" },
-      { label: "اللون", value: "أبيض وأسود" },
-      { label: "الاستخدام", value: "مكاتب صغيرة" }
-    ]
-  },
-  "canon pixma ts3320": {
-    desc: "طابعة منزلية متعددة الوظائف — تطبع وتمسح وتنسخ بسهولة.",
-    marketing: "✨ 3 أجهزة في جهاز واحد — وفّر مساحة وفلوس!",
-    specs: [
-      { label: "النوع", value: "طابعة متعددة" },
-      { label: "التقنية", value: "Inkjet" },
-      { label: "الوظائف", value: "طباعة + مسح + نسخ" },
-      { label: "الاتصال", value: "USB + واي فاي" },
-      { label: "الاستخدام", value: "منزلية" }
-    ]
-  },
-  "canon maxify gx6010": {
-    desc: "طابعة مكتبية احترافية مصممة للشركات — إنتاجية عالية وتكلفة منخفضة.",
-    marketing: "👑 صممت للشركات — تطبع آلاف الصفحات بجودة ثابتة!",
-    specs: [
-      { label: "النوع", value: "طابعة مكتبية" },
-      { label: "التقنية", value: "Inkjet" },
-      { label: "السرعة", value: "24 صورة/دقيقة" },
-      { label: "الاتصال", value: "USB + واي فاي + Ethernet" },
-      { label: "الوظائف", value: "طباعة + مسح + نسخ + فاكس" },
-      { label: "الاستخدام", value: "شركات ومكاتب" }
-    ]
-  },
-  "canon selphy cp1300": {
-    desc: "طابعة صور محمولة — اطبع صورك مباشرة من هاتفك بجودة استوديو.",
-    marketing: "📸 اطبع ذكرياتك فوراً — مثالية للمناسبات والسفر!",
-    specs: [
-      { label: "النوع", value: "طابعة صور" },
-      { label: "التقنية", value: "Dye-Sublimation" },
-      { label: "الاتصال", value: "واي فاي + USB" },
-      { label: "الشاشة", value: "3.2 بوصة" },
-      { label: "البطارية", value: "قابلة للشحن" },
-      { label: "الاستخدام", value: "مناسبات وسفر" }
-    ]
-  },
-  "canon pixma mg3620": {
-    desc: "طابعة ملونة اقتصادية — مثالية للاستخدام المنزلي اليومي.",
-    marketing: "💰 اقتصادية وجودة عالية — الخيار الأمثل للمنزل!",
-    specs: [
-      { label: "النوع", value: "طابعة متعددة" },
-      { label: "التقنية", value: "Inkjet" },
-      { label: "الوظائف", value: "طباعة + مسح + نسخ" },
-      { label: "الاتصال", value: "USB + واي فاي" },
-      { label: "الاستخدام", value: "منزلية" }
-    ]
-  }
-};
 
 // ============================================
-// NAKHEEB يبحث عن معلومات المنتج
-// ============================================
-function nokheebLookup(name) {
-  var key = name.toLowerCase().trim();
-  
-  // بحث دقيق
-  if (nokhbaProductsDB[key]) {
-    return nokhbaProductsDB[key];
-  }
-  
-  // بحث جزئي (إذا كتب كلمة من الاسم)
-  var keys = Object.keys(nokhbaProductsDB);
-  for (var i = 0; i < keys.length; i++) {
-    if (key.indexOf(keys[i]) !== -1 || keys[i].indexOf(key) !== -1) {
-      return nokhbaProductsDB[keys[i]];
-    }
-  }
-  
-  // إذا ما لقى — يرجع مواصفات عامة
-  return {
-    desc: "منتج أصلي من نُخبة — جودة عالية وسعر مناسب.",
-    marketing: "✨ اختيار النخبة — جودة مضمونة وخدمة ممتازة!",
-    specs: [
-      { label: "النوع", value: "طابعة" },
-      { label: "الحالة", value: "جديد" },
-      { label: "الأصالة", value: "أصلي 100%" },
-      { label: "الضمان", value: "سنة كاملة" }
-    ]
-  };
-}
-
-// ============================================
-// نشر المنتج إلى Firestore
+// نشر المنتج
 // ============================================
 async function publishProduct() {
   var name = document.getElementById('dashProductName').value.trim();
   var descInput = document.getElementById('dashProductDesc').value.trim();
   var category = document.getElementById('dashProductCategory').value;
   
-  if (!name) {
-    alert('اكتب اسم المنتج');
-    return;
-  }
-  
-  if (!window.selectedVideoUrl) {
-    alert('اختر فيديو أولاً');
-    return;
-  }
-  
-  if (!db) {
-    alert('Firebase مو متصل');
-    return;
-  }
+  if (!name) { alert('اكتب اسم المنتج'); return; }
+  if (!window.selectedVideoUrl) { alert('اختر فيديو أولاً'); return; }
+  if (!db) { alert('Firebase مو متصل'); return; }
   
   var statusDiv = document.getElementById('dashStatus');
   statusDiv.innerHTML = '🎯 NAKHEEB يحلل المنتج...';
   
   try {
-    // NAKHEEB يجيب المواصفات حسب الاسم
     var productInfo = nokheebLookup(name);
     
     statusDiv.innerHTML = '📝 NAKHEEB يكتب المواصفات...';
     
-    // نجهز الوصف النهائي (وصف + رسالة تسويقية)
     var finalDesc = (descInput || productInfo.desc);
     var marketingMsg = productInfo.marketing;
     
     statusDiv.innerHTML = '📤 NAKHEEB ينشر...';
     
-    // نضيف للـ Firestore
     await addDoc(collection(db, "products"), {
       name: name,
       desc: finalDesc,
@@ -861,19 +979,23 @@ async function publishProduct() {
     statusDiv.innerHTML = '✅ تم النشر بنجاح!';
     showToast('🎉 NAKHEEB نشر المنتج');
     
-    // نفرغ الحقول
     document.getElementById('dashProductName').value = '';
     document.getElementById('dashProductDesc').value = '';
     document.getElementById('dashVideoResults').innerHTML = '';
     window.selectedVideoUrl = null;
     
-    // نعيد تحميل المنتجات
     setTimeout(function() {
       loadProductsFromFirestore();
       closeModal('dashboardModal');
+      statusDiv.innerHTML = '';
     }, 1500);
     
   } catch(e) {
     statusDiv.innerHTML = '❌ خطأ: ' + e.message;
   }
 }
+
+// ============================================
+// تشغيل
+// ============================================
+setupAllFeatures();
