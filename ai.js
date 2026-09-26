@@ -21,20 +21,13 @@ async function aiMakeProfessionalSummary(name, desc, specs) {
 الوصف: ${desc || 'لا يوجد'}
 المواصفات: ${specsText || 'لا توجد'}
 
-أرجع JSON فقط بدون أي نص إضافي:
-{
-  "tagline": "شعار تسويقي بسطر واحد",
-  "summary": "ملخص 2-3 أسطر",
-  "highlights": ["ميزة 1", "ميزة 2", "ميزة 3"],
-  "bestFor": "مناسب لـ ..."
-}`;
+أرجع JSON فقط بدون أي نص إضافي أو شرح:
+{"tagline":"شعار تسويقي بسطر","summary":"ملخص 2-3 أسطر","highlights":["ميزة 1","ميزة 2","ميزة 3"],"bestFor":"مناسب لـ ..."}`;
 
-  // قائمة موديلات - نجرب واحد واحد لين يشتغل
   var models = [
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-exp',
     'gemini-flash-latest',
-    'gemini-2.5-flash'
+    'gemini-2.5-flash',
+    'gemini-2.0-flash'
   ];
 
   for (var m = 0; m < models.length; m++) {
@@ -48,8 +41,8 @@ async function aiMakeProfessionalSummary(name, desc, specs) {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 1000,
-            responseMimeType: "application/json"
+            maxOutputTokens: 1500,
+            thinkingConfig: { thinkingBudget: 0 }
           }
         })
       });
@@ -57,20 +50,47 @@ async function aiMakeProfessionalSummary(name, desc, specs) {
       var data = await response.json();
 
       if (data.error) {
-        console.warn('Model ' + models[m] + ' failed:', data.error.message);
+        console.warn('❌ ' + models[m] + ':', data.error.message);
         continue;
       }
 
-      if (!data.candidates || !data.candidates[0]) continue;
+      if (!data.candidates || !data.candidates[0]) {
+        console.warn('❌ ' + models[m] + ': no candidates');
+        continue;
+      }
 
-      var text = data.candidates[0].content.parts[0].text;
+      var parts = data.candidates[0].content.parts;
+      var text = '';
+
+      // نجمع كل الـ parts (باستثناء parts التفكير)
+      for (var p = 0; p < parts.length; p++) {
+        if (parts[p].thought) continue;
+        if (parts[p].text) text += parts[p].text;
+      }
+
+      if (!text) {
+        console.warn('❌ ' + models[m] + ': empty text');
+        continue;
+      }
+
+      // نظّف النص
       text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+      // إذا فيه نص زايد قبل { أو بعد }
+      var start = text.indexOf('{');
+      var end = text.lastIndexOf('}');
+      if (start !== -1 && end !== -1) {
+        text = text.substring(start, end + 1);
+      }
 
       var parsed = JSON.parse(text);
 
-      if (!parsed.summary || !parsed.highlights) continue;
+      if (!parsed.summary || !parsed.highlights) {
+        console.warn('❌ ' + models[m] + ': invalid structure');
+        continue;
+      }
 
-      console.log('✅ AI worked with model:', models[m]);
+      console.log('✅ AI شغال بالموديل:', models[m]);
 
       return {
         tagline: parsed.tagline || '',
@@ -80,10 +100,10 @@ async function aiMakeProfessionalSummary(name, desc, specs) {
       };
 
     } catch (e) {
-      console.warn('Model ' + models[m] + ' error:', e.message);
+      console.warn('❌ ' + models[m] + ':', e.message);
     }
   }
 
-  showToast('⚠️ AI ما اشتغل - رجعنا للعرض العادي');
+  showToast('⚠️ AI ما اشتغل');
   return null;
 }
