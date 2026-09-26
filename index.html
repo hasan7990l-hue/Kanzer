@@ -8,7 +8,7 @@
 </head>
 <body>
 
-<!-- ============ Sidebar ============ -->
+<!-- Sidebar -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
@@ -16,40 +16,25 @@
     <h3>نُخبة</h3>
     <p>NOKHBA</p>
   </div>
-  
   <nav class="sidebar-nav">
     <button class="sidebar-item" onclick="goToHome()">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-        <polyline points="9 22 9 12 15 12 15 22"></polyline>
-      </svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       <span>الصفحة الرئيسية</span>
     </button>
-    
     <button class="sidebar-item" onclick="openDashboardWithPassword()">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="7" height="7"></rect>
-        <rect x="14" y="3" width="7" height="7"></rect>
-        <rect x="14" y="14" width="7" height="7"></rect>
-        <rect x="3" y="14" width="7" height="7"></rect>
-      </svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
       <span>Dashboard</span>
     </button>
   </nav>
-  
   <div class="sidebar-footer">
     <button class="sidebar-item logout" onclick="closeSidebar(); logout();">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-        <polyline points="16 17 21 12 16 7"></polyline>
-        <line x1="21" y1="12" x2="9" y2="12"></line>
-      </svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       <span>تسجيل خروج</span>
     </button>
   </div>
 </aside>
 
-<!-- ============ المقدمة الأولى ============ -->
+<!-- المقدمة الأولى -->
 <section class="luxury-hero" id="luxuryHero">
   <div class="luxury-bg">
     <div class="luxury-grid"></div>
@@ -103,21 +88,18 @@
   </div>
 </section>
 
-<!-- ============ الموقع الرئيسي ============ -->
+<!-- الموقع الرئيسي -->
 <div class="main-site" id="mainSite">
-  
   <header class="site-header">
     <div class="header-inner">
       <button class="menu-btn" onclick="toggleSidebar()">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <line x1="3" y1="6" x2="21" y2="6"></line>
-          <line x1="3" y1="12" x2="21" y2="12"></line>
-          <line x1="3" y1="18" x2="21" y2="18"></line>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
         </svg>
       </button>
-      
       <div class="header-logo"><span class="header-logo-letter">N</span></div>
-      
       <div class="profile-menu-wrapper">
         <button class="profile-trigger" onclick="toggleProfileMenu(event)">
           <div class="profile-avatar" id="profileAvatar">
@@ -163,12 +145,10 @@
   </section>
 
   <div class="page" id="productsSection">
-    
     <div class="search-bar">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" id="searchInput" placeholder="ابحث عن منتجك..." oninput="searchProducts(this.value)">
     </div>
-
     <div class="categories-bar">
       <div class="categories-scroll">
         <button class="category-btn active" data-category="all" onclick="filterCategory('all', this)"><span>الكل</span></button>
@@ -179,37 +159,29 @@
         <button class="category-btn" data-category="business" onclick="filterCategory('business', this)"><span>شركات</span></button>
       </div>
     </div>
-
     <div class="products-grid" id="productsGrid"></div>
   </div>
 </div>
 
-<!-- ============ صفحة Dashboard كاملة ============ -->
+<!-- Dashboard -->
 <div class="dashboard-page" id="dashboardPage">
   <div class="dashboard-topbar">
     <h1>🎛️ NAKHEEB Dashboard</h1>
     <button class="dashboard-back" onclick="closeDashboardPage()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="19" y1="12" x2="5" y2="12"></line>
-        <polyline points="12 19 5 12 12 5"></polyline>
-      </svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       <span>رجوع</span>
     </button>
   </div>
-  
   <div class="dashboard-body">
     <h2>➕ إضافة منتج جديد</h2>
-    
     <div class="profile-field">
       <label>اسم المنتج</label>
       <input type="text" id="dashProductName" placeholder="Canon imageRUNNER C3326i">
     </div>
-    
     <div class="profile-field">
       <label>وصف مختصر (اختياري)</label>
       <input type="text" id="dashProductDesc" placeholder="طابعة ملونة...">
     </div>
-    
     <div class="profile-field">
       <label>الفئة</label>
       <select id="dashProductCategory">
@@ -220,23 +192,20 @@
         <option value="business">شركات</option>
       </select>
     </div>
-    
     <div class="profile-field">
-      <label>🎬 رابط يوتيوب (اختياري - الأفضل)</label>
+      <label>🎬 رابط يوتيوب (اختياري)</label>
       <input type="text" id="dashYoutubeUrl" placeholder="https://youtube.com/watch?v=..." oninput="useYoutubeUrl(this.value)">
     </div>
-    
     <button class="btn details-btn" onclick="searchYouTubeVideos()">🔍 أو NAKHEEB ابحث تلقائياً</button>
     <div id="dashVideoResults"></div>
     <div id="dashStatus"></div>
     <button class="btn contact-btn" onclick="publishProduct()">🚀 نشر المنتج</button>
-    
     <h2 style="margin-top:40px;">📦 المنتجات الحالية</h2>
     <div id="dashProductsList"></div>
   </div>
 </div>
 
-<!-- ============ نافذة التفاصيل ============ -->
+<!-- نافذة التفاصيل -->
 <div class="modal" id="detailsModal">
   <div class="modal-content">
     <h2 id="detailsTitle">-</h2>
@@ -254,7 +223,7 @@
   </div>
 </div>
 
-<!-- ============ نافذة الخصوصية ============ -->
+<!-- نافذة الخصوصية -->
 <div class="modal" id="privacyModal">
   <div class="modal-content privacy-content">
     <div class="privacy-header">
@@ -282,7 +251,7 @@
   </div>
 </div>
 
-<!-- ============ نافذة عنا ============ -->
+<!-- نافذة عنا -->
 <div class="modal" id="aboutModal">
   <div class="modal-content about-content">
     <div class="about-header">
@@ -313,7 +282,7 @@
   </div>
 </div>
 
-<!-- ============ نافذة تسجيل الدخول ============ -->
+<!-- نافذة تسجيل الدخول -->
 <div class="modal" id="loginModal">
   <div class="modal-content login-content">
     <h2>تسجيل الدخول</h2>
@@ -328,7 +297,7 @@
   </div>
 </div>
 
-<!-- ============ نافذة الملف الشخصي ============ -->
+<!-- نافذة الملف الشخصي -->
 <div class="modal" id="profileModal">
   <div class="modal-content profile-content">
     <div class="profile-header">
@@ -354,7 +323,7 @@
   </div>
 </div>
 
-<!-- ============ قائمة التواصل ============ -->
+<!-- قائمة التواصل -->
 <div class="contact-menu" id="contactMenu">
   <a href="https://wa.me/9647751459130" class="contact-item whatsapp" target="_blank">
     <svg width="28" height="28" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
@@ -370,7 +339,14 @@
   </a>
 </div>
 
-<!-- ============ Firebase SDK (بعد كل شي) ============ -->
+<!-- Firebase Ready Promise -->
+<script>
+  window.firebaseReady = new Promise(function(resolve) {
+    window.resolveFirebase = resolve;
+  });
+</script>
+
+<!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -395,20 +371,9 @@
   window.firebaseDoc = doc;
   
   console.log('🔥 Firebase loaded');
-  
-  // نستدعي initFirebase بعد ما يتحمل
-  if (typeof window.initFirebase === 'function') {
-    window.initFirebase();
-  } else {
-    window.addEventListener('firebaseReady', function() {
-      if (typeof window.initFirebase === 'function') window.initFirebase();
-    });
-    setTimeout(function() {
-      if (typeof window.initFirebase === 'function') window.initFirebase();
-    }, 500);
-  }
+  window.resolveFirebase(db);
 </script>
 
 <script src="./script.js"></script>
 </body>
-  </html>
+</html>
