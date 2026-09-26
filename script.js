@@ -262,6 +262,15 @@ var nokhbaProductsDB = {
       { label: "الوظائف", value: "طباعة + مسح + نسخ + فاكس" }
     ]
   },
+  "canon imagerunner": {
+    desc: "طابعة مكتبية احترافية من سلسلة imageRUNNER — مثالية للشركات والمؤسسات.",
+    marketing: "👑 الحل الاحترافي للشركات — جودة، سرعة، واعتمادية!",
+    specs: [
+      { label: "النوع", value: "طابعة مكتبية" },
+      { label: "السلسلة", value: "imageRUNNER" },
+      { label: "الوظائف", value: "طباعة + مسح + نسخ + فاكس" }
+    ]
+  },
   "canon selphy cp1300": {
     desc: "طابعة صور محمولة — اطبع صورك مباشرة من هاتفك بجودة استوديو.",
     marketing: "📸 اطبع ذكرياتك فوراً — مثالية للمناسبات والسفر!",
@@ -828,7 +837,37 @@ for (var i = 0; i < ratingStars.length; i++) {
 loadRatings();
 
 // ============================================
-// YouTube - البحث عن فيديوهات
+// استخدام رابط يوتيوب يدوي
+// ============================================
+function useYoutubeUrl(url) {
+  if (!url || url.length < 10) return;
+
+  var videoId = extractYoutubeId(url);
+  if (!videoId) return;
+
+  window.selectedVideoUrl = 'https://www.youtube.com/embed/' + videoId;
+  window.selectedVideoType = 'youtube';
+  window.selectedVideoTitle = 'Custom video';
+  showToast('✅ تم تفعيل الرابط');
+}
+
+function extractYoutubeId(url) {
+  if (!url) return '';
+  var patterns = [
+    /(?:youtube\.com\/watch\?v=)([^&]+)/,
+    /(?:youtu\.be\/)([^?&]+)/,
+    /(?:youtube\.com\/embed\/)([^?&]+)/,
+    /(?:youtube\.com\/shorts\/)([^?&]+)/
+  ];
+  for (var i = 0; i < patterns.length; i++) {
+    var match = url.match(patterns[i]);
+    if (match) return match[1];
+  }
+  return '';
+}
+
+// ============================================
+// YouTube - البحث التلقائي مع فلتر قوي
 // ============================================
 async function searchYouTubeVideos() {
   var query = document.getElementById('dashProductName').value.trim();
@@ -838,15 +877,18 @@ async function searchYouTubeVideos() {
   }
 
   var resultsDiv = document.getElementById('dashVideoResults');
-  resultsDiv.innerHTML = '<p style="text-align:center;color:#4D94FF;">🔍 NAKHEEB يبحث في YouTube...</p>';
+  resultsDiv.innerHTML = '<p style="text-align:center;color:#4D94FF;">🔍 NAKHEEB يبحث...</p>';
 
   try {
+    var searchQuery = query + ' printer';
+    
     var url = 'https://www.googleapis.com/youtube/v3/search?' +
       'part=snippet' +
-      '&q=' + encodeURIComponent(query) +
+      '&q=' + encodeURIComponent(searchQuery) +
       '&type=video' +
-      '&maxResults=6' +
+      '&maxResults=25' +
       '&videoEmbeddable=true' +
+      '&relevanceLanguage=en' +
       '&key=' + YOUTUBE_API_KEY;
 
     var response = await fetch(url);
@@ -862,13 +904,43 @@ async function searchYouTubeVideos() {
       return;
     }
 
+    var badWords = ['music', 'song', 'rock', 'piano', 'cover', 'guitar', 
+                     'orchestra', 'canon in d', 'wedding', 'gacha', 'minecraft', 
+                     'gaming', 'meme', 'funny', 'prank', 'challenge', 'dance', 
+                     'karaoke', 'instrumental', 'classical', 'violin'];
+
+    var requiredWords = ['printer', 'print', 'pixma', 'maxify', 'imagerunner', 
+                          'lbp', 'selphy', 'commercial', 'review', 'unboxing', 'canon'];
+
+    var filtered = data.items.filter(function(item) {
+      var title = item.snippet.title.toLowerCase();
+      var desc = item.snippet.description.toLowerCase();
+      var text = title + ' ' + desc;
+
+      for (var i = 0; i < badWords.length; i++) {
+        if (text.indexOf(badWords[i]) !== -1) return false;
+      }
+
+      for (var i = 0; i < requiredWords.length; i++) {
+        if (text.indexOf(requiredWords[i]) !== -1) return true;
+      }
+
+      return false;
+    });
+
+    if (filtered.length < 3) {
+      filtered = data.items.slice(0, 6);
+    } else {
+      filtered = filtered.slice(0, 9);
+    }
+
     resultsDiv.innerHTML = '';
     var grid = document.createElement('div');
     grid.style.display = 'grid';
     grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
     grid.style.gap = '10px';
 
-    data.items.forEach(function(item) {
+    filtered.forEach(function(item) {
       var videoId = item.id.videoId;
       var title = item.snippet.title;
       var thumbnail = item.snippet.thumbnails.medium.url;
@@ -876,8 +948,8 @@ async function searchYouTubeVideos() {
       var videoItem = document.createElement('div');
       videoItem.style.cssText = 'position:relative;cursor:pointer;border-radius:12px;overflow:hidden;border:2px solid rgba(0,102,255,0.3);background:#0a1628;';
       videoItem.innerHTML =
-        '<img src="' + thumbnail + '" style="width:100%;height:120px;object-fit:cover;display:block;" alt="' + title + '">' +
-        '<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.8);color:#fff;padding:6px;font-size:10px;text-align:center;line-height:1.3;">' + title.substring(0, 35) + '...</div>';
+        '<img src="' + thumbnail + '" style="width:100%;height:120px;object-fit:cover;display:block;" alt="">' +
+        '<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.85);color:#fff;padding:6px;font-size:10px;text-align:center;line-height:1.3;">' + title.substring(0, 40) + '...</div>';
 
       videoItem.addEventListener('click', function() {
         document.querySelectorAll('#dashVideoResults > div > div').forEach(function(el) {
@@ -898,6 +970,11 @@ async function searchYouTubeVideos() {
 
     resultsDiv.appendChild(grid);
 
+    var hint = document.createElement('p');
+    hint.style.cssText = 'text-align:center;color:#4D94FF;font-size:11px;margin-top:10px;';
+    hint.textContent = '💡 ما عجبك؟ الصق رابط يوتيوب فوق';
+    resultsDiv.appendChild(hint);
+
   } catch(e) {
     resultsDiv.innerHTML = '<p style="text-align:center;color:#FF6B6B;">خطأ: ' + e.message + '</p>';
   }
@@ -912,7 +989,7 @@ async function publishProduct() {
   var category = document.getElementById('dashProductCategory').value;
 
   if (!name) { alert('اكتب اسم المنتج'); return; }
-  if (!window.selectedVideoUrl) { alert('اختر فيديو أولاً'); return; }
+  if (!window.selectedVideoUrl) { alert('اختر فيديو أو الصق رابط يوتيوب'); return; }
   if (!db) { alert('Firebase مو متصل'); return; }
 
   var statusDiv = document.getElementById('dashStatus');
@@ -946,6 +1023,7 @@ async function publishProduct() {
 
     document.getElementById('dashProductName').value = '';
     document.getElementById('dashProductDesc').value = '';
+    document.getElementById('dashYoutubeUrl').value = '';
     document.getElementById('dashVideoResults').innerHTML = '';
     window.selectedVideoUrl = null;
     window.selectedVideoType = null;
