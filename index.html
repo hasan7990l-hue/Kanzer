@@ -5,27 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>نُخبة | NOKHBA</title>
   <link rel="stylesheet" href="./style.css">
-  
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-    const firebaseConfig = {
-      apiKey: "AIzaSyCFJXoImDeFtzpDPUyVWhSUDF1fj0KoAX0",
-      authDomain: "nokhba-ed34f.firebaseapp.com",
-      projectId: "nokhba-ed34f",
-      storageBucket: "nokhba-ed34f.firebasestorage.app",
-      messagingSenderId: "875356398629",
-      appId: "1:875356398629:web:d544a7beb01ba5114ecbcc"
-    };
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    window.firebaseDB = db;
-    window.firebaseAddDoc = addDoc;
-    window.firebaseCollection = collection;
-    window.firebaseGetDocs = getDocs;
-    window.firebaseDeleteDoc = deleteDoc;
-    window.firebaseDoc = doc;
-  </script>
 </head>
 <body>
 
@@ -391,6 +370,45 @@
   </a>
 </div>
 
+<!-- ============ Firebase SDK (بعد كل شي) ============ -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  
+  const firebaseConfig = {
+    apiKey: "AIzaSyCFJXoImDeFtzpDPUyVWhSUDF1fj0KoAX0",
+    authDomain: "nokhba-ed34f.firebaseapp.com",
+    projectId: "nokhba-ed34f",
+    storageBucket: "nokhba-ed34f.firebasestorage.app",
+    messagingSenderId: "875356398629",
+    appId: "1:875356398629:web:d544a7beb01ba5114ecbcc"
+  };
+  
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  
+  window.firebaseDB = db;
+  window.firebaseAddDoc = addDoc;
+  window.firebaseCollection = collection;
+  window.firebaseGetDocs = getDocs;
+  window.firebaseDeleteDoc = deleteDoc;
+  window.firebaseDoc = doc;
+  
+  console.log('🔥 Firebase loaded');
+  
+  // نستدعي initFirebase بعد ما يتحمل
+  if (typeof window.initFirebase === 'function') {
+    window.initFirebase();
+  } else {
+    window.addEventListener('firebaseReady', function() {
+      if (typeof window.initFirebase === 'function') window.initFirebase();
+    });
+    setTimeout(function() {
+      if (typeof window.initFirebase === 'function') window.initFirebase();
+    }, 500);
+  }
+</script>
+
 <script src="./script.js"></script>
 </body>
-        </html>
+  </html>
