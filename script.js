@@ -680,13 +680,120 @@ async function searchVideos() {
     resultsDiv.innerHTML = '<p style="text-align:center;color:#FF6B6B;">خطأ: ' + e.message + '</p>';
   }
 }
+// ============================================
+// قاعدة بيانات المنتجات (NAKHEEB يعرفها)
+// ============================================
+var nokhbaProductsDB = {
+  "canon pixma g3411": {
+    desc: "طابعة ملونة عالية الجودة بنظام الحبر المستمر — مثالية للاستخدام اليومي.",
+    marketing: "🔥 الأكثر مبيعاً — اقتصادية في الحبر، توفّرلك فلوس على المدى الطويل!",
+    specs: [
+      { label: "النوع", value: "طابعة ملونة" },
+      { label: "التقنية", value: "Inkjet" },
+      { label: "السرعة", value: "8.8 صورة/دقيقة" },
+      { label: "الاتصال", value: "USB + واي فاي" },
+      { label: "الحبر", value: "مستمر (GI-490)" },
+      { label: "الاستخدام", value: "منازل ومكاتب صغيرة" }
+    ]
+  },
+  "canon lbp6030": {
+    desc: "طابعة ليزر أبيض وأسود سريعة وموثوقة — تصميم مدمج يناسب أي مكتب.",
+    marketing: "⚡ أسرع طابعة ليزر بفئتها — اطبع مئات الصفحات بدون ما تحس!",
+    specs: [
+      { label: "النوع", value: "طابعة ليزر" },
+      { label: "التقنية", value: "Laser" },
+      { label: "السرعة", value: "18 صورة/دقيقة" },
+      { label: "الاتصال", value: "USB" },
+      { label: "اللون", value: "أبيض وأسود" },
+      { label: "الاستخدام", value: "مكاتب صغيرة" }
+    ]
+  },
+  "canon pixma ts3320": {
+    desc: "طابعة منزلية متعددة الوظائف — تطبع وتمسح وتنسخ بسهولة.",
+    marketing: "✨ 3 أجهزة في جهاز واحد — وفّر مساحة وفلوس!",
+    specs: [
+      { label: "النوع", value: "طابعة متعددة" },
+      { label: "التقنية", value: "Inkjet" },
+      { label: "الوظائف", value: "طباعة + مسح + نسخ" },
+      { label: "الاتصال", value: "USB + واي فاي" },
+      { label: "الاستخدام", value: "منزلية" }
+    ]
+  },
+  "canon maxify gx6010": {
+    desc: "طابعة مكتبية احترافية مصممة للشركات — إنتاجية عالية وتكلفة منخفضة.",
+    marketing: "👑 صممت للشركات — تطبع آلاف الصفحات بجودة ثابتة!",
+    specs: [
+      { label: "النوع", value: "طابعة مكتبية" },
+      { label: "التقنية", value: "Inkjet" },
+      { label: "السرعة", value: "24 صورة/دقيقة" },
+      { label: "الاتصال", value: "USB + واي فاي + Ethernet" },
+      { label: "الوظائف", value: "طباعة + مسح + نسخ + فاكس" },
+      { label: "الاستخدام", value: "شركات ومكاتب" }
+    ]
+  },
+  "canon selphy cp1300": {
+    desc: "طابعة صور محمولة — اطبع صورك مباشرة من هاتفك بجودة استوديو.",
+    marketing: "📸 اطبع ذكرياتك فوراً — مثالية للمناسبات والسفر!",
+    specs: [
+      { label: "النوع", value: "طابعة صور" },
+      { label: "التقنية", value: "Dye-Sublimation" },
+      { label: "الاتصال", value: "واي فاي + USB" },
+      { label: "الشاشة", value: "3.2 بوصة" },
+      { label: "البطارية", value: "قابلة للشحن" },
+      { label: "الاستخدام", value: "مناسبات وسفر" }
+    ]
+  },
+  "canon pixma mg3620": {
+    desc: "طابعة ملونة اقتصادية — مثالية للاستخدام المنزلي اليومي.",
+    marketing: "💰 اقتصادية وجودة عالية — الخيار الأمثل للمنزل!",
+    specs: [
+      { label: "النوع", value: "طابعة متعددة" },
+      { label: "التقنية", value: "Inkjet" },
+      { label: "الوظائف", value: "طباعة + مسح + نسخ" },
+      { label: "الاتصال", value: "USB + واي فاي" },
+      { label: "الاستخدام", value: "منزلية" }
+    ]
+  }
+};
+
+// ============================================
+// NAKHEEB يبحث عن معلومات المنتج
+// ============================================
+function nokheebLookup(name) {
+  var key = name.toLowerCase().trim();
+  
+  // بحث دقيق
+  if (nokhbaProductsDB[key]) {
+    return nokhbaProductsDB[key];
+  }
+  
+  // بحث جزئي (إذا كتب كلمة من الاسم)
+  var keys = Object.keys(nokhbaProductsDB);
+  for (var i = 0; i < keys.length; i++) {
+    if (key.indexOf(keys[i]) !== -1 || keys[i].indexOf(key) !== -1) {
+      return nokhbaProductsDB[keys[i]];
+    }
+  }
+  
+  // إذا ما لقى — يرجع مواصفات عامة
+  return {
+    desc: "منتج أصلي من نُخبة — جودة عالية وسعر مناسب.",
+    marketing: "✨ اختيار النخبة — جودة مضمونة وخدمة ممتازة!",
+    specs: [
+      { label: "النوع", value: "طابعة" },
+      { label: "الحالة", value: "جديد" },
+      { label: "الأصالة", value: "أصلي 100%" },
+      { label: "الضمان", value: "سنة كاملة" }
+    ]
+  };
+}
 
 // ============================================
 // نشر المنتج إلى Firestore
 // ============================================
 async function publishProduct() {
   var name = document.getElementById('dashProductName').value.trim();
-  var desc = document.getElementById('dashProductDesc').value.trim();
+  var descInput = document.getElementById('dashProductDesc').value.trim();
   var category = document.getElementById('dashProductCategory').value;
   
   if (!name) {
@@ -705,30 +812,35 @@ async function publishProduct() {
   }
   
   var statusDiv = document.getElementById('dashStatus');
-  statusDiv.innerHTML = '📤 NAKHEEB ينشر...';
+  statusDiv.innerHTML = '🎯 NAKHEEB يحلل المنتج...';
   
   try {
-    // نولّد مواصفات افتراضية
-    var specs = [
-      { label: 'النوع', value: 'طابعة' },
-      { label: 'الحالة', value: 'جديد' },
-      { label: 'الضمان', value: 'سنة كاملة' }
-    ];
+    // NAKHEEB يجيب المواصفات حسب الاسم
+    var productInfo = nokheebLookup(name);
+    
+    statusDiv.innerHTML = '📝 NAKHEEB يكتب المواصفات...';
+    
+    // نجهز الوصف النهائي (وصف + رسالة تسويقية)
+    var finalDesc = (descInput || productInfo.desc);
+    var marketingMsg = productInfo.marketing;
+    
+    statusDiv.innerHTML = '📤 NAKHEEB ينشر...';
     
     // نضيف للـ Firestore
     await addDoc(collection(db, "products"), {
       name: name,
-      desc: desc || 'منتج جديد من نُخبة',
+      desc: finalDesc,
+      marketing: marketingMsg,
       category: category,
       videoUrl: window.selectedVideoUrl,
       videoDuration: window.selectedVideoDuration,
-      specs: specs,
+      specs: productInfo.specs,
       images: [],
       createdAt: new Date().toISOString()
     });
     
-    statusDiv.innerHTML = '✅ تم النشر!';
-    showToast('🎉 تم نشر المنتج');
+    statusDiv.innerHTML = '✅ تم النشر بنجاح!';
+    showToast('🎉 NAKHEEB نشر المنتج');
     
     // نفرغ الحقول
     document.getElementById('dashProductName').value = '';
@@ -746,6 +858,3 @@ async function publishProduct() {
     statusDiv.innerHTML = '❌ خطأ: ' + e.message;
   }
 }
-
-// تشغيل السلايدر الأولي
-setupSliderAndDetails();
