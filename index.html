@@ -207,20 +207,7 @@
 
 <!-- نافذة التفاصيل -->
 <div class="modal" id="detailsModal">
-  <div class="modal-content">
-    <h2 id="detailsTitle">-</h2>
-    <h4>الوصف:</h4>
-    <p id="detailsDesc">-</p>
-    <div id="detailsMarketingSlot"></div>
-    <h4>المواصفات:</h4>
-    <ul class="specs-list" dir="rtl" id="detailsSpecs"></ul>
-    <div class="modal-buttons">
-      <button class="back-btn" onclick="closeModal('detailsModal')">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-      </button>
-      <button class="btn contact-btn">تواصل معنا</button>
-    </div>
-  </div>
+  <div class="modal-content"></div>
 </div>
 
 <!-- نافذة الخصوصية -->
@@ -339,17 +326,10 @@
   </a>
 </div>
 
-<!-- Firebase Ready Promise -->
-<script>
-  window.firebaseReady = new Promise(function(resolve) {
-    window.resolveFirebase = resolve;
-  });
-</script>
-
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   
   const firebaseConfig = {
     apiKey: "AIzaSyCFJXoImDeFtzpDPUyVWhSUDF1fj0KoAX0",
@@ -369,11 +349,12 @@
   window.firebaseGetDocs = getDocs;
   window.firebaseDeleteDoc = deleteDoc;
   window.firebaseDoc = doc;
+  window.firebaseUpdateDoc = updateDoc;
   
   console.log('🔥 Firebase loaded');
-  window.resolveFirebase(db);
 </script>
 
+<script src="./ai.js"></script>
 <script src="./script.js"></script>
 </body>
 </html>
