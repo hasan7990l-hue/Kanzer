@@ -92,7 +92,7 @@ function closeDashboardPage() {
 }
 
 // ============================================
-// 🔐 تسجيل الدخول بـ Google (حقيقي)
+// 🔐 تسجيل الدخول بـ Google
 // ============================================
 async function loginWithGoogle() {
   if (!window.firebaseAuth) { alert('⚠️ Firebase مو جاهز'); return; }
@@ -141,6 +141,15 @@ async function logout() {
   var dropdown = document.getElementById('profileDropdown');
   if (dropdown) dropdown.classList.remove('active');
   if (navigator.vibrate) navigator.vibrate(20);
+}
+
+// ============================================
+// 🚪 تسجيل خروج من القائمة المنسدلة
+// ============================================
+function logoutFromDropdown() {
+  var dropdown = document.getElementById('profileDropdown');
+  if (dropdown) dropdown.classList.remove('active');
+  setTimeout(function() { logout(); }, 200);
 }
 
 // ============================================
@@ -208,9 +217,7 @@ var nokhbaProductsDB = {
   "canon lbp6030": {
     desc: "طابعة ليزر أبيض وأسود سريعة وموثوقة.",
     marketing: "⚡ أسرع طابعة ليزر بفئتها!",
-    specs: [
-      { label: "النوع", value: "طابعة ليزر" }, { label: "السرعة", value: "18 صورة/دقيقة" }
-    ]
+    specs: [{ label: "النوع", value: "طابعة ليزر" }, { label: "السرعة", value: "18 صورة/دقيقة" }]
   },
   "canon pixma ts3320": {
     desc: "طابعة منزلية متعددة الوظائف.",
