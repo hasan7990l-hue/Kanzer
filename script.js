@@ -41,7 +41,7 @@ connectFirebase();
 // ============================================
 // YouTube API Key
 // ============================================
-var YOUTUBE_API_KEY = "AIzaSyDGz7KuTuH_WcG7_bTshaCkz6ZRpQDvQWc";
+var YOUTUBE_API_KEY = "AIzaSyCVOkpMQx1v4iZNmLmInDM5-m37_-d_Jt0";
 
 // ============================================
 // الجزيئات
