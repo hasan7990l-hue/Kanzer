@@ -1669,3 +1669,102 @@ body.dark-mode .card {
   background: #0a1628;
   color: #fff;
 }
+/* ============ رسالة تسويقية ============ */
+.marketing-msg {
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(0, 102, 255, 0.1));
+  border: 1.5px solid rgba(255, 193, 7, 0.4);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: #FFC107;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 10px 0;
+  text-align: center;
+  animation: marketingPulse 2s ease-in-out infinite;
+}
+
+@keyframes marketingPulse {
+  0%, 100% { 
+    border-color: rgba(255, 193, 7, 0.4);
+    box-shadow: 0 0 0 rgba(255, 193, 7, 0);
+  }
+  50% { 
+    border-color: rgba(255, 193, 7, 0.8);
+    box-shadow: 0 0 20px rgba(255, 193, 7, 0.3);
+  }
+}
+
+/* ============ فيديو المنتج ============ */
+.product-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 2;
+  border-radius: 24px 24px 0 0;
+}
+
+/* ============ Dashboard select ============ */
+#dashboardModal select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234D94FF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: left 15px center;
+  background-size: 16px;
+  padding-left: 40px;
+}
+
+#dashboardModal select option {
+  background: #0a1628;
+  color: #fff;
+  padding: 10px;
+}
+
+/* ============ Dashboard Modal ============ */
+#dashboardModal .modal-content {
+  max-width: 500px;
+}
+
+#dashboardModal h2 {
+  color: #4D94FF;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+#dashboardModal .profile-field {
+  margin-bottom: 15px;
+}
+
+#dashboardModal .btn {
+  margin-top: 10px;
+}
+
+#dashVideoResults {
+  margin: 15px 0;
+  min-height: 50px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 5px;
+}
+
+#dashVideoResults::-webkit-scrollbar {
+  width: 6px;
+}
+
+#dashVideoResults::-webkit-scrollbar-thumb {
+  background: rgba(0, 102, 255, 0.5);
+  border-radius: 3px;
+}
+
+#dashStatus {
+  text-align: center;
+  color: #4D94FF;
+  margin: 10px 0;
+  font-size: 14px;
+  min-height: 20px;
+  font-weight: 600;
+}
