@@ -5,35 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>نُخبة | NOKHBA</title>
   <link rel="stylesheet" href="./style.css">
+  
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyCFJXoImDeFtzpDPUyVWhSUDF1fj0KoAX0",
+      authDomain: "nokhba-ed34f.firebaseapp.com",
+      projectId: "nokhba-ed34f",
+      storageBucket: "nokhba-ed34f.firebasestorage.app",
+      messagingSenderId: "875356398629",
+      appId: "1:875356398629:web:d544a7beb01ba5114ecbcc"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    window.firebaseDB = db;
+    window.firebaseAddDoc = addDoc;
+    window.firebaseCollection = collection;
+    window.firebaseGetDocs = getDocs;
+    window.firebaseDeleteDoc = deleteDoc;
+    window.firebaseDoc = doc;
+  </script>
 </head>
 <body>
- <!-- Firebase SDK -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyCFJXoImDeFtzpDPUyVWhSUDF1fj0KoAX0",
-    authDomain: "nokhba-ed34f.firebaseapp.com",
-    projectId: "nokhba-ed34f",
-    storageBucket: "nokhba-ed34f.firebasestorage.app",
-    messagingSenderId: "875356398629",
-    appId: "1:875356398629:web:d544a7beb01ba5114ecbcc"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  // نحفظهم في window للاستخدام في script.js
-  window.firebaseDB = db;
-  window.firebaseAddDoc = addDoc;
-  window.firebaseCollection = collection;
-  window.firebaseGetDocs = getDocs;
-  window.firebaseDeleteDoc = deleteDoc;
-  window.firebaseDoc = doc;
-  window.firebaseOnSnapshot = onSnapshot;
-</script>
-<!-- المقدمة الأولى -->
+<!-- ============ المقدمة الأولى ============ -->
 <section class="luxury-hero" id="luxuryHero">
   <div class="luxury-bg">
     <div class="luxury-grid"></div>
@@ -41,7 +37,6 @@
     <div class="luxury-glow-2"></div>
     <div class="luxury-particles" id="luxuryParticles"></div>
   </div>
-  
   <div class="luxury-content">
     <div class="luxury-logo">
       <div class="luxury-logo-box">
@@ -49,19 +44,11 @@
         <div class="luxury-shine"></div>
       </div>
     </div>
-    
     <h1 class="luxury-title">نُخبة</h1>
     <p class="luxury-subtitle">NOKHBA</p>
-    
-    <div class="luxury-divider">
-      <span></span>
-      <div class="luxury-diamond"></div>
-      <span></span>
-    </div>
-    
+    <div class="luxury-divider"><span></span><div class="luxury-diamond"></div><span></span></div>
     <p class="luxury-tagline">حيث تلتقي الجودة بالفخامة</p>
     <p class="luxury-desc">طابعات كانون أصلية — اختيار النخبة في العراق</p>
-    
     <div class="luxury-buttons">
       <button class="luxury-btn primary" onclick="openLogin()">
         <svg width="22" height="22" viewBox="0 0 24 24">
@@ -72,169 +59,92 @@
         </svg>
         <span>تسجيل الدخول بجوجل</span>
       </button>
-      
       <div class="luxury-buttons-row">
         <button class="luxury-btn secondary" onclick="openPrivacy()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-            <path d="M9 12l2 2 4-4"></path>
-          </svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
           <span>الخصوصية والأمان</span>
         </button>
-        
         <button class="luxury-btn secondary" onclick="openAbout()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="16" x2="12" y2="12"></line>
-            <line x1="12" y1="8" x2="12.01" y2="8"></line>
-          </svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
           <span>تفاصيل عنا</span>
         </button>
       </div>
     </div>
-
     <div class="rating-section">
       <p class="rating-title">قيّم تجربتك مع نُخبة</p>
       <div class="rating-stars" id="ratingStars">
-        <span class="star" data-value="1">★</span>
-        <span class="star" data-value="2">★</span>
-        <span class="star" data-value="3">★</span>
-        <span class="star" data-value="4">★</span>
-        <span class="star" data-value="5">★</span>
+        <span class="star" data-value="1">★</span><span class="star" data-value="2">★</span><span class="star" data-value="3">★</span><span class="star" data-value="4">★</span><span class="star" data-value="5">★</span>
       </div>
       <div class="rating-info">
-        <span class="rating-average">0.0</span>
-        <span class="rating-divider">/</span>
-        <span class="rating-total">5</span>
-        <span class="rating-count">(0 تقييم)</span>
+        <span class="rating-average">0.0</span><span class="rating-divider">/</span><span class="rating-total">5</span><span class="rating-count">(0 تقييم)</span>
       </div>
       <p class="rating-thanks" id="ratingThanks">شكراً لتقييمك!</p>
     </div>
   </div>
 </section>
 
-<!-- الموقع الرئيسي -->
+<!-- ============ الموقع الرئيسي ============ -->
 <div class="main-site" id="mainSite">
   
-  <!-- رأس الصفحة -->
   <header class="site-header">
     <div class="header-inner">
-      <div class="header-logo">
-        <span class="header-logo-letter">N</span>
-      </div>
-      
+      <div class="header-logo" id="headerLogo"><span class="header-logo-letter">N</span></div>
       <div class="profile-menu-wrapper">
         <button class="profile-trigger" onclick="toggleProfileMenu(event)">
           <div class="profile-avatar" id="profileAvatar">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </div>
         </button>
       </div>
     </div>
-    
-    <!-- القائمة المنسدلة - خارج الهيدر -->
-    <div class="profile-dropdown" id="profileDropdown">
-      <div class="dropdown-header">
-        <div class="dropdown-avatar" id="dropdownAvatar">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-          </svg>
-        </div>
-        <div class="dropdown-info">
-          <strong id="dropdownName">المستخدم</strong>
-          <span id="dropdownEmail">user@gmail.com</span>
-        </div>
-      </div>
-      
-      <div class="dropdown-divider"></div>
-      
-      <button class="dropdown-item" onclick="openProfileFromDropdown()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-          <circle cx="12" cy="7" r="4"></circle>
-        </svg>
-        <span>الملف الشخصي</span>
-      </button>
-      
-      <button class="dropdown-item" onclick="openSettingsFromDropdown()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-        </svg>
-        <span>الإعدادات</span>
-      </button>
-      
-      <div class="dropdown-divider"></div>
-      
-      <button class="dropdown-item logout-item" onclick="logout()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-          <polyline points="16 17 21 12 16 7"></polyline>
-          <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
-        <span>تسجيل خروج</span>
-      </button>
-    </div>
   </header>
 
-  <!-- المقدمة الثانية -->
-  <section class="welcome-hero">
-    <div class="welcome-bg">
-      <div class="welcome-grid"></div>
-      <div class="welcome-glow"></div>
+  <div class="profile-dropdown" id="profileDropdown">
+    <div class="dropdown-header">
+      <div class="dropdown-avatar" id="dropdownAvatar">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <div class="dropdown-info">
+        <strong id="dropdownName">المستخدم</strong>
+        <span id="dropdownEmail">user@gmail.com</span>
+      </div>
     </div>
-    
+    <div class="dropdown-divider"></div>
+    <button class="dropdown-item" onclick="openProfileFromDropdown()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>الملف الشخصي</span>
+    </button>
+    <div class="dropdown-divider"></div>
+    <button class="dropdown-item logout-item" onclick="logout()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span>تسجيل خروج</span>
+    </button>
+  </div>
+
+  <section class="welcome-hero">
+    <div class="welcome-bg"><div class="welcome-grid"></div><div class="welcome-glow"></div></div>
     <div class="welcome-content">
       <h2 class="welcome-title">أهلاً بك في نُخبة</h2>
       <p class="welcome-subtitle">اختيار النخبة لطابعات كانون الأصلية</p>
-      
       <div class="welcome-features">
-        <div class="welcome-feature">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-          <span>أصلي 100%</span>
-        </div>
-        <div class="welcome-feature">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-          <span>توصيل سريع</span>
-        </div>
-        <div class="welcome-feature">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-          <span>دعم فني</span>
-        </div>
+        <div class="welcome-feature"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>أصلي 100%</span></div>
+        <div class="welcome-feature"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>توصيل سريع</span></div>
+        <div class="welcome-feature"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>دعم فني</span></div>
       </div>
-      
       <button class="welcome-btn" onclick="scrollToProducts()">
         <span>تصفح المنتجات</span>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9"></polyline>
-        </svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
     </div>
   </section>
 
-  <!-- المنتجات -->
   <div class="page" id="productsSection">
     
-    <!-- شريط البحث -->
     <div class="search-bar">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"></circle>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-      </svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" id="searchInput" placeholder="ابحث عن منتجك..." oninput="searchProducts(this.value)">
     </div>
 
-    <!-- الأقسام -->
     <div class="categories-bar">
       <div class="categories-scroll">
         <button class="category-btn active" data-category="all" onclick="filterCategory('all', this)"><span>الكل</span></button>
@@ -246,189 +156,59 @@
       </div>
     </div>
 
-    <!-- شبكة المنتجات -->
-    <div class="products-grid">
-      
-      <div class="card" data-category="new small" data-name="canon pixma g3411 طابعة ملونة">
-        <div class="card-glow"></div>
-        <div class="slider">
-          <div class="slides">
-            <img src="https://picsum.photos/seed/p1/400/300" alt="1">
-            <img src="https://picsum.photos/seed/p2/400/300" alt="2">
-            <img src="https://picsum.photos/seed/p3/400/300" alt="3">
-          </div>
-        </div>
-        <div class="content">
-          <h3>Canon PIXMA G3411</h3>
-          <p class="desc">طابعة ملونة، واي فاي، حبر مستمر</p>
-          <button class="btn details-btn" data-id="1">تفاصيل الجهاز</button>
-          <button class="btn contact-btn">تواصل معنا</button>
-        </div>
-      </div>
-
-      <div class="card" data-category="new small" data-name="canon lbp6030 طابعة ليزر">
-        <div class="card-glow"></div>
-        <div class="slider">
-          <div class="slides">
-            <img src="https://picsum.photos/seed/p4/400/300" alt="1">
-            <img src="https://picsum.photos/seed/p5/400/300" alt="2">
-          </div>
-        </div>
-        <div class="content">
-          <h3>Canon LBP6030</h3>
-          <p class="desc">طابعة ليزر أبيض وأسود</p>
-          <button class="btn details-btn" data-id="2">تفاصيل الجهاز</button>
-          <button class="btn contact-btn">تواصل معنا</button>
-        </div>
-      </div>
-
-      <div class="card" data-category="new small" data-name="canon pixma ts3320 طابعة منزلية">
-        <div class="card-glow"></div>
-        <div class="slider">
-          <div class="slides">
-            <img src="https://picsum.photos/seed/p6/400/300" alt="1">
-            <img src="https://picsum.photos/seed/p7/400/300" alt="2">
-          </div>
-        </div>
-        <div class="content">
-          <h3>Canon PIXMA TS3320</h3>
-          <p class="desc">طابعة منزلية متعددة</p>
-          <button class="btn details-btn" data-id="3">تفاصيل الجهاز</button>
-          <button class="btn contact-btn">تواصل معنا</button>
-        </div>
-      </div>
-
-      <div class="card" data-category="new large business" data-name="canon maxify gx6010 طابعة مكتبية">
-        <div class="card-glow"></div>
-        <div class="slider">
-          <div class="slides">
-            <img src="https://picsum.photos/seed/p8/400/300" alt="1">
-            <img src="https://picsum.photos/seed/p9/400/300" alt="2">
-          </div>
-        </div>
-        <div class="content">
-          <h3>Canon MAXIFY GX6010</h3>
-          <p class="desc">طابعة مكتبية احترافية</p>
-          <button class="btn details-btn" data-id="4">تفاصيل الجهاز</button>
-          <button class="btn contact-btn">تواصل معنا</button>
-        </div>
-      </div>
-
-      <div class="card" data-category="new small" data-name="canon selphy cp1300 طابعة صور">
-        <div class="card-glow"></div>
-        <div class="slider">
-          <div class="slides">
-            <img src="https://picsum.photos/seed/p10/400/300" alt="1">
-            <img src="https://picsum.photos/seed/p11/400/300" alt="2">
-          </div>
-        </div>
-        <div class="content">
-          <h3>Canon SELPHY CP1300</h3>
-          <p class="desc">طابعة صور محمولة</p>
-          <button class="btn details-btn" data-id="5">تفاصيل الجهاز</button>
-          <button class="btn contact-btn">تواصل معنا</button>
-        </div>
-      </div>
-
-      <div class="card" data-category="used small" data-name="canon pixma mg3620 طابعة اقتصادية">
-        <div class="card-glow"></div>
-        <div class="slider">
-          <div class="slides">
-            <img src="https://picsum.photos/seed/p12/400/300" alt="1">
-            <img src="https://picsum.photos/seed/p13/400/300" alt="2">
-          </div>
-        </div>
-        <div class="content">
-          <h3>Canon PIXMA MG3620</h3>
-          <p class="desc">طابعة ملونة اقتصادية</p>
-          <button class="btn details-btn" data-id="6">تفاصيل الجهاز</button>
-          <button class="btn contact-btn">تواصل معنا</button>
-        </div>
-      </div>
-
+    <div class="products-grid" id="productsGrid">
+      <!-- المنتجات تُحمّل من Firestore -->
     </div>
   </div>
 </div>
 
-<!-- نافذة التفاصيل -->
+<!-- ============ نافذة التفاصيل ============ -->
 <div class="modal" id="detailsModal">
   <div class="modal-content">
     <h2 id="detailsTitle">-</h2>
-    <h4>الوصف الكامل:</h4>
+    <h4>الوصف:</h4>
     <p id="detailsDesc">-</p>
+    <div id="detailsMarketingSlot"></div>
     <h4>المواصفات:</h4>
     <ul class="specs-list" dir="rtl" id="detailsSpecs"></ul>
     <div class="modal-buttons">
       <button class="back-btn" onclick="closeModal('detailsModal')">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="19" y1="12" x2="5" y2="12"></line>
-          <polyline points="12 19 5 12 12 5"></polyline>
-        </svg>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </button>
       <button class="btn contact-btn">تواصل معنا</button>
     </div>
   </div>
 </div>
 
-<!-- نافذة الخصوصية -->
+<!-- ============ نافذة الخصوصية ============ -->
 <div class="modal" id="privacyModal">
   <div class="modal-content privacy-content">
     <div class="privacy-header">
-      <div class="privacy-icon">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-          <path d="M9 12l2 2 4-4"></path>
-        </svg>
-      </div>
+      <div class="privacy-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div>
       <h2>الخصوصية والأمان</h2>
       <p class="privacy-subtitle">خصوصيتك أولويتنا</p>
     </div>
-
     <h4>1. مقدمة</h4>
     <p>في نُخبة للتجارة العامة، نلتزم بحماية خصوصيتك.</p>
-    <h4>2. المعلومات اللي نجمعها</h4>
-    <ul class="specs-list" dir="rtl">
-      <li><strong>الاسم:</strong> عند تسجيل الدخول</li>
-      <li><strong>الإيميل:</strong> للتواصل معك</li>
-    </ul>
-    <h4>3. حماية البيانات</h4>
-    <ul class="specs-list" dir="rtl">
-      <li><strong>التشفير:</strong> <span dir="ltr">SSL 256-bit</span></li>
-      <li><strong>تسجيل الدخول:</strong> عبر جوجل (آمن)</li>
-    </ul>
-    <h4>4. حقوقك</h4>
-    <p>تقدر تطلب نسخة من بياناتك، أو تحذف حسابك في أي وقت.</p>
-    <h4>5. تواصل معنا</h4>
-    <p>لأي استفسار، تواصل ويانا عبر واتساب.</p>
-
+    <h4>2. المعلومات</h4>
+    <ul class="specs-list" dir="rtl"><li><strong>الاسم:</strong> عند تسجيل الدخول</li><li><strong>الإيميل:</strong> للتواصل</li></ul>
+    <h4>3. الحماية</h4>
+    <ul class="specs-list" dir="rtl"><li><strong>التشفير:</strong> <span dir="ltr">SSL 256-bit</span></li><li><strong>الدخول:</strong> عبر جوجل</li></ul>
     <div class="security-card">
-      <div class="security-card-header">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-        </svg>
-        <h3>بطاقة الأمان</h3>
-      </div>
+      <div class="security-card-header"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><h3>بطاقة الأمان</h3></div>
       <div class="security-info">
-        <div class="info-row"><span class="info-label">الجهة المسؤولة:</span><span class="info-value">نُخبة للتجارة العامة</span></div>
+        <div class="info-row"><span class="info-label">الجهة:</span><span class="info-value">نُخبة للتجارة العامة</span></div>
         <div class="info-row"><span class="info-label">العنوان:</span><span class="info-value">العراق - بغداد - جسر ديالى</span></div>
-        <div class="info-row"><span class="info-label">الإيميل:</span><span class="info-value" dir="ltr">hasan7990l@gmail.com</span></div>
-        <div class="info-row"><span class="info-label">الهاتف:</span><span class="info-value" dir="ltr">+964 776 109 0465</span></div>
       </div>
     </div>
-
     <div class="modal-buttons">
-      <button class="back-btn" onclick="closeModal('privacyModal')">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="19" y1="12" x2="5" y2="12"></line>
-          <polyline points="12 19 5 12 12 5"></polyline>
-        </svg>
-      </button>
-      <button class="btn contact-btn">تواصل معنا</button>
+      <button class="back-btn" onclick="closeModal('privacyModal')"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button>
+      <button class="btn contact-btn">تواصل</button>
     </div>
   </div>
 </div>
 
-<!-- نافذة عنا -->
+<!-- ============ نافذة عنا ============ -->
 <div class="modal" id="aboutModal">
   <div class="modal-content about-content">
     <div class="about-header">
@@ -437,169 +217,111 @@
       <p class="about-subtitle">NOKHBA</p>
       <p class="about-tagline">من نحن</p>
     </div>
-
     <h4>📖 قصتنا</h4>
-    <p>بدأت نُخبة للتجارة العامة في 2026 كفكرة بسيطة: نوفر طابعات كانون أصلية، مع خدمة نخبوية. من بغداد - جسر ديالى، انطلقنا لنكون الوجهة الأولى لطابعات كانون في العراق.</p>
-
+    <p>بدأت نُخبة للتجارة العامة في 2026، لنكون الوجهة الأولى لطابعات كانون في العراق.</p>
     <h4>🎯 رؤيتنا</h4>
-    <p>أن نصير الوجهة الأولى لطابعات كانون في العراق، ونبني ثقة العملاء من خلال الجودة والشفافية.</p>
-
-    <h4>💼 مهمتنا</h4>
-    <p>نوفر منتجات أصلية 100%، مع خدمة عملاء استثنائية، ودعم فني متواصل.</p>
-
+    <p>أن نصير الوجهة الأولى لطابعات كانون في العراق.</p>
     <h4>⭐ لماذا نُخبة؟</h4>
-    <ul class="specs-list" dir="rtl">
-      <li><strong>الجودة:</strong> منتجات أصلية 100%</li>
-      <li><strong>التوصيل:</strong> سريع لكل العراق</li>
-      <li><strong>الدعم:</strong> فني متواصل</li>
-    </ul>
-
-    <h4>🛠️ خدماتنا</h4>
-    <ul class="specs-list" dir="rtl">
-      <li><strong>بيع:</strong> طابعات كانون أصلية</li>
-      <li><strong>صيانة:</strong> لجميع الأجهزة</li>
-      <li><strong>أحبار:</strong> أصلية ومتوفرة</li>
-      <li><strong>استشارات:</strong> لاختيار الأنسب</li>
-    </ul>
-
-    <h4>💎 قيمنا</h4>
-    <ul class="specs-list" dir="rtl">
-      <li><strong>الأمانة:</strong> نتعامل بصدق</li>
-      <li><strong>الجودة:</strong> ما نرضى بالقليل</li>
-      <li><strong>السرعة:</strong> نخدمك بسرعة</li>
-      <li><strong>الاحترام:</strong> العميل أولاً</li>
-    </ul>
-
+    <ul class="specs-list" dir="rtl"><li><strong>الجودة:</strong> منتجات أصلية 100%</li><li><strong>التوصيل:</strong> سريع لكل العراق</li><li><strong>الدعم:</strong> فني متواصل</li></ul>
     <div class="contact-card">
-      <div class="contact-card-header">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-        </svg>
-        <h3>تواصل معنا</h3>
-      </div>
-      
+      <div class="contact-card-header"><h3>تواصل معنا</h3></div>
       <div class="contact-card-info">
-        <div class="info-row"><span class="info-label">الشركة:</span><span class="info-value">نُخبة للتجارة العامة</span></div>
         <div class="info-row"><span class="info-label">الواتساب:</span><span class="info-value" dir="ltr">+964 775 145 9130</span></div>
         <div class="info-row"><span class="info-label">الهاتف:</span><span class="info-value" dir="ltr">0776 109 0465</span></div>
         <div class="info-row"><span class="info-label">الإيميل:</span><span class="info-value" dir="ltr">hasan7990l@gmail.com</span></div>
         <div class="info-row"><span class="info-label">تلغرام:</span><span class="info-value" dir="ltr">@Eror_7</span></div>
-        <div class="info-row"><span class="info-label">العنوان:</span><span class="info-value">العراق - بغداد - جسر ديالى</span></div>
       </div>
     </div>
-
     <div class="modal-buttons">
-      <button class="back-btn" onclick="closeModal('aboutModal')">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="19" y1="12" x2="5" y2="12"></line>
-          <polyline points="12 19 5 12 12 5"></polyline>
-        </svg>
-      </button>
-      <button class="btn contact-btn">تواصل معنا</button>
+      <button class="back-btn" onclick="closeModal('aboutModal')"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button>
+      <button class="btn contact-btn">تواصل</button>
     </div>
   </div>
 </div>
 
-<!-- نافذة تسجيل الدخول -->
+<!-- ============ نافذة تسجيل الدخول ============ -->
 <div class="modal" id="loginModal">
   <div class="modal-content login-content">
     <h2>تسجيل الدخول</h2>
-    <p class="login-desc">لتسجيل الدخول، نستخدم حساب Google الخاص بك. لا نحتفظ بكلمة المرور ولا بأي بيانات شخصية.</p>
-
+    <p class="login-desc">لتسجيل الدخول، نستخدم حساب Google الخاص بك.</p>
     <button class="google-login-btn" onclick="loginWithGoogle()">
-      <svg width="22" height="22" viewBox="0 0 24 24">
-        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-      </svg>
+      <svg width="22" height="22" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
       <span>المتابعة عبر Google</span>
     </button>
-
-    <p class="login-privacy">بالمتابعة، أنت توافق على <a href="#" onclick="openPrivacy(); return false;">سياسة الخصوصية</a></p>
-
     <div class="modal-buttons">
-      <button class="back-btn" onclick="closeModal('loginModal')">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="19" y1="12" x2="5" y2="12"></line>
-          <polyline points="12 19 5 12 12 5"></polyline>
-        </svg>
-      </button>
+      <button class="back-btn" onclick="closeModal('loginModal')"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button>
     </div>
   </div>
 </div>
 
-<!-- نافذة الملف الشخصي -->
+<!-- ============ نافذة الملف الشخصي ============ -->
 <div class="modal" id="profileModal">
   <div class="modal-content profile-content">
     <div class="profile-header">
       <div class="profile-avatar-large" id="profileAvatarLarge">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-          <circle cx="12" cy="7" r="4"></circle>
-        </svg>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       </div>
       <label for="avatarUpload" class="upload-btn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="17 8 12 3 7 8"></polyline>
-          <line x1="12" y1="3" x2="12" y2="15"></line>
-        </svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <span>تغيير الصورة</span>
       </label>
       <input type="file" id="avatarUpload" accept="image/*" style="display: none;" onchange="uploadAvatar(event)">
     </div>
-
     <h2 id="profileName">المستخدم</h2>
     <p class="profile-email" id="profileEmail">user@gmail.com</p>
-
     <h4>المعلومات الشخصية</h4>
-    <div class="profile-field">
-      <label>الاسم</label>
-      <input type="text" id="profileNameInput" placeholder="اسمك" onchange="updateProfile()">
-    </div>
-    
-    <div class="profile-field">
-      <label>رقم الهاتف</label>
-      <input type="tel" id="profilePhoneInput" placeholder="0770 000 0000" onchange="updateProfile()">
-    </div>
-    
-    <div class="profile-field">
-      <label>العنوان</label>
-      <input type="text" id="profileAddressInput" placeholder="بغداد - الكرادة" onchange="updateProfile()">
-    </div>
-
+    <div class="profile-field"><label>الاسم</label><input type="text" id="profileNameInput" placeholder="اسمك" onchange="updateProfile()"></div>
+    <div class="profile-field"><label>رقم الهاتف</label><input type="tel" id="profilePhoneInput" placeholder="0770 000 0000" onchange="updateProfile()"></div>
+    <div class="profile-field"><label>العنوان</label><input type="text" id="profileAddressInput" placeholder="بغداد - الكرادة" onchange="updateProfile()"></div>
     <h4>الإعدادات</h4>
     <div class="settings-list">
       <div class="settings-item">
-        <div><strong>الإشعارات</strong><p>استلام إشعارات المنتجات الجديدة</p></div>
+        <div><strong>الإشعارات</strong><p>استلام الإشعارات</p></div>
         <label class="switch"><input type="checkbox" id="notificationsToggle" onchange="toggleSetting('notifications')"><span class="slider"></span></label>
       </div>
-      
       <div class="settings-item">
         <div><strong>الوضع الليلي</strong><p>تفعيل الوضع الداكن</p></div>
         <label class="switch"><input type="checkbox" id="darkModeToggle" onchange="toggleSetting('darkMode')"><span class="slider"></span></label>
       </div>
-      
       <div class="settings-item">
-        <div><strong>الرسائل الترويجية</strong><p>استلام العروض والخصومات</p></div>
+        <div><strong>الرسائل الترويجية</strong><p>استلام العروض</p></div>
         <label class="switch"><input type="checkbox" id="promotionsToggle" onchange="toggleSetting('promotions')"><span class="slider"></span></label>
       </div>
     </div>
-
     <div class="modal-buttons">
-      <button class="back-btn" onclick="closeModal('profileModal')">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="19" y1="12" x2="5" y2="12"></line>
-          <polyline points="12 19 5 12 12 5"></polyline>
-        </svg>
-      </button>
-      <button class="btn contact-btn" onclick="saveProfile()"><span>حفظ التغييرات</span></button>
+      <button class="back-btn" onclick="closeModal('profileModal')"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button>
+      <button class="btn contact-btn" onclick="saveProfile()"><span>حفظ</span></button>
     </div>
   </div>
 </div>
 
-<!-- قائمة التواصل -->
+<!-- ============ نافذة NAKHEEB Dashboard ============ -->
+<div class="modal" id="dashboardModal">
+  <div class="modal-content dashboard-content">
+    <h2>🎛️ NAKHEEB Dashboard</h2>
+    <div class="profile-field"><label>اسم المنتج</label><input type="text" id="dashProductName" placeholder="Canon PIXMA G3411"></div>
+    <div class="profile-field"><label>وصف مختصر (اختياري)</label><input type="text" id="dashProductDesc" placeholder="طابعة ملونة..."></div>
+    <div class="profile-field">
+      <label>الفئة</label>
+      <select id="dashProductCategory">
+        <option value="new">جديدة</option>
+        <option value="used">مستعملة</option>
+        <option value="small">صغيرة</option>
+        <option value="large">كبيرة</option>
+        <option value="business">شركات</option>
+      </select>
+    </div>
+    <button class="btn details-btn" onclick="searchVideos()">🔍 NAKHEEB ابحث عن فيديو</button>
+    <div id="dashVideoResults"></div>
+    <div id="dashStatus"></div>
+    <button class="btn contact-btn" onclick="publishProduct()">🚀 نشر المنتج</button>
+    <div class="modal-buttons">
+      <button class="back-btn" onclick="closeModal('dashboardModal')"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ قائمة التواصل ============ -->
 <div class="contact-menu" id="contactMenu">
   <a href="https://wa.me/9647751459130" class="contact-item whatsapp" target="_blank">
     <svg width="28" height="28" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
@@ -610,59 +332,11 @@
     <span>تلغرام</span>
   </a>
   <a href="tel:+9647761090465" class="contact-item call">
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8B00FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8B00FF" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
     <span>اتصال</span>
   </a>
 </div>
 
 <script src="./script.js"></script>
-  <!-- Dashboard -->
-<div class="modal" id="dashboardModal">
-  <div class="modal-content" style="max-width: 500px;">
-    <h2>🎛️ NAKHEEB Dashboard</h2>
-    
-    <div class="profile-field">
-      <label>اسم المنتج</label>
-      <input type="text" id="dashProductName" placeholder="Canon PIXMA G3411">
-    </div>
-    
-    <div class="profile-field">
-      <label>وصف مختصر</label>
-      <input type="text" id="dashProductDesc" placeholder="طابعة ملونة...">
-    </div>
-    
-    <div class="profile-field">
-      <label>الفئة</label>
-      <select id="dashProductCategory" style="width:100%;padding:12px;background:rgba(0,102,255,0.08);border:1.5px solid rgba(0,102,255,0.3);border-radius:10px;color:#fff;font-family:inherit;font-size:14px;">
-        <option value="new">جديدة</option>
-        <option value="used">مستعملة</option>
-        <option value="small">صغيرة</option>
-        <option value="large">كبيرة</option>
-        <option value="business">شركات</option>
-      </select>
-    </div>
-    
-    <button class="btn details-btn" onclick="searchVideos()" style="margin-top:15px;">
-      🔍 NAKHEEB ابحث عن فيديو
-    </button>
-    
-    <div id="dashVideoResults" style="margin:15px 0;min-height:50px;"></div>
-    
-    <div id="dashStatus" style="text-align:center;color:#4D94FF;margin:10px 0;font-size:14px;"></div>
-    
-    <button class="btn contact-btn" onclick="publishProduct()">
-      🚀 نشر المنتج
-    </button>
-    
-    <div class="modal-buttons">
-      <button class="back-btn" onclick="closeModal('dashboardModal')">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="19" y1="12" x2="5" y2="12"></line>
-          <polyline points="12 19 5 12 12 5"></polyline>
-        </svg>
-      </button>
-    </div>
-  </div>
-</div>
 </body>
 </html>
