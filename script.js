@@ -41,7 +41,7 @@ connectFirebase();
 // ============================================
 // YouTube API Key
 // ============================================
-var YOUTUBE_API_KEY = "AIzaSyDGz7KuTuH_WcG7_bTshaCkz6ZRpQDvQWc";
+var YOUTUBE_API_KEY = "AIzaSyBFVOYwVxxd9a07cJelkgfVVfDQHrkoDVQ";
 
 // ============================================
 // 📋 قائمة أجهزة كانون الحديثة
