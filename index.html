@@ -7,7 +7,32 @@
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
+ <!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+  const firebaseConfig = {
+    apiKey: "AIzaSyCFJXoImDeFtzpDPUyVWhSUDF1fj0KoAX0",
+    authDomain: "nokhba-ed34f.firebaseapp.com",
+    projectId: "nokhba-ed34f",
+    storageBucket: "nokhba-ed34f.firebasestorage.app",
+    messagingSenderId: "875356398629",
+    appId: "1:875356398629:web:d544a7beb01ba5114ecbcc"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // نحفظهم في window للاستخدام في script.js
+  window.firebaseDB = db;
+  window.firebaseAddDoc = addDoc;
+  window.firebaseCollection = collection;
+  window.firebaseGetDocs = getDocs;
+  window.firebaseDeleteDoc = deleteDoc;
+  window.firebaseDoc = doc;
+  window.firebaseOnSnapshot = onSnapshot;
+</script>
 <!-- المقدمة الأولى -->
 <section class="luxury-hero" id="luxuryHero">
   <div class="luxury-bg">
