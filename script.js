@@ -817,11 +817,10 @@ for (var i = 0; i < ratingStars.length; i++) {
 }
 
 loadRatings();
-
 // ============================================
-// Dashboard - Pexels
+// YouTube - البحث عن فيديوهات
 // ============================================
-async function searchVideos() {
+async function searchYouTubeVideos() {
   var query = document.getElementById('dashProductName').value.trim();
   if (!query) {
     alert('اكتب اسم المنتج أولاً');
@@ -829,18 +828,26 @@ async function searchVideos() {
   }
   
   var resultsDiv = document.getElementById('dashVideoResults');
-  resultsDiv.innerHTML = '<p style="text-align:center;color:#4D94FF;">🔍 NAKHEEB يبحث...</p>';
+  resultsDiv.innerHTML = '<p style="text-align:center;color:#4D94FF;">🔍 NAKHEEB يبحث في YouTube...</p>';
   
   try {
-    var url = 'https://api.pexels.com/videos/search?query=' + encodeURIComponent(query) + '&per_page=6&min_duration=' + MIN_DURATION + '&max_duration=' + MAX_DURATION;
+    var url = 'https://www.googleapis.com/youtube/v3/search?' +
+      'part=snippet' +
+      '&q=' + encodeURIComponent(query) +
+      '&type=video' +
+      '&maxResults=6' +
+      '&videoEmbeddable=true' +
+      '&key=' + YOUTUBE_API_KEY;
     
-    var response = await fetch(url, {
-      headers: { 'Authorization': PEXELS_API_KEY }
-    });
-    
+    var response = await fetch(url);
     var data = await response.json();
     
-    if (!data.videos || data.videos.length === 0) {
+    if (data.error) {
+      resultsDiv.innerHTML = '<p style="text-align:center;color:#FF6B6B;">خطأ: ' + data.error.message + '</p>';
+      return;
+    }
+    
+    if (!data.items || data.items.length === 0) {
       resultsDiv.innerHTML = '<p style="text-align:center;color:#FF6B6B;">ما لقيت فيديوهات. جرب اسم ثاني.</p>';
       return;
     }
@@ -851,40 +858,32 @@ async function searchVideos() {
     grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
     grid.style.gap = '10px';
     
-    data.videos.forEach(function(video) {
-      var videoFile = video.video_files.find(function(f) { return f.quality === 'sd' || f.quality === 'hd'; }) || video.video_files[0];
-      if (!videoFile) return;
+    data.items.forEach(function(item) {
+      var videoId = item.id.videoId;
+      var title = item.snippet.title;
+      var thumbnail = item.snippet.thumbnails.medium.url;
       
-      var item = document.createElement('div');
-      item.style.cssText = 'position:relative;cursor:pointer;border-radius:12px;overflow:hidden;border:2px solid rgba(0,102,255,0.3);';
-      item.innerHTML = '<video src="' + videoFile.link + '" muted loop playsinline style="width:100%;height:120px;object-fit:cover;display:block;"></video>' +
-        '<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.7);color:#fff;padding:5px;font-size:11px;text-align:center;">' + video.duration + 'ث</div>';
+      var videoItem = document.createElement('div');
+      videoItem.style.cssText = 'position:relative;cursor:pointer;border-radius:12px;overflow:hidden;border:2px solid rgba(0,102,255,0.3);background:#0a1628;';
+      videoItem.innerHTML = 
+        '<img src="' + thumbnail + '" style="width:100%;height:120px;object-fit:cover;display:block;" alt="' + title + '">' +
+        '<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.8);color:#fff;padding:6px;font-size:10px;text-align:center;line-height:1.3;">' + title.substring(0, 35) + '...</div>';
       
-      item.addEventListener('mouseenter', function() {
-        item.querySelector('video').play();
-        item.style.borderColor = '#0066FF';
-      });
-      item.addEventListener('mouseleave', function() {
-        item.querySelector('video').pause();
-        if (window.selectedVideoUrl !== videoFile.link) {
-          item.style.borderColor = 'rgba(0,102,255,0.3)';
-        }
-      });
-      
-      item.addEventListener('click', function() {
-        document.querySelectorAll('#dashVideoResults video').forEach(function(v) {
-          v.parentElement.style.borderColor = 'rgba(0,102,255,0.3)';
-          v.parentElement.style.borderWidth = '2px';
+      videoItem.addEventListener('click', function() {
+        document.querySelectorAll('#dashVideoResults > div > div').forEach(function(el) {
+          el.style.borderColor = 'rgba(0,102,255,0.3)';
+          el.style.borderWidth = '2px';
         });
-        item.style.borderColor = '#00C853';
-        item.style.borderWidth = '3px';
+        videoItem.style.borderColor = '#00C853';
+        videoItem.style.borderWidth = '3px';
         
-        window.selectedVideoUrl = videoFile.link;
-        window.selectedVideoDuration = video.duration;
+        window.selectedVideoUrl = 'https://www.youtube.com/embed/' + videoId;
+        window.selectedVideoType = 'youtube';
+        window.selectedVideoTitle = title;
         showToast('✅ تم اختيار الفيديو');
       });
       
-      grid.appendChild(item);
+      grid.appendChild(videoItem);
     });
     
     resultsDiv.appendChild(grid);
@@ -893,7 +892,6 @@ async function searchVideos() {
     resultsDiv.innerHTML = '<p style="text-align:center;color:#FF6B6B;">خطأ: ' + e.message + '</p>';
   }
 }
-
 // ============================================
 // Dashboard - نشر المنتج
 // ============================================
