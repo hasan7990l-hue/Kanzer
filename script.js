@@ -1,12 +1,40 @@
 // ============================================
-// Firebase
+// Firebase - ننتظر حتى يتحمل
 // ============================================
-var db = window.firebaseDB;
-var addDoc = window.firebaseAddDoc;
-var collection = window.firebaseCollection;
-var getDocs = window.firebaseGetDocs;
-var deleteDoc = window.firebaseDeleteDoc;
-var doc = window.firebaseDoc;
+var db = null;
+var addDoc = null;
+var collection = null;
+var getDocs = null;
+var deleteDoc = null;
+var doc = null;
+
+function connectFirebase() {
+  if (window.firebaseDB) {
+    db = window.firebaseDB;
+    addDoc = window.firebaseAddDoc;
+    collection = window.firebaseCollection;
+    getDocs = window.firebaseGetDocs;
+    deleteDoc = window.firebaseDeleteDoc;
+    doc = window.firebaseDoc;
+
+    console.log('✅ Firebase connected');
+
+    if (typeof loadProductsFromFirestore === 'function') {
+      loadProductsFromFirestore();
+    }
+
+    var dash = document.getElementById('dashboardPage');
+    if (dash && dash.classList.contains('active')) {
+      if (typeof loadDashboardProducts === 'function') {
+        loadDashboardProducts();
+      }
+    }
+  } else {
+    setTimeout(connectFirebase, 100);
+  }
+}
+
+connectFirebase();
 
 // ============================================
 // YouTube API Key
@@ -162,8 +190,6 @@ window.addEventListener('load', function() {
 
   var profile = JSON.parse(localStorage.getItem('nokhba_profile') || '{}');
   if (profile.avatar) updateAvatarDisplay(profile.avatar);
-
-  loadProductsFromFirestore();
 });
 
 // ============================================
@@ -319,7 +345,10 @@ function nokheebLookup(name) {
 // تحميل المنتجات من Firestore
 // ============================================
 async function loadProductsFromFirestore() {
-  if (!db) return;
+  if (!db) {
+    console.log('⏳ Firebase not ready yet');
+    return;
+  }
 
   try {
     var querySnapshot = await getDocs(collection(db, "products"));
@@ -471,7 +500,7 @@ function setupDetailsButtons() {
 // فتح تفاصيل المنتج
 // ============================================
 async function openProductDetails(id) {
-  if (!id) return;
+  if (!id || !db) return;
 
   try {
     var allProducts = await getDocs(collection(db, "products"));
@@ -837,7 +866,7 @@ for (var i = 0; i < ratingStars.length; i++) {
 loadRatings();
 
 // ============================================
-// استخدام رابط يوتيوب يدوي
+// رابط يوتيوب يدوي
 // ============================================
 function useYoutubeUrl(url) {
   if (!url || url.length < 10) return;
@@ -867,7 +896,7 @@ function extractYoutubeId(url) {
 }
 
 // ============================================
-// YouTube - البحث التلقائي مع فلتر قوي
+// YouTube - بحث مع فلتر
 // ============================================
 async function searchYouTubeVideos() {
   var query = document.getElementById('dashProductName').value.trim();
@@ -990,7 +1019,7 @@ async function publishProduct() {
 
   if (!name) { alert('اكتب اسم المنتج'); return; }
   if (!window.selectedVideoUrl) { alert('اختر فيديو أو الصق رابط يوتيوب'); return; }
-  if (!db) { alert('Firebase مو متصل'); return; }
+  if (!db) { alert('Firebase مو متصل - انتظر ثانية وجرب'); return; }
 
   var statusDiv = document.getElementById('dashStatus');
   statusDiv.innerHTML = '🎯 NAKHEEB يحلل المنتج...';
@@ -1108,18 +1137,3 @@ setupDetailsButtons();
 setupContactButtons();
 setupRippleEffect();
 setup3DTilt();
-// ============================================
-// ننتظر Firebase حتى يتحمل
-// ============================================
-var firebaseWaitInterval = setInterval(function() {
-  if (window.firebaseDB && !db) {
-    window.initFirebase();
-    clearInterval(firebaseWaitInterval);
-    console.log('✅ Firebase connected via interval');
-  }
-}, 200);
-
-// نتوقف بعد 10 ثواني
-setTimeout(function() {
-  clearInterval(firebaseWaitInterval);
-}, 10000);
