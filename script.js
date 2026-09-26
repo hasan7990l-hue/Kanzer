@@ -197,8 +197,7 @@ async function loadProductsFromFirestore() {
     console.log('Firestore error:', e);
   }
 }
-
-// ============================================
+  // ============================================
 // إنشاء بطاقة منتج
 // ============================================
 function createProductCard(data, firestoreId) {
@@ -226,6 +225,11 @@ function createProductCard(data, firestoreId) {
     imagesHTML = '<img src="https://picsum.photos/seed/' + (firestoreId || 'p') + '/400/300" alt="1">';
   }
   
+  var marketingHTML = '';
+  if (data.marketing) {
+    marketingHTML = '<div class="marketing-msg">' + data.marketing + '</div>';
+  }
+  
   card.innerHTML = `
     <div class="card-glow"></div>
     <div class="slider">
@@ -237,6 +241,7 @@ function createProductCard(data, firestoreId) {
     <div class="content">
       <h3>${data.name || 'منتج'}</h3>
       <p class="desc">${data.desc || ''}</p>
+      ${marketingHTML}
       <button class="btn details-btn" data-id="${firestoreId || ''}">تفاصيل الجهاز</button>
       <button class="btn contact-btn">تواصل معنا</button>
     </div>
@@ -244,7 +249,6 @@ function createProductCard(data, firestoreId) {
   
   return card;
 }
-
 // ============================================
 // السلايدر
 // ============================================
