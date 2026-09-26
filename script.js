@@ -7,6 +7,7 @@ var collection = null;
 var getDocs = null;
 var deleteDoc = null;
 var doc = null;
+var updateDoc = null;
 
 function connectFirebase() {
   if (window.firebaseDB) {
@@ -16,6 +17,7 @@ function connectFirebase() {
     getDocs = window.firebaseGetDocs;
     deleteDoc = window.firebaseDeleteDoc;
     doc = window.firebaseDoc;
+    updateDoc = window.firebaseUpdateDoc;
 
     console.log('✅ Firebase connected');
 
@@ -246,7 +248,7 @@ function filterCategory(category, btn) {
 }
 
 // ============================================
-// NAKHEEB - قاعدة البيانات
+// NAKHEEB - قاعدة البيانات المحلية
 // ============================================
 var nokhbaProductsDB = {
   "canon pixma g3411": {
@@ -497,7 +499,7 @@ function setupDetailsButtons() {
 }
 
 // ============================================
-// فتح تفاصيل المنتج
+// 🤖 فتح تفاصيل المنتج مع AI
 // ============================================
 async function openProductDetails(id) {
   if (!id || !db) return;
@@ -505,55 +507,175 @@ async function openProductDetails(id) {
   try {
     var allProducts = await getDocs(collection(db, "products"));
     var found = null;
+    var foundId = null;
     allProducts.forEach(function(d) {
-      if (d.id === id) found = d.data();
+      if (d.id === id) { found = d.data(); foundId = d.id; }
     });
 
-    if (found) {
-      showProductModal(found.name, found.desc, found.specs || [], found.marketing);
+    if (!found) return;
+
+    // إذا الملخص موجود مسبقاً (كاش) → اعرضه فوراً
+    if (found.aiSummary) {
+      showAIDetailsModal(found, found.aiSummary);
       return;
     }
-  } catch(e) {}
+
+    // شاشة اللودينج
+    showDetailsLoading(found.name);
+
+    // اطلب من AI يولد الملخص
+    var summary = null;
+    if (typeof aiMakeProfessionalSummary === 'function') {
+      summary = await aiMakeProfessionalSummary(
+        found.name,
+        found.desc,
+        found.specs || []
+      );
+    }
+
+    if (summary) {
+      // خزّن النتيجة في Firestore للزيارات الجاية
+      if (updateDoc && doc) {
+        try {
+          await updateDoc(doc(db, "products", foundId), { aiSummary: summary });
+          console.log('💾 AI summary cached');
+        } catch(e) {
+          console.warn('⚠️ Cache failed:', e);
+        }
+      }
+      showAIDetailsModal(found, summary);
+    } else {
+      // فولباك: العرض القديم
+      showProductModal(found.name, found.desc, found.specs || [], found.marketing);
+    }
+
+  } catch(e) {
+    console.error('openProductDetails error:', e);
+  }
 }
 
-function showProductModal(name, desc, specs, marketing) {
-  var titleEl = document.getElementById('detailsTitle');
-  var descEl = document.getElementById('detailsDesc');
-  var specsEl = document.getElementById('detailsSpecs');
-  var marketingSlot = document.getElementById('detailsMarketingSlot');
+// ============================================
+// شاشة اللودينج
+// ============================================
+function showDetailsLoading(name) {
+  var modal = document.getElementById('detailsModal');
+  if (!modal) return;
+  var content = modal.querySelector('.modal-content');
+  if (!content) return;
 
-  if (titleEl) titleEl.textContent = name || '-';
-  if (descEl) descEl.textContent = desc || '-';
-
-  if (marketingSlot) {
-    marketingSlot.innerHTML = '';
-    if (marketing) {
-      var marketingDiv = document.createElement('div');
-      marketingDiv.className = 'marketing-msg';
-      marketingDiv.style.marginTop = '15px';
-      marketingDiv.textContent = marketing;
-      marketingSlot.appendChild(marketingDiv);
-    }
-  }
-
-  if (specsEl) {
-    specsEl.innerHTML = '';
-    if (specs && specs.length > 0) {
-      for (var i = 0; i < specs.length; i++) {
-        var li = document.createElement('li');
-        var spec = specs[i];
-        var valueHTML = spec.value;
-        if (/[A-Za-z]/.test(spec.value)) {
-          valueHTML = '<span dir="ltr">' + spec.value + '</span>';
-        }
-        li.innerHTML = '<strong>' + spec.label + ':</strong> ' + valueHTML;
-        specsEl.appendChild(li);
-      }
-    }
-  }
+  content.innerHTML =
+    '<div class="ai-loading">' +
+      '<div class="ai-loading-spinner"></div>' +
+      '<h2>' + (name || '') + '</h2>' +
+      '<p>🤖 NAKHEEB AI يحضّر الملخص الاحترافي...</p>' +
+    '</div>';
 
   openModal('detailsModal');
+}
+
+// ============================================
+// عرض احترافي بملخص AI
+// ============================================
+function showAIDetailsModal(product, ai) {
+  var modal = document.getElementById('detailsModal');
+  if (!modal) return;
+  var content = modal.querySelector('.modal-content');
+  if (!content) return;
+
+  var highlightsHTML = '';
+  if (ai.highlights && ai.highlights.length) {
+    for (var i = 0; i < ai.highlights.length; i++) {
+      highlightsHTML += '<li class="ai-highlight-item"><span class="ai-check">✓</span>' + ai.highlights[i] + '</li>';
+    }
+  }
+
+  var specsHTML = '';
+  if (product.specs && product.specs.length) {
+    for (var i = 0; i < product.specs.length; i++) {
+      var s = product.specs[i];
+      var val = s.value;
+      if (/[A-Za-z]/.test(val)) val = '<span dir="ltr">' + val + '</span>';
+      specsHTML += '<li><strong>' + s.label + ':</strong> ' + val + '</li>';
+    }
+  }
+
+  content.innerHTML =
+    '<div class="ai-details-wrapper">' +
+      '<div class="ai-details-header">' +
+        '<div class="ai-badge">🤖 ملخص ذكي</div>' +
+        '<h2 class="ai-details-title">' + (product.name || '-') + '</h2>' +
+        (ai.tagline ? '<p class="ai-details-tagline">' + ai.tagline + '</p>' : '') +
+      '</div>' +
+      (ai.summary ?
+        '<div class="ai-details-summary"><p>' + ai.summary + '</p></div>' : '') +
+      (highlightsHTML ?
+        '<div class="ai-details-block">' +
+          '<h4 class="ai-block-title">⭐ المميزات الرئيسية</h4>' +
+          '<ul class="ai-highlights-list">' + highlightsHTML + '</ul>' +
+        '</div>' : '') +
+      (ai.bestFor ?
+        '<div class="ai-bestfor">' +
+          '<span class="ai-bestfor-icon">🎯</span>' +
+          '<span>' + ai.bestFor + '</span>' +
+        '</div>' : '') +
+      (specsHTML ?
+        '<div class="ai-details-block">' +
+          '<h4 class="ai-block-title">📋 المواصفات التفصيلية</h4>' +
+          '<ul class="specs-list" dir="rtl">' + specsHTML + '</ul>' +
+        '</div>' : '') +
+      '<div class="modal-buttons">' +
+        '<button class="back-btn" onclick="closeModal(\'detailsModal\')">' +
+          '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>' +
+        '</button>' +
+        '<button class="btn contact-btn">تواصل معنا</button>' +
+      '</div>' +
+    '</div>';
+
+  if (typeof setupContactButtons === 'function') setupContactButtons();
+  openModal('detailsModal');
   if (navigator.vibrate) navigator.vibrate(10);
+}
+
+// ============================================
+// العرض القديم (فولباك)
+// ============================================
+function showProductModal(name, desc, specs, marketing) {
+  var modal = document.getElementById('detailsModal');
+  if (!modal) return;
+  var content = modal.querySelector('.modal-content');
+  if (!content) return;
+
+  var marketingHTML = '';
+  if (marketing) {
+    marketingHTML = '<div class="marketing-msg" style="margin-top:15px;">' + marketing + '</div>';
+  }
+
+  var specsHTML = '';
+  if (specs && specs.length) {
+    for (var i = 0; i < specs.length; i++) {
+      var s = specs[i];
+      var val = s.value;
+      if (/[A-Za-z]/.test(val)) val = '<span dir="ltr">' + val + '</span>';
+      specsHTML += '<li><strong>' + s.label + ':</strong> ' + val + '</li>';
+    }
+  }
+
+  content.innerHTML =
+    '<h2>' + (name || '-') + '</h2>' +
+    '<h4>الوصف:</h4>' +
+    '<p>' + (desc || '-') + '</p>' +
+    marketingHTML +
+    '<h4>المواصفات:</h4>' +
+    '<ul class="specs-list" dir="rtl">' + specsHTML + '</ul>' +
+    '<div class="modal-buttons">' +
+      '<button class="back-btn" onclick="closeModal(\'detailsModal\')">' +
+        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>' +
+      '</button>' +
+      '<button class="btn contact-btn">تواصل معنا</button>' +
+    '</div>';
+
+  if (typeof setupContactButtons === 'function') setupContactButtons();
+  openModal('detailsModal');
 }
 
 // ============================================
