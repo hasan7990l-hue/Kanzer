@@ -1,5 +1,5 @@
 // ============================================
-// Firebase Setup
+// Firebase
 // ============================================
 var db = window.firebaseDB;
 var addDoc = window.firebaseAddDoc;
@@ -9,7 +9,7 @@ var deleteDoc = window.firebaseDeleteDoc;
 var doc = window.firebaseDoc;
 
 // ============================================
-// Pexels API
+// Pexels
 // ============================================
 var PEXELS_API_KEY = "fUwYP07PE6LkC0yx09qHhnHs6WhHsKs58H53DUr91tiANWSinET9MfXT";
 var MIN_DURATION = 20;
@@ -64,6 +64,53 @@ for (var i = 0; i < modals.length; i++) {
 }
 
 // ============================================
+// Sidebar
+// ============================================
+function toggleSidebar() {
+  var sidebar = document.getElementById('sidebar');
+  var overlay = document.getElementById('sidebarOverlay');
+  if (sidebar) sidebar.classList.toggle('active');
+  if (overlay) overlay.classList.toggle('active');
+  if (navigator.vibrate) navigator.vibrate(10);
+}
+
+function closeSidebar() {
+  var sidebar = document.getElementById('sidebar');
+  var overlay = document.getElementById('sidebarOverlay');
+  if (sidebar) sidebar.classList.remove('active');
+  if (overlay) overlay.classList.remove('active');
+}
+
+function goToHome() {
+  closeSidebar();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function openDashboardWithPassword() {
+  var password = prompt('🔐 أدخل كلمة السر:');
+  if (password === null) return;
+  if (password === 'nakheeb2026') {
+    closeSidebar();
+    openDashboardPage();
+  } else {
+    alert('❌ كلمة السر غلط');
+  }
+}
+
+function openDashboardPage() {
+  var page = document.getElementById('dashboardPage');
+  if (page) {
+    page.classList.add('active');
+    loadDashboardProducts();
+  }
+}
+
+function closeDashboardPage() {
+  var page = document.getElementById('dashboardPage');
+  if (page) page.classList.remove('active');
+}
+
+// ============================================
 // تسجيل الدخول
 // ============================================
 function loginWithGoogle() {
@@ -82,9 +129,6 @@ function loginWithGoogle() {
   }
 }
 
-// ============================================
-// تسجيل الخروج
-// ============================================
 function logout() {
   try {
     localStorage.clear();
@@ -121,14 +165,7 @@ window.addEventListener('load', function() {
   var profile = JSON.parse(localStorage.getItem('nokhba_profile') || '{}');
   if (profile.avatar) updateAvatarDisplay(profile.avatar);
   
-  var settings = JSON.parse(localStorage.getItem('nokhba_settings') || '{}');
-  if (settings.darkMode) document.body.classList.add('dark-mode');
-  
-  // تحميل المنتجات
   loadProductsFromFirestore();
-  
-  // تفعيل السلايدر للمنتجات الموجودة
-  setupAllFeatures();
 });
 
 // ============================================
@@ -144,7 +181,6 @@ function scrollToProducts() {
 // ============================================
 function searchProducts(query) {
   query = query.toLowerCase().trim();
-  
   var cards = document.querySelectorAll('.products-grid .card');
   
   for (var i = 0; i < cards.length; i++) {
@@ -186,7 +222,7 @@ function filterCategory(category, btn) {
 }
 
 // ============================================
-// قاعدة بيانات NAKHEEB
+// NAKHEEB - قاعدة البيانات
 // ============================================
 var nokhbaProductsDB = {
   "canon pixma g3411": {
@@ -207,8 +243,7 @@ var nokhbaProductsDB = {
       { label: "النوع", value: "طابعة ليزر" },
       { label: "التقنية", value: "Laser" },
       { label: "السرعة", value: "18 صورة/دقيقة" },
-      { label: "الاتصال", value: "USB" },
-      { label: "اللون", value: "أبيض وأسود" }
+      { label: "الاتصال", value: "USB" }
     ]
   },
   "canon pixma ts3320": {
@@ -217,8 +252,7 @@ var nokhbaProductsDB = {
     specs: [
       { label: "النوع", value: "طابعة متعددة" },
       { label: "التقنية", value: "Inkjet" },
-      { label: "الوظائف", value: "طباعة + مسح + نسخ" },
-      { label: "الاتصال", value: "USB + واي فاي" }
+      { label: "الوظائف", value: "طباعة + مسح + نسخ" }
     ]
   },
   "canon maxify gx6010": {
@@ -226,7 +260,6 @@ var nokhbaProductsDB = {
     marketing: "👑 صممت للشركات — تطبع آلاف الصفحات بجودة ثابتة!",
     specs: [
       { label: "النوع", value: "طابعة مكتبية" },
-      { label: "التقنية", value: "Inkjet" },
       { label: "السرعة", value: "24 صورة/دقيقة" },
       { label: "الوظائف", value: "طباعة + مسح + نسخ + فاكس" }
     ]
@@ -237,7 +270,6 @@ var nokhbaProductsDB = {
     specs: [
       { label: "النوع", value: "طابعة صور" },
       { label: "الاتصال", value: "واي فاي + USB" },
-      { label: "الشاشة", value: "3.2 بوصة" },
       { label: "البطارية", value: "قابلة للشحن" }
     ]
   },
@@ -246,15 +278,11 @@ var nokhbaProductsDB = {
     marketing: "💰 اقتصادية وجودة عالية — الخيار الأمثل للمنزل!",
     specs: [
       { label: "النوع", value: "طابعة متعددة" },
-      { label: "التقنية", value: "Inkjet" },
-      { label: "الوظائف", value: "طباعة + مسح + نسخ" }
+      { label: "التقنية", value: "Inkjet" }
     ]
   }
 };
 
-// ============================================
-// NAKHEEB يبحث عن معلومات المنتج
-// ============================================
 function nokheebLookup(name) {
   var key = name.toLowerCase().trim();
   
@@ -304,7 +332,11 @@ async function loadProductsFromFirestore() {
       productsGrid.appendChild(card);
     });
     
-    setupAllFeatures();
+    setupSliders();
+    setupDetailsButtons();
+    setupContactButtons();
+    setupRippleEffect();
+    setup3DTilt();
     
   } catch(e) {
     console.log('Firestore error:', e);
@@ -319,7 +351,6 @@ function createProductCard(data, firestoreId) {
   card.className = 'card';
   card.setAttribute('data-category', data.category || 'new');
   card.setAttribute('data-name', (data.name || '').toLowerCase());
-  card.setAttribute('data-firestore-id', firestoreId || '');
   
   var videoHTML = '';
   if (data.videoUrl) {
@@ -353,17 +384,6 @@ function createProductCard(data, firestoreId) {
     '</div>';
   
   return card;
-}
-
-// ============================================
-// تفعيل كل الميزات
-// ============================================
-function setupAllFeatures() {
-  setupSliders();
-  setupDetailsButtons();
-  setupContactButtons();
-  setupRippleEffect();
-  setup3DTilt();
 }
 
 // ============================================
@@ -442,14 +462,9 @@ async function openProductDetails(id) {
       showProductModal(found.name, found.desc, found.specs || [], found.marketing);
       return;
     }
-  } catch(e) {
-    console.log('Error:', e);
-  }
+  } catch(e) {}
 }
 
-// ============================================
-// عرض نافذة التفاصيل
-// ============================================
 function showProductModal(name, desc, specs, marketing) {
   var titleEl = document.getElementById('detailsTitle');
   var descEl = document.getElementById('detailsDesc');
@@ -555,7 +570,6 @@ function setup3DTilt() {
       card.setAttribute('data-tilt-ready', 'true');
       
       var glow = card.querySelector('.card-glow');
-      var isTouching = false;
       
       card.addEventListener('mousemove', function(e) {
         var rect = card.getBoundingClientRect();
@@ -643,15 +657,6 @@ function loadProfile() {
   if (emailDisplay) emailDisplay.textContent = profile.email || 'user@gmail.com';
   
   if (profile.avatar) updateAvatarDisplay(profile.avatar);
-  
-  var settings = JSON.parse(localStorage.getItem('nokhba_settings') || '{}');
-  var notifToggle = document.getElementById('notificationsToggle');
-  var darkToggle = document.getElementById('darkModeToggle');
-  var promoToggle = document.getElementById('promotionsToggle');
-  
-  if (notifToggle) notifToggle.checked = settings.notifications || false;
-  if (darkToggle) darkToggle.checked = settings.darkMode || false;
-  if (promoToggle) promoToggle.checked = settings.promotions || false;
 }
 
 function updateAvatarDisplay(imageUrl) {
@@ -668,7 +673,7 @@ function updateAvatarDisplay(imageUrl) {
 function uploadAvatar(event) {
   var file = event.target.files[0];
   if (!file) return;
-  if (file.size > 2 * 1024 * 1024) { alert('الصورة كبيرة. الحد 2 ميجا.'); return; }
+  if (file.size > 2 * 1024 * 1024) { alert('الصورة كبيرة'); return; }
   
   var reader = new FileReader();
   reader.onload = function(e) {
@@ -703,24 +708,9 @@ function saveProfile() {
   showToast('تم حفظ التغييرات');
 }
 
-function toggleSetting(setting) {
-  var settings = JSON.parse(localStorage.getItem('nokhba_settings') || '{}');
-  var toggleId = '';
-  if (setting === 'notifications') toggleId = 'notificationsToggle';
-  if (setting === 'darkMode') toggleId = 'darkModeToggle';
-  if (setting === 'promotions') toggleId = 'promotionsToggle';
-  
-  var toggle = document.getElementById(toggleId);
-  if (toggle) {
-    settings[setting] = toggle.checked;
-    localStorage.setItem('nokhba_settings', JSON.stringify(settings));
-    if (setting === 'darkMode') {
-      if (toggle.checked) document.body.classList.add('dark-mode');
-      else document.body.classList.remove('dark-mode');
-    }
-  }
-}
-
+// ============================================
+// Toast
+// ============================================
 function showToast(message) {
   var toast = document.createElement('div');
   toast.className = 'toast';
@@ -814,20 +804,9 @@ function setRating(value) {
 for (var i = 0; i < ratingStars.length; i++) {
   (function(star) {
     var value = parseInt(star.getAttribute('data-value'));
-    
     star.addEventListener('click', function() { setRating(value); });
-    
-    star.addEventListener('touchstart', function(e) {
-      e.preventDefault();
-      for (var j = 0; j < ratingStars.length; j++) {
-        var v = parseInt(ratingStars[j].getAttribute('data-value'));
-        if (v <= value) ratingStars[j].classList.add('hover');
-      }
-    });
-    
     star.addEventListener('touchend', function(e) {
       e.preventDefault();
-      for (var j = 0; j < ratingStars.length; j++) ratingStars[j].classList.remove('hover');
       setRating(value);
     });
   })(ratingStars[i]);
@@ -836,35 +815,7 @@ for (var i = 0; i < ratingStars.length; i++) {
 loadRatings();
 
 // ============================================
-// Dashboard - 3 ضغطات على الشعار
-// ============================================
-var logoClickCount = 0;
-var logoClickTimer = null;
-
-var headerLogo = document.getElementById('headerLogo');
-if (headerLogo) {
-  headerLogo.addEventListener('click', function() {
-    logoClickCount++;
-    
-    clearTimeout(logoClickTimer);
-    logoClickTimer = setTimeout(function() {
-      logoClickCount = 0;
-    }, 1500);
-    
-    if (logoClickCount === 3) {
-      logoClickCount = 0;
-      var password = prompt('🔐 أدخل كلمة السر:');
-      if (password === 'nakheeb2026') {
-        openModal('dashboardModal');
-      } else if (password !== null) {
-        alert('❌ كلمة السر غلط');
-      }
-    }
-  });
-}
-
-// ============================================
-// Pexels - البحث عن فيديوهات
+// Dashboard - Pexels
 // ============================================
 async function searchVideos() {
   var query = document.getElementById('dashProductName').value.trim();
@@ -940,7 +891,7 @@ async function searchVideos() {
 }
 
 // ============================================
-// نشر المنتج
+// Dashboard - نشر المنتج
 // ============================================
 async function publishProduct() {
   var name = document.getElementById('dashProductName').value.trim();
@@ -986,7 +937,7 @@ async function publishProduct() {
     
     setTimeout(function() {
       loadProductsFromFirestore();
-      closeModal('dashboardModal');
+      loadDashboardProducts();
       statusDiv.innerHTML = '';
     }, 1500);
     
@@ -996,6 +947,70 @@ async function publishProduct() {
 }
 
 // ============================================
+// Dashboard - قائمة المنتجات
+// ============================================
+async function loadDashboardProducts() {
+  if (!db) return;
+  
+  var listDiv = document.getElementById('dashProductsList');
+  if (!listDiv) return;
+  
+  listDiv.innerHTML = '<p style="color:#888;text-align:center;">جاري التحميل...</p>';
+  
+  try {
+    var querySnapshot = await getDocs(collection(db, "products"));
+    
+    if (querySnapshot.size === 0) {
+      listDiv.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">ما فيه منتجات حالياً</p>';
+      return;
+    }
+    
+    listDiv.innerHTML = '';
+    
+    querySnapshot.forEach(function(docSnap) {
+      var data = docSnap.data();
+      var item = document.createElement('div');
+      item.className = 'dash-product-item';
+      item.innerHTML = 
+        '<div class="dash-product-info">' +
+          '<span class="dash-product-name">' + (data.name || 'منتج') + '</span>' +
+          '<span class="dash-product-cat">' + (data.category || '') + '</span>' +
+        '</div>' +
+        '<button class="dash-delete-btn" onclick="deleteProduct(\'' + docSnap.id + '\', \'' + (data.name || '').replace(/'/g, '') + '\')">' +
+          '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>' +
+        '</button>';
+      
+      listDiv.appendChild(item);
+    });
+    
+  } catch(e) {
+    listDiv.innerHTML = '<p style="color:#FF6B6B;text-align:center;">خطأ: ' + e.message + '</p>';
+  }
+}
+
+// ============================================
+// Dashboard - حذف منتج
+// ============================================
+async function deleteProduct(id, name) {
+  if (!confirm('تريد تمسح: ' + name + ' ؟')) return;
+  
+  try {
+    await deleteDoc(doc(db, "products", id));
+    showToast('🗑️ تم مسح المنتج');
+    loadDashboardProducts();
+    setTimeout(function() {
+      loadProductsFromFirestore();
+    }, 500);
+  } catch(e) {
+    alert('خطأ: ' + e.message);
+  }
+}
+
+// ============================================
 // تشغيل
 // ============================================
-setupAllFeatures();
+setupSliders();
+setupDetailsButtons();
+setupContactButtons();
+setupRippleEffect();
+setup3DTilt();
