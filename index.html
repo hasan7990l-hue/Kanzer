@@ -223,7 +223,7 @@
     
     <div class="profile-field">
       <label>اسم المنتج</label>
-      <input type="text" id="dashProductName" placeholder="Canon PIXMA G3411">
+      <input type="text" id="dashProductName" placeholder="Canon imageRUNNER C3326i">
     </div>
     
     <div class="profile-field">
@@ -242,7 +242,12 @@
       </select>
     </div>
     
-    <button class="btn details-btn" onclick="searchYouTubeVideos()">📹 NAKHEEB ابحث في YouTube</button>
+    <div class="profile-field">
+      <label>🎬 رابط يوتيوب (اختياري - الأفضل)</label>
+      <input type="text" id="dashYoutubeUrl" placeholder="https://youtube.com/watch?v=..." oninput="useYoutubeUrl(this.value)">
+    </div>
+    
+    <button class="btn details-btn" onclick="searchYouTubeVideos()">🔍 أو NAKHEEB ابحث تلقائياً</button>
     <div id="dashVideoResults"></div>
     <div id="dashStatus"></div>
     <button class="btn contact-btn" onclick="publishProduct()">🚀 نشر المنتج</button>
@@ -388,4 +393,4 @@
 
 <script src="./script.js"></script>
 </body>
-</html>
+        </html>
