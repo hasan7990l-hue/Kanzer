@@ -1,10 +1,10 @@
 // ============================================
-// 🤖 NAKHEEB AI
+// 🤖 NAKHEEB AI - Groq
 // ============================================
-var GEMINI_API_KEY = "AIzaSyCFJXoImDeFtzpDPUyVWhSUDF1fj0KoAX0";
+var GROQ_API_KEY = "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";
 
 async function aiMakeProfessionalSummary(name, desc, specs) {
-  if (!GEMINI_API_KEY || GEMINI_API_KEY.length < 20) {
+  if (!GROQ_API_KEY || GROQ_API_KEY.length < 20) {
     showToast('⚠️ مفتاح AI مفقود');
     return null;
   }
@@ -16,115 +16,77 @@ async function aiMakeProfessionalSummary(name, desc, specs) {
     }
   }
 
-  var prompt = 'أنت خبير مبيعات بأجهزة الطباعة.\n' +
-    'اكتب عرض احترافي لجهاز: ' + name + '\n' +
+  var prompt = 'أنت خبير مبيعات بأجهزة الطباعة والاستنساخ.\n' +
+    'اكتب عرض تقديمي احترافي لجهاز: ' + name + '\n' +
     'الوصف: ' + (desc || 'لا يوجد') + '\n' +
-    'المواصفات: ' + (specsText || 'لا توجد') + '\n\n' +
-    'أرجع JSON فقط بدون أي شرح:\n' +
-    '{"tagline":"شعار بسطر","summary":"ملخص 2-3 أسطر","highlights":["ميزة 1","ميزة 2","ميزة 3"],"bestFor":"مناسب لـ..."}';
+    'المواصفات:\n' + (specsText || 'لا توجد') + '\n\n' +
+    'أرجع JSON فقط بدون أي شرح أو نص إضافي، بهذا الشكل بالضبط:\n' +
+    '{"tagline":"شعار تسويقي بسطر واحد","summary":"ملخص احترافي 2-3 أسطر","highlights":["ميزة 1","ميزة 2","ميزة 3","ميزة 4"],"bestFor":"مناسب لـ ..."}\n\n' +
+    'شروط:\n' +
+    '- عربية فصحى احترافية\n' +
+    '- 3-4 نقاط في highlights\n' +
+    '- إذا الجهاز غير معروف، اعتمد على الاسم';
 
-  var models = [
-    'gemini-flash-latest',
-    'gemini-2.0-flash',
-    'gemini-2.5-flash'
-  ];
-
-  var lastError = '';
-
-  for (var m = 0; m < models.length; m++) {
-    try {
-      var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + models[m] + ':generateContent';
-
-      var response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': GEMINI_API_KEY
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: prompt }]
-          }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2048
+  try {
+    var response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + GROQ_API_KEY
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          {
+            role: 'system',
+            content: 'أنت مساعد يرد فقط بـ JSON صالح بدون أي شرح. لا تكتب ```json ولا ```.'
+          },
+          {
+            role: 'user',
+            content: prompt
           }
-        })
-      });
+        ],
+        temperature: 0.7,
+        max_tokens: 1000,
+        response_format: { type: 'json_object' }
+      })
+    });
 
-      var data = await response.json();
+    var data = await response.json();
 
-      // معالجة الأخطاء
-      if (data.error) {
-        lastError = models[m] + ': ' + data.error.message;
-        console.warn('❌ ' + lastError);
-        continue;
-      }
-
-      if (!data.candidates || !data.candidates[0]) {
-        lastError = models[m] + ': no candidates';
-        console.warn('❌ ' + lastError);
-        continue;
-      }
-
-      // استخراج النص من كل الـ parts
-      var parts = data.candidates[0].content.parts || [];
-      var text = '';
-      for (var p = 0; p < parts.length; p++) {
-        if (parts[p].thought) continue;
-        if (parts[p].text) text += parts[p].text;
-      }
-
-      if (!text) {
-        lastError = models[m] + ': empty response';
-        console.warn('❌ ' + lastError);
-        continue;
-      }
-
-      // نظّف النص
-      text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-
-      // استخرج JSON
-      var start = text.indexOf('{');
-      var end = text.lastIndexOf('}');
-      if (start === -1 || end === -1) {
-        lastError = models[m] + ': no JSON found';
-        console.warn('❌ ' + lastError);
-        continue;
-      }
-      text = text.substring(start, end + 1);
-
-      var parsed;
-      try {
-        parsed = JSON.parse(text);
-      } catch (pe) {
-        lastError = models[m] + ': JSON parse failed';
-        console.warn('❌ ' + lastError);
-        continue;
-      }
-
-      if (!parsed.summary || !parsed.highlights) {
-        lastError = models[m] + ': missing fields';
-        console.warn('❌ ' + lastError);
-        continue;
-      }
-
-      console.log('✅ AI شغال بـ:', models[m]);
-
-      return {
-        tagline: parsed.tagline || '',
-        summary: parsed.summary || '',
-        highlights: parsed.highlights || [],
-        bestFor: parsed.bestFor || ''
-      };
-
-    } catch (e) {
-      lastError = models[m] + ': ' + e.message;
-      console.warn('❌ ' + lastError);
+    if (data.error) {
+      console.error('Groq error:', data.error.message);
+      showToast('⚠️ ' + data.error.message.substring(0, 60));
+      return null;
     }
-  }
 
-  // كل الموديلات فشلت — نعرض الخطأ للمستخدم
-  showToast('⚠️ ' + lastError.substring(0, 80));
-  return null;
+    if (!data.choices || !data.choices[0]) {
+      showToast('⚠️ رد غير متوقع من AI');
+      return null;
+    }
+
+    var text = data.choices[0].message.content;
+    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+    var parsed = JSON.parse(text);
+
+    if (!parsed.summary || !parsed.highlights) {
+      showToast('⚠️ الرد ناقص');
+      return null;
+    }
+
+    console.log('✅ Groq AI شغال');
+
+    return {
+      tagline: parsed.tagline || '',
+      summary: parsed.summary || '',
+      highlights: parsed.highlights || [],
+      bestFor: parsed.bestFor || ''
+    };
+
+  } catch (e) {
+    console.error('AI failed:', e);
+    showToast('⚠️ خطأ: ' + e.message.substring(0, 60));
+    return null;
+  }
 }
