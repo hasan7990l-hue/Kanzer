@@ -1108,3 +1108,18 @@ setupDetailsButtons();
 setupContactButtons();
 setupRippleEffect();
 setup3DTilt();
+// ============================================
+// ننتظر Firebase حتى يتحمل
+// ============================================
+var firebaseWaitInterval = setInterval(function() {
+  if (window.firebaseDB && !db) {
+    window.initFirebase();
+    clearInterval(firebaseWaitInterval);
+    console.log('✅ Firebase connected via interval');
+  }
+}, 200);
+
+// نتوقف بعد 10 ثواني
+setTimeout(function() {
+  clearInterval(firebaseWaitInterval);
+}, 10000);
