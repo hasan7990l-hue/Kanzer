@@ -360,8 +360,8 @@ async function openProductDetails(id) {
   if (!product) return;
   showProductModal(product.name, product.desc, product.specs);
 }
-
-function showProductModal(name, desc, specs) {
+// ============ عرض نافذة تفاصيل المنتج ============
+function showProductModal(name, desc, specs, marketing) {
   var titleEl = document.getElementById('detailsTitle');
   var descEl = document.getElementById('detailsDesc');
   var specsEl = document.getElementById('detailsSpecs');
@@ -369,24 +369,39 @@ function showProductModal(name, desc, specs) {
   if (titleEl) titleEl.textContent = name;
   if (descEl) descEl.textContent = desc;
   
+  // نضيف رسالة تسويقية (إذا موجودة)
+  var existingMarketing = document.getElementById('modalMarketing');
+  if (existingMarketing) existingMarketing.remove();
+  
+  if (marketing && descEl) {
+    var marketingDiv = document.createElement('div');
+    marketingDiv.id = 'modalMarketing';
+    marketingDiv.className = 'marketing-msg';
+    marketingDiv.style.marginTop = '15px';
+    marketingDiv.textContent = marketing;
+    descEl.parentNode.insertBefore(marketingDiv, descEl.nextSibling);
+  }
+  
+  // المواصفات
   if (specsEl) {
     specsEl.innerHTML = '';
-    for (var i = 0; i < specs.length; i++) {
-      var li = document.createElement('li');
-      var spec = specs[i];
-      var valueHTML = spec.value;
-      if (/[A-Za-z]/.test(spec.value)) {
-        valueHTML = '<span dir="ltr">' + spec.value + '</span>';
+    if (specs && specs.length > 0) {
+      for (var i = 0; i < specs.length; i++) {
+        var li = document.createElement('li');
+        var spec = specs[i];
+        var valueHTML = spec.value;
+        if (/[A-Za-z]/.test(spec.value)) {
+          valueHTML = '<span dir="ltr">' + spec.value + '</span>';
+        }
+        li.innerHTML = '<strong>' + spec.label + ':</strong> ' + valueHTML;
+        specsEl.appendChild(li);
       }
-      li.innerHTML = '<strong>' + spec.label + ':</strong> ' + valueHTML;
-      specsEl.appendChild(li);
     }
   }
   
   openModal('detailsModal');
   if (navigator.vibrate) navigator.vibrate(10);
 }
-
 // ============ تأثير الموجة ============
 var buttons = document.querySelectorAll('.btn');
 for (var i = 0; i < buttons.length; i++) {
