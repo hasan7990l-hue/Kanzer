@@ -28,9 +28,7 @@ body {
    ============================================ */
 .luxury-hero {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 0; left: 0; right: 0;
   width: 100%;
   height: 100vh;
   display: flex;
@@ -53,12 +51,7 @@ body {
 
 .luxury-bg {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0; right: 0; bottom: 0;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
@@ -66,16 +59,12 @@ body {
 
 .luxury-grid {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background-image: 
     linear-gradient(rgba(0, 102, 255, 0.08) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 102, 255, 0.08) 1px, transparent 1px);
   background-size: 50px 50px;
   animation: gridMove 20s linear infinite;
-  pointer-events: none;
 }
 
 @keyframes gridMove {
@@ -85,28 +74,22 @@ body {
 
 .luxury-glow {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 600px;
-  height: 600px;
+  top: 50%; left: 50%;
+  width: 600px; height: 600px;
   background: radial-gradient(circle, rgba(0, 102, 255, 0.4), transparent 70%);
   transform: translate(-50%, -50%);
   filter: blur(80px);
   animation: glowPulse 4s ease-in-out infinite;
-  pointer-events: none;
 }
 
 .luxury-glow-2 {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 400px;
-  height: 400px;
+  top: 50%; left: 50%;
+  width: 400px; height: 400px;
   background: radial-gradient(circle, rgba(255, 193, 7, 0.25), transparent 70%);
   transform: translate(-50%, -50%);
   filter: blur(60px);
   animation: glowPulse 4s ease-in-out infinite 2s;
-  pointer-events: none;
 }
 
 @keyframes glowPulse {
@@ -116,10 +99,7 @@ body {
 
 .luxury-particles {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   overflow: hidden;
   pointer-events: none;
   z-index: 1;
@@ -174,10 +154,8 @@ body {
 .luxury-logo-box::before {
   content: '';
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
   background: linear-gradient(45deg, transparent 30%, rgba(255, 193, 7, 0.5) 50%, transparent 70%);
   animation: shineMove 3s infinite;
 }
@@ -444,7 +422,6 @@ body {
   gap: 12px;
 }
 
-/* زر القائمة ☰ */
 .menu-btn {
   width: 44px;
   height: 44px;
@@ -493,10 +470,7 @@ body {
    ============================================ */
 .sidebar-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
   opacity: 0;
@@ -1050,13 +1024,16 @@ body {
 
 .slider:active { cursor: grabbing; }
 
-.product-video {
+iframe.product-video,
+video.product-video {
   position: absolute;
   top: 0; left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   z-index: 2;
+  border: 0;
+  pointer-events: none;
 }
 
 .slides {
@@ -1083,7 +1060,6 @@ body {
 
 .desc { color: #999; font-size: 14px; line-height: 1.6; margin: 10px 0 15px; }
 
-/* رسالة تسويقية */
 .marketing-msg {
   background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(0, 102, 255, 0.1));
   border: 1.5px solid rgba(255, 193, 7, 0.4);
@@ -1258,7 +1234,6 @@ body {
 
 .specs-list li strong { color: #FFC107; margin-left: 5px; }
 
-/* نافذة الخصوصية */
 #privacyModal .modal-content { background: linear-gradient(135deg, #0a1628, #001a33); }
 #privacyModal h2 { color: #4D94FF; }
 #privacyModal h4 { color: #4D94FF; border-bottom-color: rgba(0, 102, 255, 0.3); }
@@ -1317,7 +1292,6 @@ body {
 .info-label { color: #888; }
 .info-value { color: #4D94FF; font-weight: 600; text-align: left; direction: ltr; }
 
-/* نافذة عنا */
 #aboutModal .modal-content { background: linear-gradient(135deg, #1a1408, #000); border: 2px solid #FFC107; }
 #aboutModal h2 { color: #FFC107; }
 #aboutModal h4 { color: #FFC107; border-bottom-color: rgba(255, 193, 7, 0.3); }
@@ -1359,7 +1333,6 @@ body {
 .contact-card-info { display: flex; flex-direction: column; gap: 8px; }
 .contact-card-info .info-value { color: #FFC107; }
 
-/* نافذة تسجيل الدخول */
 .login-content { text-align: center; }
 .login-desc { color: #aaa; font-size: 14px; line-height: 1.7; margin: 20px 0; }
 
@@ -1384,7 +1357,6 @@ body {
 
 .google-login-btn:hover { background: #f0f0f0; transform: translateY(-2px); }
 
-/* الملف الشخصي */
 .profile-content { text-align: center; }
 
 .profile-header {
@@ -1528,7 +1500,6 @@ body {
   letter-spacing: 1px;
 }
 
-/* Dashboard select */
 #dashboardPage select {
   width: 100%;
   padding: 12px 15px;
@@ -1554,7 +1525,7 @@ body {
 #dashVideoResults {
   margin: 15px 0;
   min-height: 50px;
-  max-height: 400px;
+  max-height: 500px;
   overflow-y: auto;
   padding: 5px;
 }
@@ -1574,7 +1545,6 @@ body {
   font-weight: 600;
 }
 
-/* بطاقة منتج في Dashboard */
 .dash-product-item {
   display: flex;
   justify-content: space-between;
