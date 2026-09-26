@@ -1768,3 +1768,20 @@ body.dark-mode .card {
   min-height: 20px;
   font-weight: 600;
 }
+/* ============ نخفي الجزيئات لما تفتح نافذة ============ */
+body.modal-open .luxury-particles,
+body.modal-open .luxury-grid,
+body.modal-open .luxury-glow,
+body.modal-open .luxury-glow-2 {
+  display: none !important;
+  opacity: 0 !important;
+}
+
+/* أو نخلي الخلفية صلبة */
+.modal.active {
+  background: rgba(0, 0, 0, 0.95) !important;
+}
+
+.modal-content {
+  background: rgba(10, 22, 40, 1) !important;
+}
