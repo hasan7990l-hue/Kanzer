@@ -1844,3 +1844,17 @@ video.product-video {
   font-size: 22px;
   flex-shrink: 0;
 }
+/* زر تسجيل الخروج في القائمة المنسدلة */
+.dropdown-item.logout-item {
+  color: #FF3B30;
+  margin-top: 5px;
+}
+
+.dropdown-item.logout-item svg {
+  color: #FF3B30;
+}
+
+.dropdown-item.logout-item:hover {
+  background: rgba(255, 59, 48, 0.15);
+  color: #FF3B30;
+}
