@@ -1,7 +1,7 @@
 // ============================================
 // 🤖 NAKHEEB AI
 // ============================================
-var GEMINI_API_KEY = "AQ.Ab8RN6IO5u1olTJY2Omv-New3zIe0uOZr-TXRt5ay9ob-IWOIQ";
+var GEMINI_API_KEY = "AQ.Ab8RN6JNzhkWSAE_uE9uqHF9x0wO-WOfVIKf5QkYEYzagNP97Q";
 
 async function aiMakeProfessionalSummary(name, desc, specs) {
   if (!GEMINI_API_KEY || GEMINI_API_KEY.length < 20) {
