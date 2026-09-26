@@ -16,81 +16,100 @@ async function aiMakeProfessionalSummary(name, desc, specs) {
     }
   }
 
-  var prompt = `أنت خبير مبيعات بأجهزة الطباعة.
-اكتب عرض احترافي لجهاز: ${name}
-الوصف: ${desc || 'لا يوجد'}
-المواصفات: ${specsText || 'لا توجد'}
-
-أرجع JSON فقط بدون أي نص إضافي أو شرح:
-{"tagline":"شعار تسويقي بسطر","summary":"ملخص 2-3 أسطر","highlights":["ميزة 1","ميزة 2","ميزة 3"],"bestFor":"مناسب لـ ..."}`;
+  var prompt = 'أنت خبير مبيعات بأجهزة الطباعة.\n' +
+    'اكتب عرض احترافي لجهاز: ' + name + '\n' +
+    'الوصف: ' + (desc || 'لا يوجد') + '\n' +
+    'المواصفات: ' + (specsText || 'لا توجد') + '\n\n' +
+    'أرجع JSON فقط بدون أي شرح:\n' +
+    '{"tagline":"شعار بسطر","summary":"ملخص 2-3 أسطر","highlights":["ميزة 1","ميزة 2","ميزة 3"],"bestFor":"مناسب لـ..."}';
 
   var models = [
     'gemini-flash-latest',
-    'gemini-2.5-flash',
-    'gemini-2.0-flash'
+    'gemini-2.0-flash',
+    'gemini-2.5-flash'
   ];
+
+  var lastError = '';
 
   for (var m = 0; m < models.length; m++) {
     try {
-      var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + models[m] + ':generateContent?key=' + GEMINI_API_KEY;
+      var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + models[m] + ':generateContent';
 
       var response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': GEMINI_API_KEY
+        },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
+          contents: [{
+            parts: [{ text: prompt }]
+          }],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 1500,
-            thinkingConfig: { thinkingBudget: 0 }
+            maxOutputTokens: 2048
           }
         })
       });
 
       var data = await response.json();
 
+      // معالجة الأخطاء
       if (data.error) {
-        console.warn('❌ ' + models[m] + ':', data.error.message);
+        lastError = models[m] + ': ' + data.error.message;
+        console.warn('❌ ' + lastError);
         continue;
       }
 
       if (!data.candidates || !data.candidates[0]) {
-        console.warn('❌ ' + models[m] + ': no candidates');
+        lastError = models[m] + ': no candidates';
+        console.warn('❌ ' + lastError);
         continue;
       }
 
-      var parts = data.candidates[0].content.parts;
+      // استخراج النص من كل الـ parts
+      var parts = data.candidates[0].content.parts || [];
       var text = '';
-
-      // نجمع كل الـ parts (باستثناء parts التفكير)
       for (var p = 0; p < parts.length; p++) {
         if (parts[p].thought) continue;
         if (parts[p].text) text += parts[p].text;
       }
 
       if (!text) {
-        console.warn('❌ ' + models[m] + ': empty text');
+        lastError = models[m] + ': empty response';
+        console.warn('❌ ' + lastError);
         continue;
       }
 
       // نظّف النص
-      text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
 
-      // إذا فيه نص زايد قبل { أو بعد }
+      // استخرج JSON
       var start = text.indexOf('{');
       var end = text.lastIndexOf('}');
-      if (start !== -1 && end !== -1) {
-        text = text.substring(start, end + 1);
+      if (start === -1 || end === -1) {
+        lastError = models[m] + ': no JSON found';
+        console.warn('❌ ' + lastError);
+        continue;
       }
+      text = text.substring(start, end + 1);
 
-      var parsed = JSON.parse(text);
-
-      if (!parsed.summary || !parsed.highlights) {
-        console.warn('❌ ' + models[m] + ': invalid structure');
+      var parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch (pe) {
+        lastError = models[m] + ': JSON parse failed';
+        console.warn('❌ ' + lastError);
         continue;
       }
 
-      console.log('✅ AI شغال بالموديل:', models[m]);
+      if (!parsed.summary || !parsed.highlights) {
+        lastError = models[m] + ': missing fields';
+        console.warn('❌ ' + lastError);
+        continue;
+      }
+
+      console.log('✅ AI شغال بـ:', models[m]);
 
       return {
         tagline: parsed.tagline || '',
@@ -100,10 +119,12 @@ async function aiMakeProfessionalSummary(name, desc, specs) {
       };
 
     } catch (e) {
-      console.warn('❌ ' + models[m] + ':', e.message);
+      lastError = models[m] + ': ' + e.message;
+      console.warn('❌ ' + lastError);
     }
   }
 
-  showToast('⚠️ AI ما اشتغل');
+  // كل الموديلات فشلت — نعرض الخطأ للمستخدم
+  showToast('⚠️ ' + lastError.substring(0, 80));
   return null;
 }
