@@ -1785,3 +1785,36 @@ body.modal-open .luxury-glow-2 {
 .modal-content {
   background: rgba(10, 22, 40, 1) !important;
 }
+/* ============ إصلاح ترتيب الإعدادات ============ */
+.settings-item {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  direction: rtl !important;
+  padding: 15px 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.settings-item > div {
+  flex: 1 !important;
+  min-width: 0 !important;
+  text-align: right !important;
+}
+
+.settings-item > .switch {
+  flex: 0 0 auto !important;
+  margin: 0 0 0 15px !important;
+  float: none !important;
+  position: relative !important;
+}
+
+/* نخفي الـ scrollbar */
+.modal-content::-webkit-scrollbar {
+  display: none !important;
+}
+
+.modal-content {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
